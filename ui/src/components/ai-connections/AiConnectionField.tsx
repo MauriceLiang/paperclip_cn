@@ -35,6 +35,7 @@ export function aiProviderForAdapter(
       codex_local: "openai",
       opencode_local: "openrouter",
       grok_local: "xai",
+      copilot_runtime: "github",
       gemini_local: "google",
       hermes_local: "openrouter",
     } as Record<string, AiProvider>
@@ -113,7 +114,7 @@ export function AiConnectionField({
   };
   const method: AiAuthMethod = (value && value.mode !== "router" && value.mode !== "responsible_user" ? value.method : undefined)
     ?? accounts.data?.connections.find((account) => account.provider === provider && account.isDefault)?.method
-    ?? (provider === "openrouter" || provider === "google" ? "api_key" : "subscription");
+    ?? (provider === "openrouter" || provider === "google" || provider === "github" ? "api_key" : "subscription");
   const compatiblePools = agentId ? accounts.data?.pools?.filter(pool => pool.enabled && pool.members.some(member => isAiConnectionCompatible(member.binding, routerAdapterType ?? adapterType, member.profile.model, member.profile.provider, member.profile.acpxAgent))) ?? [] : [];
   if (!provider) return null;
   if (legacy && !value && !adopting)
@@ -236,10 +237,7 @@ export function AiConnectionField({
             initialMethod={reconnecting?.method ?? method}
             fixedMethod={Boolean(reconnecting)}
             connectionId={reconnecting?.id}
-            name={reconnecting?.name ?? t("agentSetupPage.aiConnections.connectionField.accountName", {
-              provider: t(`agentSetupPage.aiConnections.connectionField.providerDisplayNames.${provider}`),
-              method: t(method === "subscription" ? "agentSetupPage.aiConnections.connectionField.methodSubscription" : "agentSetupPage.aiConnections.connectionField.methodApi"),
-            })}
+            name={reconnecting?.name ?? `My ${provider === "anthropic" ? "Claude" : provider === "openai" ? "OpenAI" : provider === "xai" ? "Grok" : provider === "google" ? "Gemini" : provider === "github" ? "GitHub Copilot" : "OpenRouter"} ${method === "subscription" ? "subscription" : "API"}`}
             ownership="personal"
             agentIds={agentId ? [agentId] : []}
             allAgents={allAgents}

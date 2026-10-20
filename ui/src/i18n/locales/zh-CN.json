@@ -138,6 +138,7 @@
     "timeline": "时间线",
     "costs": "成本",
     "activity": "活动",
+    "commentary": "智能体动态",
     "settings": "设置",
     "sections": {
       "work": "工作",
@@ -15459,6 +15460,7 @@
           "openai": "OpenAI",
           "xai": "Grok",
           "google": "Gemini",
+          "github": "GitHub Copilot",
           "openrouter": "OpenRouter"
         },
         "accountName": "我的 {{provider}} {{method}}",
@@ -15685,6 +15687,7 @@
         "notShared": "此凭据未与你共享。请选择你可以使用的连接。",
         "subscriptionUnavailable": "订阅不可用",
         "apiKey": "API 密钥",
+        "personalAccessToken": "个人访问令牌",
         "defaultOwnerPersonal": "我的",
         "defaultOwnerNamed": "{{owner}} 的",
         "subscriptionAccount": "{{provider}} 订阅账户",

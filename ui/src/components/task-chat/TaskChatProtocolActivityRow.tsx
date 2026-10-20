@@ -12,6 +12,7 @@ import { WorkspaceFileLink } from "@/components/WorkspaceFileLink";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { statusLabel } from "@/i18n/status";
+import { useTaskChatShimmer } from "./TaskChatShimmer";
 import type {
   TaskChatProtocolDetail,
   TaskChatProtocolItem,
@@ -350,6 +351,7 @@ function itemStatus(item: TaskChatProtocolItem): "running" | "completed" | "fail
 
 export function TaskChatProtocolActivityRow({ item }: { item: TaskChatProtocolItem }) {
   const { t } = useTranslation();
+  const shimmer = useTaskChatShimmer(item.id);
   const [open, setOpen] = useState(false);
   const detailId = `task-chat-protocol-activity-${useId().replaceAll(":", "")}`;
   const presentation = protocolActivityPresentation(item);
@@ -397,8 +399,10 @@ export function TaskChatProtocolActivityRow({ item }: { item: TaskChatProtocolIt
       <span className="flex w-5 shrink-0 items-center justify-center">
         <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden data-testid="task-chat-protocol-activity-icon" />
       </span>
-      <span className={cn("shrink-0 font-medium", active && "shimmer-text shimmer-text-muted")}>{label}{active ? "…" : ""}</span>
-      {presentationDetail ? <span className="task-chat-collapsed-line-fade min-w-0 flex-1 font-mono text-(length:--text-micro)">{presentationDetail}</span> : null}
+      <span data-conversation-tool-running={active && shimmer && item.surface === "provider_activity" && item.family === "tool_execution" ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        <span className={cn("shrink-0 font-medium", active && shimmer && "shimmer-text shimmer-text-muted")}>{label}{active ? "…" : ""}</span>
+        {presentation.detail ? <span className="task-chat-collapsed-line-fade min-w-0 flex-1 font-mono text-(length:--text-micro)">{presentation.detail}</span> : null}
+      </span>
       <span className="ml-auto flex shrink-0 items-center gap-2">
         {expandable ? (
           <ChevronRight

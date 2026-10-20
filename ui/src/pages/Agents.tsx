@@ -25,8 +25,8 @@ import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { OrgChart } from "./OrgChart";
 import { relativeTime, cn, agentRouteRef, agentUrl } from "../lib/utils";
-import { PageTabBar } from "../components/PageTabBar";
-import { Tabs } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { AgentsToolbar } from "../components/AgentsToolbar";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Bot, Plus, List, Network } from "lucide-react";
 import { type Agent, type Environment, type EnvironmentCapabilities } from "@paperclipai/shared";
@@ -66,7 +66,8 @@ const ConfigureBuiltInAgentModal = lazy(() =>
   })),
 );
 
-export const AGENT_FILTER_TABS = ["all", "active", "paused", "error", "builtin"] as const;
+import { AGENT_FILTER_TABS } from "../lib/agent-filter-tabs";
+export { AGENT_FILTER_TABS } from "../lib/agent-filter-tabs";
 type FilterTab = (typeof AGENT_FILTER_TABS)[number];
 
 const AGENT_FILTER_TAB_ITEMS: { value: FilterTab; labelKey: string }[] = [
@@ -111,10 +112,16 @@ function matchesFilter(status: string, tab: FilterTab): boolean {
   return true;
 }
 
-function filterAgents(agents: Agent[], tab: FilterTab, builtInAgentIds: Set<string>): Agent[] {
+function matchesSearch(agent: Pick<Agent, "name" | "role" | "title">, query: string): boolean {
+  const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const text = [agent.name, agent.role, translate(AGENT_ROLE_KEYS[agent.role] ?? agent.role), agent.title].filter(Boolean).join(" ").toLocaleLowerCase();
+  return words.every(word => text.includes(word));
+}
+
+export function filterAgents(agents: Agent[], tab: FilterTab, builtInAgentIds: Set<string>, query = ""): Agent[] {
   return agents
     .filter((a) => {
-      if (HIDDEN_AGENT_STATUSES.has(a.status)) return false;
+      if (HIDDEN_AGENT_STATUSES.has(a.status) || !matchesSearch(a, query)) return false;
       // The `builtin` filter keys on the built-in marker, not agent status.
       if (tab === "builtin") return builtInAgentIds.has(a.id);
       return matchesFilter(a.status, tab);
@@ -186,10 +193,10 @@ function resolveAgentEnvironment(
     : describeMissingEnvironment(environmentId);
 }
 
-function filterOrgTree(nodes: OrgNode[], tab: FilterTab, builtInAgentIds: Set<string>): OrgNode[] {
+export function filterOrgTree(nodes: OrgNode[], tab: FilterTab, builtInAgentIds: Set<string>, matchingIds?: Set<string>): OrgNode[] {
   return nodes
     .reduce<OrgNode[]>((acc, node) => {
-      const filteredReports = filterOrgTree(node.reports, tab, builtInAgentIds);
+      const filteredReports = filterOrgTree(node.reports, tab, builtInAgentIds, matchingIds);
       // Hidden agents (terminated / pending_approval) never render as a row, but
       // any visible reports are promoted so the tree doesn't lose live agents.
       if (HIDDEN_AGENT_STATUSES.has(node.status)) {
@@ -199,7 +206,7 @@ function filterOrgTree(nodes: OrgNode[], tab: FilterTab, builtInAgentIds: Set<st
       const nodeMatches = tab === "builtin"
         ? builtInAgentIds.has(node.id)
         : matchesFilter(node.status, tab);
-      if (nodeMatches || filteredReports.length > 0) {
+      if ((nodeMatches && (!matchingIds || matchingIds.has(node.id))) || filteredReports.length > 0) {
         acc.push({ ...node, reports: filteredReports });
       }
       return acc;
@@ -211,6 +218,7 @@ export type AgentsView = "list" | "org";
 
 export function Agents({ initialView = "list" }: { initialView?: AgentsView } = {}) {
   const { t } = useTranslation();
+  const [query, setQuery] = useState("");
   const agentChat = useAgentChatEnabled();
   const { selectedCompanyId } = useCompany();
   const { openNewAgent } = useDialogActions();
@@ -358,8 +366,8 @@ export function Agents({ initialView = "list" }: { initialView?: AgentsView } = 
     return <PageSkeleton variant="list" />;
   }
 
-  const filtered = filterAgents(agents ?? [], tab, builtInAgentIds);
-  const filteredOrg = filterOrgTree(orgTree ?? [], tab, builtInAgentIds);
+  const filtered = filterAgents(agents ?? [], tab, builtInAgentIds, query);
+  const filteredOrg = filterOrgTree(orgTree ?? [], tab, builtInAgentIds, query.trim() ? new Set(filtered.map(agent => agent.id)) : undefined);
   const environmentDataLoading = environmentsEnabled && environments === undefined;
   const showEnvironmentColumn = environmentsEnabled && (environments === undefined || environments.length > 1);
   const resolveRenderedEnvironment = (agentId: string) => (
@@ -459,58 +467,17 @@ export function Agents({ initialView = "list" }: { initialView?: AgentsView } = 
   };
 
   return (
-    <div className={cn(
+    <Tabs value={tab} onValueChange={value => navigate(`/agents/${value}`)} className={cn(
       "@container",
       effectiveView === "org"
         ? "flex h-full min-h-0 flex-col gap-4"
-        : "space-y-4",
+        : "gap-4",
     )}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={tab} onValueChange={(v) => navigate(`/agents/${v}`)}>
-          <PageTabBar
-            items={visibleTabItems}
-            value={tab}
-            onValueChange={(v) => navigate(`/agents/${v}`)}
-          />
-        </Tabs>
-        <div className="flex items-center gap-2">
-          {!forceListView ? <div className="flex items-center overflow-hidden rounded-md border border-border" role="group" aria-label={t("agentsPage.agents.viewGroup")}>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant={effectiveView === "list" ? "secondary" : "ghost"}
-                className="rounded-none"
-                onClick={() => setView("list")}
-                title={t("agentsPage.agents.listView")}
-                aria-label={t("agentsPage.agents.listView")}
-                aria-pressed={effectiveView === "list"}
-              >
-                <List className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant={effectiveView === "org" ? "secondary" : "ghost"}
-                className="rounded-none border-l border-border"
-                onClick={() => setView("org")}
-                title={t("agentsPage.agents.orgChartView")}
-                aria-label={t("agentsPage.agents.orgChartView")}
-                aria-pressed={effectiveView === "org"}
-              >
-                <Network className="h-3.5 w-3.5" />
-              </Button>
-          </div> : null}
-          <Button size="sm" variant="outline" onClick={openNewAgent}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {t("agentsPage.agents.newAgent")}
-          </Button>
-        </div>
-      </div>
+      <AgentsToolbar query={query} onQueryChange={setQuery} tab={tab} items={visibleTabItems}
+        onTabChange={value => navigate(`/agents/${value}`)} view={effectiveView} onViewChange={setView}
+        hideViewToggle={forceListView} onNewAgent={openNewAgent} />
 
-      {filtered.length > 0 && (
-        <p className="text-xs text-muted-foreground">{t("agentsPage.agents.count", { count: filtered.length })}</p>
-      )}
-
+      <TabsContent value={tab} className={cn("min-h-0 space-y-4", effectiveView === "org" && "flex flex-1 flex-col")}>
       {error && <p className="text-sm text-destructive">{error.message}</p>}
 
       {agents && agents.length === 0 && (
@@ -531,7 +498,7 @@ export function Agents({ initialView = "list" }: { initialView?: AgentsView } = 
 
       {effectiveView === "list" && agents && agents.length > 0 && filtered.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
-          {t("agentsPage.agents.noMatches")}
+          No agents match your search and selected status.
         </p>
       )}
 
@@ -542,7 +509,7 @@ export function Agents({ initialView = "list" }: { initialView?: AgentsView } = 
 
       {effectiveView === "org" && orgTree && orgTree.length > 0 && filteredOrg.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
-          {t("agentsPage.agents.noMatches")}
+          No agents match your search and selected status.
         </p>
       )}
 
@@ -563,7 +530,8 @@ export function Agents({ initialView = "list" }: { initialView?: AgentsView } = 
           />
         </Suspense>
       )}
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
 

@@ -138,6 +138,7 @@
     "timeline": "Timeline",
     "costs": "Costs",
     "activity": "Activity",
+    "commentary": "Commentary",
     "settings": "Settings",
     "sections": {
       "work": "Work",
@@ -15459,6 +15460,7 @@
           "openai": "OpenAI",
           "xai": "Grok",
           "google": "Gemini",
+          "github": "GitHub Copilot",
           "openrouter": "OpenRouter"
         },
         "accountName": "My {{provider}} {{method}}",
@@ -15685,6 +15687,7 @@
         "notShared": "This credential is not shared with you. Choose a connection you can use.",
         "subscriptionUnavailable": "Subscription unavailable",
         "apiKey": "API key",
+        "personalAccessToken": "Personal access token",
         "defaultOwnerPersonal": "My",
         "defaultOwnerNamed": "{{owner}}'s",
         "subscriptionAccount": "{{provider}} subscription account",

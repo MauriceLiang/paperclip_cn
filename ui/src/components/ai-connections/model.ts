@@ -8,6 +8,7 @@ export const AI_PROVIDERS: Record<
   AiProvider,
   { name: string; subscriptionName?: string; logo?: string }
 > = {
+  github: { name: "GitHub Copilot", logo: "/brands/apps/github.svg" },
   google: { name: "Google", logo: "/brands/apps/google.svg" },
   anthropic: {
     name: "Claude",
@@ -47,6 +48,7 @@ export function defaultAiConnectionName(ownerName: string | undefined, provider:
   if (t) {
     const providerNameKey: Record<AiProvider, string> = {
       anthropic: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.anthropic",
+      github: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.github",
       openai: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.openai",
       google: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.google",
       xai: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.xai",
@@ -69,16 +71,23 @@ export function defaultAiConnectionName(ownerName: string | undefined, provider:
 }
 
 export function aiMethodLabel(provider: AiProvider, method: AiAuthMethod, t?: TFunction) {
-  if (method !== "subscription") return t ? t("agentSetupPage.aiConnections.model.apiKey") : "API key";
-  const subscriptionLabels: Partial<Record<AiProvider, string>> = {
-    anthropic: "agentSetupPage.aiConnections.model.subscriptionClaude",
-    openai: "agentSetupPage.aiConnections.model.subscriptionChatgpt",
-    xai: "agentSetupPage.aiConnections.model.subscriptionGrok",
-  };
-  const labelKey = subscriptionLabels[provider];
-  return t
-    ? labelKey ? t(labelKey) : t("agentSetupPage.aiConnections.model.subscriptionUnavailable")
-    : AI_PROVIDERS[provider].subscriptionName ?? "Subscription unavailable";
+  if (t) {
+    if (method !== "subscription") {
+      return t(provider === "github"
+        ? "agentSetupPage.aiConnections.model.personalAccessToken"
+        : "agentSetupPage.aiConnections.model.apiKey");
+    }
+    const subscriptionKeys: Partial<Record<AiProvider, string>> = {
+      anthropic: "agentSetupPage.aiConnections.model.subscriptionClaude",
+      openai: "agentSetupPage.aiConnections.model.subscriptionChatgpt",
+      xai: "agentSetupPage.aiConnections.model.subscriptionGrok",
+    };
+    const key = subscriptionKeys[provider];
+    return key ? t(key) : t("agentSetupPage.aiConnections.model.subscriptionUnavailable");
+  }
+  return method === "subscription"
+    ? (AI_PROVIDERS[provider].subscriptionName ?? "Subscription unavailable")
+    : provider === "github" ? "Personal access token" : "API key";
 }
 
 export function matchesAiRequirement(

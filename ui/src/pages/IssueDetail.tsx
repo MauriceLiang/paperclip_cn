@@ -1,6 +1,7 @@
 import { grokBotApi } from "@/api/grokBot";
 import { t as translate, useTranslation } from "@/i18n";
 import { WorkspaceBaseRefRecoveryProvider } from "../components/WorkspaceBaseRefRecovery";
+import { WorkspaceRetryControl } from "../components/WorkspaceRetryButton";
 import { isLockedIssueStub, LockedIssueChip } from "@/components/LockedIssueChip";
 import { canManageIssuePrivacy } from "../lib/issuePrivacy";
 import { TextAttachmentContext } from "../context/TextAttachmentContext";
@@ -23,7 +24,9 @@ import { EmailThreadProvider } from "../components/EmailMessageCard";
 import { EmailTaskActivity } from "../components/EmailTaskActivity";
 import { TaskChatScrollNavigation, taskChatScrollEntry } from "@/components/task-chat/scroll-navigation";
 import {
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -123,6 +126,7 @@ import { prefetchIssueThread } from "../lib/issue-thread-queries";
 import { getIssueDetailQueryOptions } from "../lib/issueDetailCache";
 import {
   beginIssueDetailNavigation,
+  recordIssueDetailReadiness,
   ISSUE_DETAIL_CONTENT_MEASURE,
   ISSUE_DETAIL_CONTENT_PAINT_MARK,
   ISSUE_DETAIL_HEADER_MEASURE,
@@ -187,6 +191,7 @@ import { liveBlueBadge } from "../lib/status-colors";
 import { ApprovalCard } from "../components/ApprovalCard";
 import { ProjectTile } from "../components/ProjectTile";
 import { InlineEditor } from "../components/InlineEditor";
+import { useDesignSandbox } from "../context/DesignSandboxContext";
 import {
   IssueChatThread,
   type IssueChatComposerHandle,
@@ -1206,6 +1211,7 @@ function InboxMobileToolbar({
 }
 
 type IssueDetailChatTabProps = {
+  executionBlocked?: boolean;
   queryIssueId?: string;
   browsers?: import("@paperclipai/shared").TaskBrowser[];
   onOpenBrowser?: (browserId: string) => void;
@@ -1360,7 +1366,10 @@ type IssueDetailChatTabProps = {
   linkCaseReferences?: boolean;
 };
 
+const DesignSandboxTaskThread = lazy(() => import("../components/design-sandbox/DesignSandboxTaskThread"));
+
 const IssueDetailChatTab = memo(function IssueDetailChatTab({
+  executionBlocked,
   queryIssueId,
   browsers,
   onOpenBrowser,
@@ -1469,6 +1478,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
   const ThreadComponent = classicTaskInterfaceEnabled
     ? IssueChatThread
     : TaskChatThread;
+  const designSandbox = useDesignSandbox();
   const queryClient = useQueryClient();
   const issueQueryRef = queryIssueId ?? issueId;
   const scrollLocation = useLocation();
@@ -1602,6 +1612,9 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
   });
   const resolvedActivity = activity ?? [];
   const resolvedLinkedRuns = linkedRuns ?? [];
+  useEffect(() => {
+    recordIssueDetailReadiness({ activity: !activityPending, "linked-runs": !linkedRunsPending, runtime: runtimeSelectionKnown });
+  }, [issueId, issueQueryRef, activityPending, linkedRunsPending, runtimeSelectionKnown]);
   const retryFailedRun = useMutation({
     mutationFn: async (runId: string) => {
       const failedRun = resolvedLinkedRuns.find((run) => run.runId === runId);
@@ -2485,7 +2498,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
     </div>
   ) : null;
 
-  return (
+  const savedThread = (
     <div
       className={
         classicTaskInterfaceEnabled
@@ -2510,6 +2523,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
         >
           <EmailThreadProvider companyId={companyId} issueId={issueId}>
           <ThreadComponent
+            executionBlocked={executionBlocked}
             key={conversationMode ? draftKey : issueId}
             {...(!classicTaskInterfaceEnabled ? { creationActivity: resolvedActivity } : {})}
             onOpenSkill={onOpenSkill}
@@ -2542,7 +2556,7 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
               if (activeRunQueryEnabled) void refetchActiveRun();
             }}
             composerRef={composerRef}
-            composerAccessory={composerAccessory}
+            composerAccessory={<><WorkspaceRetryControl />{composerAccessory}</>}
             threadHeader={
               !classicTaskInterfaceEnabled &&
               (threadHeader || loadOlderButton) ? (
@@ -2695,6 +2709,21 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
       )}
     </div>
   );
+
+  return import.meta.env.DEV && designSandbox && !classicTaskInterfaceEnabled && !conversationMode ? (
+    <Suspense fallback={savedThread}>
+      <DesignSandboxTaskThread
+        previewMode="playback"
+        key={issueId}
+        header={threadHeader}
+        agentName={agentMap.get(issueAssigneeAgentId ?? "")?.name ?? "Preview agent"}
+        agent={agentMap.get(issueAssigneeAgentId ?? "")}
+        defaultConversation={issueQueryRef === "DES-1" || issueQueryRef === "DES-7"}
+      >
+        {savedThread}
+      </DesignSandboxTaskThread>
+    </Suspense>
+  ) : savedThread;
 });
 
 type IssueDetailActivityTabProps = {
@@ -3087,6 +3116,8 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
     streamlinedUiEnabled,
     loaded: taskInterfaceSettingsLoaded,
   } = useTaskDetailInterfaceMode(!!conversation);
+  const designSandbox = useDesignSandbox();
+  const proposedTaskHeader = designSandbox && streamlinedTaskDetailEnabled;
   // Chat-style: the page wrapper spans the full center pane so the thread's
   // scroll viewport (and its scrollbar) reaches the properties-pane border;
   // every non-thread section re-centers itself at the 60rem shell cap instead.
@@ -3378,6 +3409,9 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
     isError: workProductsError,
     refetch: refetchWorkProducts,
   } = useIssueWorkProducts(issueId);
+  useEffect(() => {
+    recordIssueDetailReadiness({ issue: !!loadedIssue, comments: !commentsLoading, interactions: !interactionsLoading, attachments: !attachmentsLoading, "work-products": !workProductsLoading });
+  }, [issueId, loadedIssue, commentsLoading, interactionsLoading, attachmentsLoading, workProductsLoading]);
 
   const { data: liveRunCount = 0 } = useQuery<LiveRunForIssue[], Error, number>(
     {
@@ -7193,7 +7227,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
   const issueStatusControl = (
     <StatusIcon
       status={issue.status} externalConversationState={issue.externalConversationState}
-      size="lg"
+      size={proposedTaskHeader ? "md" : "lg"}
       blockerAttention={issue.blockerAttention}
       onChange={(status) => updateIssue.mutate({ status })}
     />
@@ -7209,7 +7243,9 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
     >
       {streamlinedTaskDetailEnabled ? (
         <div className="flex min-w-0 items-start gap-2 md:items-center md:pr-8">
-          <div className="hidden md:block">{issueStatusControl}</div>
+          {!proposedTaskHeader ? (
+            <div className="hidden md:block">{issueStatusControl}</div>
+          ) : null}
           <div
             data-slot="task-detail-title"
             className="flex min-w-0 flex-1 items-baseline gap-2"
@@ -7218,14 +7254,20 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
               value={issue.title}
               onSave={(title) => updateIssue.mutateAsync({ title })}
               as="h2"
-              className="min-w-0 text-xl font-semibold leading-normal text-balance"
+              className={cn(
+                "min-w-0 text-balance",
+                proposedTaskHeader ? "text-2xl font-normal text-foreground" : "text-xl font-semibold",
+                "leading-normal",
+              )}
             />
-            <span
-              data-slot="task-title-identifier"
-              className="hidden shrink-0 font-mono text-sm text-muted-foreground md:inline"
-            >
-              {issue.identifier ?? issue.id.slice(0, 8)}
-            </span>
+            {!proposedTaskHeader ? (
+              <span
+                data-slot="task-title-identifier"
+                className="hidden shrink-0 font-mono text-sm text-muted-foreground md:inline"
+              >
+                {issue.identifier ?? issue.id.slice(0, 8)}
+              </span>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -7233,13 +7275,22 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
       <div
         className={cn(
           "flex min-w-0 flex-wrap items-center gap-2",
-          streamlinedTaskDetailEnabled && "gap-x-3 gap-y-2 md:gap-x-6 md:pl-7",
+          streamlinedTaskDetailEnabled &&
+            (proposedTaskHeader ? "gap-x-6 gap-y-2" : "gap-x-3 gap-y-2 md:gap-x-6 md:pl-7"),
         )}
       >
-        {streamlinedTaskDetailEnabled ? (
+        {proposedTaskHeader ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {issueStatusControl}
+            <span data-slot="task-title-identifier" className="font-mono text-sm text-muted-foreground">
+              {issue.identifier ?? issue.id.slice(0, 8)}
+            </span>
+          </div>
+        ) : null}
+        {streamlinedTaskDetailEnabled && !proposedTaskHeader ? (
           <div className="md:hidden">{issueStatusControl}</div>
         ) : null}
-        {streamlinedTaskDetailEnabled ? (
+        {streamlinedTaskDetailEnabled && !proposedTaskHeader ? (
           <span className="shrink-0 font-mono text-sm text-muted-foreground md:hidden">
             {issue.identifier ?? issue.id.slice(0, 8)}
           </span>
@@ -7497,7 +7548,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
                     }
                   }}
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className={proposedTaskHeader ? "h-3 w-3" : "h-4 w-4"} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-52 p-1" align="end">
@@ -7749,7 +7800,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
             issueCacheRefs={issueCacheRefs}
           />
 
-          {resolvedDetailTab === "chat" && (
+          {resolvedDetailTab === "chat" && !issue.executionBlocker?.workspaceRecovery && (
             <WorkspaceExportRecovery key={`workspace-export:${issue.activeRecoveryAction?.id ?? issue.id}`}
               className={shellSectionClass}
               action={issue.activeRecoveryAction ?? null} />
@@ -7757,6 +7808,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
           {resolvedDetailTab === "chat" && issue.executionBlocker && (
             <ExecutionBlockerNotice className={shellSectionClass} companyId={issue.companyId} issueId={issue.id}
               issueStatus={issue.status} canManage={canManageBoardRuntime && canResolveBoardRecoveryAction}
+              canRecover={canResolveBoardRecoveryAction}
               blocker={issue.executionBlocker} onRetried={invalidateIssueDetail} />
           )}
 
@@ -8065,11 +8117,12 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
             >
               {resolvedDetailTab === "chat" ? (
                 <WorkspaceBaseRefRecoveryProvider issue={issue} agentMap={agentMap} onRepaired={() => { invalidateIssueDetail(); invalidateIssueCollections(); }}
-                  unavailableReason={!canManageBoardRuntime || !canResolveBoardRecoveryAction ? t("issuesPage.detail.noPermissionRepairWorkspace")
-                    : treeControlStateError ? t("issuesPage.detail.couldNotCheckPaused")
-                    : activePauseHold ? t("issuesPage.detail.resumeBeforeRetrying")
-                    : issue.project?.pausedAt ? t("issuesPage.detail.resumeProjectBeforeRetrying")
-                    : interactions.some(i => i.status === "pending") ? t("issuesPage.detail.respondToPendingBeforeRetrying") : null}>
+                  baseRefUnavailableReason={!canManageBoardRuntime ? "You don’t have permission to repair this task’s workspace." : null}
+                  unavailableReason={!canResolveBoardRecoveryAction ? "You don’t have permission to retry this task."
+                    : treeControlStateError ? "Couldn’t check whether this task is paused. Refresh to try again."
+                    : activePauseHold ? "Resume the task before retrying."
+                    : issue.project?.pausedAt ? "Resume the project before retrying."
+                    : interactions.some(i => i.status === "pending") ? "Respond to the pending question or confirmation before retrying." : null}>
                 <DispositionRecoveryProvider value={{
                   issue,
                   agentMap,
@@ -8086,6 +8139,7 @@ export function TaskDetailSurface({ conversation, tasksTab }: { tasksTab?: TaskS
                   onRetry: (actionId) => retryDispositionRecovery.mutateAsync(actionId).then(() => undefined),
                 }}>
                 <IssueDetailChatTab
+                  executionBlocked={Boolean(issue.executionBlocker)}
                   queryIssueId={issueId ?? issue.id}
                   onOpenSkill={handleOpenSkill}
                   browsers={browserQuery.data}

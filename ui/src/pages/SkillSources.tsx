@@ -2,6 +2,7 @@ import { ProjectSkillRepositoryRow } from "@/components/skill-studio/ProjectSkil
 import { SkillSourceConnectionRepair } from "@/components/skill-studio/SkillSourceConnectionRepair";
 import { SkillSourceBranchRepair } from "@/components/skill-studio/SkillSourceBranchRepair";
 import { SkillSourceSyncControls } from "@/components/skill-studio/SkillSourceSyncControls";
+import { SkillsPageNavigation } from "@/components/skill-studio/SkillsNavigationTabs";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -99,10 +100,11 @@ export function SkillSources() {
         </DropdownMenu>
       </div>
     </header>
-    {query.isPending && <p role="status" className="text-sm text-muted-foreground">{t('skillsPage.skillSources.loading')}</p>}
-    {query.error && <p role="alert" className="text-sm text-destructive">{query.error.message} <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('skillsPage.skillSources.loadErrorRetry')}</Button></p>}
-    {query.data?.length === 0 && availableProjects.length === 0 && <div className="flex flex-col items-start gap-3 py-8"><p className="text-sm text-muted-foreground">{t('skillsPage.skillSources.emptyTitle', { company: selectedCompany?.name ?? t('skillsPage.skillSources.emptyThisCompany') })}</p><Button variant="outline" onClick={() => navigate('/skills/sources/new')}>{t('skillsPage.skillSources.importGithub')}</Button></div>}
-    {projectRepositories.error && <p role="alert" className="text-sm text-destructive">{projectRepositories.error.message} <Button variant="ghost" size="sm" onClick={() => void projectRepositories.refetch()}>{t('skillsPage.skillSources.loadErrorRetry')}</Button></p>}
+    <SkillsPageNavigation activeView="sources" />
+    {query.isPending && <p role="status" className="text-sm text-muted-foreground">Loading sources…</p>}
+    {query.error && <p role="alert" className="text-sm text-destructive">{query.error.message} <Button variant="ghost" size="sm" onClick={() => void query.refetch()}>Try again</Button></p>}
+    {query.data?.length === 0 && availableProjects.length === 0 && <div className="flex flex-col items-start gap-3 py-8"><p className="text-sm text-muted-foreground">No repositories added yet. Import your skills to make them available in {selectedCompany?.name ?? 'this company'}.</p><Button variant="outline" onClick={() => navigate('/skills/sources/new')}>Import from GitHub</Button></div>}
+    {projectRepositories.error && <p role="alert" className="text-sm text-destructive">{projectRepositories.error.message} <Button variant="ghost" size="sm" onClick={() => void projectRepositories.refetch()}>Try again</Button></p>}
     {adopt.error && <p role="alert" className="text-sm text-destructive">{adopt.error.message}</p>}
     {uninstalledProjects.length > 0 && <div className="divide-y divide-border" aria-label={t('skillsPage.skillSources.projectReposAria')}>
       {uninstalledProjects.map(group => <ProjectSkillRepositoryRow key={group.key} repository={group.repository} backgroundPending={group.hasPending} disabled={adopt.isPending}

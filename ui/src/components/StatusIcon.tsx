@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 import { StatusGlyph, type StatusGlyphSize } from "./StatusGlyph";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useTranslation } from "@/i18n";
+import { t as translate, useTranslation } from "@/i18n";
 import { titleCaseStatusLabel } from "@/i18n/status";
 
 const allStatuses = ["backlog", "todo", "in_progress", "in_review", "done", "cancelled", "blocked"];
@@ -61,6 +61,12 @@ function blockedAttentionLabel(blockerAttention: IssueBlockerAttention | null | 
   return t("status.blocked");
 }
 
+/** Shared accessible/tooltip copy, including waiting and covered-blocker states. */
+export function getStatusIconLabel(status: string, externalConversationState?: "active" | "waiting" | null, blockerAttention?: IssueBlockerAttention | null): string {
+  const displayStatus = status === "in_review" && externalConversationState === "waiting" ? "idle" : status;
+  return status === "blocked" ? blockedAttentionLabel(blockerAttention, translate) : titleCaseStatusLabel(displayStatus, translate);
+}
+
 /**
  * Task/issue status indicator — renders the unified, color-blind-safe
  * {@link StatusGlyph} (one distinct shape per status). With `onChange` it also
@@ -78,7 +84,7 @@ export function StatusIcon({ status, externalConversationState, blockerAttention
   const [open, setOpen] = useState(false);
   const displayStatus = status === "in_review" && externalConversationState === "waiting" ? "idle" : status;
   const isCoveredBlocked = status === "blocked" && blockerAttention?.state === "covered";
-  const ariaLabel = status === "blocked" ? blockedAttentionLabel(blockerAttention, t) : titleCaseStatusLabel(displayStatus, t);
+  const ariaLabel = getStatusIconLabel(status, externalConversationState, blockerAttention);
   const glyphStatus = isCoveredBlocked ? "in_queue" : displayStatus;
 
   const glyphIcon = (

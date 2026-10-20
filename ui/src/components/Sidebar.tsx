@@ -101,7 +101,6 @@ export function Sidebar({ children }: { children?: ReactNode }) {
   // shell keeps its Inbox row even with the flag on.
   const combinedInboxTasks = streamlinedUiEnabled && experimentalSettings?.enableCombinedInboxTasks === true;
   const showWorkspacesLink = !chatRail && experimentalSettings?.enableIsolatedWorkspaces === true;
-  const showPipelines = experimentalSettings?.enablePipelines === true;
   const showStatusCards = experimentalSettings?.enableStatusCards === true;
   const goalsLinkPending = experimentalSettings === undefined;
   const showGoalsLink = experimentalSettings?.enableGoalsSidebarLink === true;
@@ -239,9 +238,6 @@ export function Sidebar({ children }: { children?: ReactNode }) {
           {showCases ? (
             <SidebarNavItem to="/cases" label={t("nav.cases")} icon={Layers} textBadge={t("nav.badges.beta")} />
           ) : null}
-          {showPipelines ? (
-            <SidebarNavItem to="/pipelines" label={t("nav.pipelines")} icon={GitBranch} />
-          ) : null}
           {showGoalsLink ? (
             <SidebarNavItem to="/goals" label={t("nav.goals")} icon={Target} />
           ) : goalsLinkPending ? (
@@ -295,11 +291,12 @@ export function Sidebar({ children }: { children?: ReactNode }) {
               label={t("nav.sections.organization")}
               collapsible={{ open: organizationOpen, onOpenChange: setOrganizationOpen }}
             >
-              <SidebarNavItem to="/org" label={t("nav.sections.org")} icon={Network} />
+              <SidebarNavItem to="/org" label={t("nav.org")} icon={Network} />
               <SidebarNavItem to="/apps" label={t("nav.connectors")} icon={Unplug} />
               <SidebarNavItem to="/timeline" label={t("nav.timeline")} icon={GanttChartSquare} />
               <SidebarNavItem to="/costs" label={t("nav.costs")} icon={DollarSign} />
               <SidebarNavItem to="/activity" label={t("nav.activity")} icon={History} />
+              <SidebarNavItem to="/activity/commentary" label={t("nav.commentary")} icon={History} />
               <SidebarNavItem to="/company/settings" label={t("nav.settings")} icon={Settings} />
             </SidebarSection>
           </>

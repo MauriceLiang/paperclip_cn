@@ -27,6 +27,8 @@ import { formatAssigneeUserLabel } from "../lib/assignees";
 import type { InboxApprovalFilter, InboxCategoryFilter } from "../lib/inbox";
 import { cn } from "../lib/utils";
 import { useTranslation } from "@/i18n";
+import { IssueFilterPanel } from "./IssueFilterPanel";
+import { FlyoutAppearanceProvider } from "./ui/flyout";
 
 type AgentOption = {
   id: string;
@@ -129,10 +131,11 @@ export function IssueFiltersPopover({
   buttonVariant?: "ghost" | "outline";
   iconOnly?: boolean;
   creators?: CreatorOption[];
-  presentation?: "legacy" | "streamlined";
+  presentation?: "legacy" | "streamlined" | "refreshed";
   inboxScopeFilters?: InboxScopeFilters;
 }) {
   const streamlined = presentation === "streamlined";
+  const refreshed = presentation === "refreshed";
   const [creatorSearch, setCreatorSearch] = useState("");
   const { t } = useTranslation();
   const [assigneeSearch, setAssigneeSearch] = useState("");
@@ -187,7 +190,7 @@ export function IssueFiltersPopover({
     inboxScopeFilters?.onClear();
   };
 
-  return (
+  const popover = (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant={buttonVariant} size={iconOnly ? "icon" : "sm"} className={`text-xs ${iconOnly ? "relative h-8 w-8 shrink-0" : ""} ${activeFilterCount > 0 ? "text-blue-600 dark:text-blue-400" : ""}`} aria-label={filterButtonLabel} title={iconOnly ? filterButtonLabel : undefined}>
@@ -207,12 +210,13 @@ export function IssueFiltersPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        aria-label="Filters"
         align="end"
-        className={streamlined
+        className={refreshed ? "task-filters-popover" : streamlined
           ? "w-(--sz-calc-10) max-h-(--sz-calc-9) overflow-y-auto overscroll-contain p-0"
           : "w-(--sz-calc-10) p-0"}
       >
-        <div className="space-y-3 p-3">
+        {refreshed ? <IssueFilterPanel state={state} onChange={onChange} activeFilterCount={activeFilterCount} agents={agents} projects={projects} labels={labels} creators={creators} currentUserId={currentUserId} onClear={clearFilters} /> : <div className="space-y-3 p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{t("filters.title")}</span>
             {activeFilterCount > 0 ? (
@@ -538,8 +542,9 @@ export function IssueFiltersPopover({
               </div>
             </div>
           </div>
-        </div>
+        </div>}
       </PopoverContent>
     </Popover>
   );
+  return refreshed ? <FlyoutAppearanceProvider>{popover}</FlyoutAppearanceProvider> : popover;
 }

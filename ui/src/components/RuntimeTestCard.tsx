@@ -54,6 +54,7 @@ export function RuntimeTestCard({
   onTest,
   disabled = false,
   variant = "connection",
+  metadataOnly = false,
 }: {
   state: TestState | "warn";
   result: AdapterEnvironmentTestResult | null;
@@ -61,6 +62,7 @@ export function RuntimeTestCard({
   onTest: () => void;
   disabled?: boolean;
   variant?: "connection" | "prerequisites";
+  metadataOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const missingRuntime = state === "fail"
@@ -69,7 +71,11 @@ export function RuntimeTestCard({
   const content = missingRuntime
     ? { ...copy.fail, title: "runnerComponents.runtimeTestCard.runtimeMissing" }
     : (variant === "prerequisites" ? prerequisiteCopy : copy)[state];
-  const description = missingRuntime ? missingRuntime.message : t(content.description);
+  const description = metadataOnly && state === "idle"
+    ? "Verify your saved token, runtime installation, and selected model without sending a model prompt."
+    : metadataOnly && state === "running"
+      ? "Checking the saved token, runtime, and selected model…"
+      : content.description;
   const Icon =
     state === "running"
       ? Loader2

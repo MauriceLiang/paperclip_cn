@@ -1,3 +1,5 @@
+import { SkillsNavigationTabs } from "@/components/skill-studio/SkillsNavigationTabs";
+import { SkillsToolbar, type DiscoverySort } from "@/components/skill-studio/SkillsToolbar";
 import { SkillBinaryFile } from "../components/SkillBinaryFile";
 import { skillFileLinkHref } from "@/lib/skill-file-links";
 import { SkillSourceProvenance } from "../components/SkillSourceProvenance";
@@ -601,14 +603,6 @@ export function skillDetailBreadcrumbs(
   ];
 }
 
-type DiscoverySort = "agents" | "stars" | "forks" | "recent" | "alphabetical";
-
-function discoverySortLabel(sort: DiscoverySort) {
-  return translate(`skillsPage.companySkills.sort.${sort}`);
-}
-
-const DISCOVERY_SORTS: DiscoverySort[] = ["agents", "stars", "forks", "recent", "alphabetical"];
-
 export type DiscoveryCard = {
   key: string;
   skillId: string | null;
@@ -1050,6 +1044,8 @@ function CategoryNav({
 }
 
 export function DiscoveryGrid({
+  collectionView,
+  navigation,
   tab,
   categories,
   categoryTotal,
@@ -1096,6 +1092,8 @@ export function DiscoveryGrid({
   folderNudgeStorageKey,
   showBrowseRails = true,
 }: {
+  collectionView?: "authored";
+  navigation?: React.ReactNode;
   tab: DiscoveryTab;
   categories: DiscoveryCategory[];
   categoryTotal: number;
@@ -1149,11 +1147,14 @@ export function DiscoveryGrid({
 }) {
   const { t } = useTranslation();
   const installedView = tab === "installed";
-  const viewTitle = installedView ? t("skillsPage.companySkills.grid.installedTitle") : t("skillsPage.companySkills.grid.discoverTitle");
-  const viewDescription = installedView
-    ? t("skillsPage.companySkills.grid.installedDescription")
-    : t("skillsPage.companySkills.grid.discoverDescription");
-  const searchLabel = installedView ? t("skillsPage.companySkills.grid.searchInstalled") : t("skillsPage.companySkills.grid.searchDiscover");
+  const authoredView = collectionView === "authored";
+  const viewTitle = authoredView ? "My Skills" : installedView ? "Installed skills" : "Discover skills";
+  const viewDescription = authoredView
+    ? "Skills you can open, edit and test in Studio."
+    : installedView
+    ? "Skills available to this organization."
+    : "Browse skills from every available source.";
+  const searchLabel = authoredView ? "Search my skills" : installedView ? "Search installed skills" : "Search discoverable skills";
   // Source filter (github / skills.sh / local / …) lives in the grid so it
   // narrows whatever the parent already filtered by tab/category/search (PAP-10907 E).
   const [sourceBadgeFilter, setSourceBadgeFilter] = useState<string>("all");
@@ -1248,125 +1249,21 @@ export function DiscoveryGrid({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Search + sort + actions */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-          <div className="w-full">
-            <h1 className="text-lg font-semibold text-foreground">{viewTitle}</h1>
-            <p className="text-xs text-muted-foreground">{viewDescription}</p>
-          </div>
-          <div className="flex h-9 min-w-(--sz-12rem) flex-1 items-center gap-2 rounded-md border border-border px-2.5">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <input
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              aria-label={searchLabel}
-              placeholder={t("skillsPage.companySkills.grid.searchPlaceholder", { label: searchLabel })}
-              className="h-full w-full bg-transparent text-base outline-none placeholder:text-muted-foreground sm:text-sm"
-            />
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <span className="text-muted-foreground">{t("skillsPage.companySkills.grid.sort")}</span>
-                <span className="ml-1.5">{discoverySortLabel(sort)}</span>
-                <ChevronDown className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup value={sort} onValueChange={(value) => onSortChange(value as DiscoverySort)}>
-                {DISCOVERY_SORTS.map((option) => (
-                  <DropdownMenuRadioItem key={option} value={option}>
-                    {discoverySortLabel(option)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {availableSources.length > 1 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <span className="text-muted-foreground">{t("skillsPage.companySkills.grid.source")}</span>
-                  <span className="ml-1.5">
-                    {sourceBadgeFilter === "all"
-                      ? t("skillsPage.companySkills.grid.all")
-                      : availableSources.find((source) => source.value === sourceBadgeFilter)?.label ?? t("skillsPage.companySkills.grid.all")}
-                  </span>
-                  <ChevronDown className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuRadioGroup value={sourceBadgeFilter} onValueChange={setSourceBadgeFilter}>
-                  <DropdownMenuRadioItem value="all">{t("skillsPage.companySkills.grid.allSources")}</DropdownMenuRadioItem>
-                  {availableSources.map((source) => (
-                    <DropdownMenuRadioItem key={source.value} value={source.value}>
-                      {source.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onScan()}
-            disabled={scanPending}
-            aria-label={t("skillsPage.companySkills.grid.scanAria")}
-            title={t("skillsPage.companySkills.grid.scanAria")}
-          >
-            <RefreshCw className={cn("h-4 w-4", scanPending && "animate-spin")} />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="default">
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                {t("skillsPage.companySkills.grid.new")}
-                <ChevronDown className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onCreate}>
-                <Pencil className="mr-2 h-4 w-4" />
-                {t("skillsPage.companySkills.grid.createNew")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onBrowseDiscover}>
-                <Compass className="mr-2 h-4 w-4" />
-                {t("skillsPage.companySkills.grid.discoverSkills")}
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to="/skills/sources/new"><GithubIcon className="mr-2 h-4 w-4" />{t("skillsPage.companySkills.grid.importGithub")}</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to="/skills/sources">{t("skillsPage.companySkills.grid.manageSources")}</Link></DropdownMenuItem>
-              <DropdownMenuItem onSelect={onImport}>
-                <Globe className="mr-2 h-4 w-4" />
-                {t("skillsPage.companySkills.grid.importPath")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onImportFromProject}>
-                <FolderSearch className="mr-2 h-4 w-4" />
-                {t("skillsPage.companySkills.grid.importProject")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {showBrowseRails && folderResult && onFolderSelect ? (
+        <SkillsToolbar
+          navigation={navigation}
+          viewTitle={viewTitle} viewDescription={viewDescription} searchLabel={searchLabel}
+          search={search} onSearchChange={onSearchChange} sort={sort} onSortChange={onSortChange}
+          availableSources={availableSources} sourceBadgeFilter={sourceBadgeFilter} setSourceBadgeFilter={setSourceBadgeFilter}
+          onScan={onScan} scanPending={scanPending} onCreate={onCreate} onBrowseDiscover={onBrowseDiscover}
+          onImport={onImport} onImportFromProject={onImportFromProject}
+          onCreateFolder={!showFolderRail ? onCreateFolder : undefined}
+          selectMode={selectMode} onToggleSelectMode={onToggleSelectMode}
+          folderControl={showBrowseRails && folderResult && onFolderSelect ? (
             <div className="w-full md:hidden">
-              <FolderChip
-                result={folderResult}
-                selection={folderSelection}
-                allLabel={t("skillsPage.companySkills.grid.allSkills")}
-                onClick={onOpenMobileFolders ?? (() => undefined)}
-              />
+              <FolderChip result={folderResult} selection={folderSelection} allLabel="All skills" onClick={onOpenMobileFolders ?? (() => undefined)} />
             </div>
-          ) : null}
-          {onCreateFolder && !showFolderRail ? (
-            <Button variant="outline" size="sm" onClick={onCreateFolder}>
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              {t("skillsPage.companySkills.grid.newFolder")}
-            </Button>
-          ) : null}
-          {onToggleSelectMode ? (
-            <Button variant="ghost" size="sm" onClick={onToggleSelectMode}>
-              {selectMode ? t("skillsPage.companySkills.grid.done") : t("skillsPage.companySkills.grid.select")}
-            </Button>
-          ) : null}
-        </div>
+          ) : undefined}
+        />
 
         {/* Mobile category selector (sidebar is hidden below md) */}
         {showBrowseRails && categories.length > 0 ? (
@@ -1446,8 +1343,8 @@ export function DiscoveryGrid({
                 message={
                   totalCount === 0
                     ? installedView
-                      ? t("skillsPage.companySkills.grid.emptyInstalled")
-                      : t("skillsPage.companySkills.grid.emptyDiscover")
+                      ? authoredView ? "No skills yet. Create a skill to start working in Studio." : "No installed skills yet. Discover a skill or create one."
+                      : "No skills are available to discover yet."
                     : search || activeCategory || sourceFilterActive
                       ? t("skillsPage.companySkills.grid.emptyFilters")
                       : t("skillsPage.companySkills.grid.emptyView")
@@ -4061,7 +3958,7 @@ function SkillPane({
   );
 }
 
-export function CompanySkills() {
+export function CompanySkills({ collectionView }: { collectionView?: "authored" } = {}) {
   const { t } = useTranslation();
   const { "*": routePath } = useParams<{ "*": string }>();
   const navigate = useNavigate();
@@ -4121,7 +4018,7 @@ export function CompanySkills() {
     error: string | null;
   }>({ open: false, catalogSkill: null, conflict: null, defaultSlug: null, defaultForce: false, defaultAction: "install", error: null });
   const [discoverySearch, setDiscoverySearch] = useState("");
-  const [discoverySort, setDiscoverySort] = useState<DiscoverySort>("agents");
+  const [discoverySort, setDiscoverySort] = useState<DiscoverySort>(collectionView === "authored" ? "recent" : "agents");
   const [createError, setCreateError] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFromProjectOpen, setImportFromProjectOpen] = useState(false);
@@ -4155,7 +4052,7 @@ export function CompanySkills() {
   )
     ? (tabParam as "all" | "installed" | "catalog" | "bundled")
     : "installed";
-  const effectiveDiscoveryTab: DiscoveryTab = streamlinedUiEnabled
+  const effectiveDiscoveryTab: DiscoveryTab = collectionView === "authored" ? "installed" : streamlinedUiEnabled
     ? discoveryTab
     : legacyDiscoveryTab === "installed"
       ? "installed"
@@ -4420,16 +4317,16 @@ export function CompanySkills() {
   const activeDetail = detailQuery.data ?? displayedDetail;
   useEffect(() => {
     setBreadcrumbs([
-      { label: t("nav.skills"), href: "/skills" },
-      ...(isStudioNew
-        ? [{ label: studioForkFromId ? t("skillsPage.companySkills.page.studioTitleFork") : t("skillsPage.skillStudio.breadcrumbs.newSkill") }]
+      { label: "Skills", href: "/skills" },
+      ...(collectionView === "authored" ? [{ label: "My Skills" }] : isStudioNew
+        ? [{ label: studioForkFromId ? "Fork skill" : "New skill" }]
         : activeDetail
           ? skillDetailBreadcrumbs(activeDetail, skillFoldersQuery.data).slice(1)
           : routeSkillToken
             ? [{ label: t("skillsPage.companySkills.page.detail") }]
             : []),
     ]);
-  }, [activeDetail, isStudioNew, routeSkillToken, setBreadcrumbs, skillFoldersQuery.data, studioForkFromId, t]);
+  }, [activeDetail, collectionView, isStudioNew, routeSkillToken, setBreadcrumbs, skillFoldersQuery.data, studioForkFromId]);
   const activeFile = fileQuery.data ?? displayedFile;
 
   function routeForSkill(skill: CompanySkillRouteSubject, path?: string | null) {
@@ -4684,13 +4581,14 @@ export function CompanySkills() {
   );
   const discoveryTabCards = useMemo(
     () => {
+      if (collectionView === "authored") return cardsForTab(discoveryCards, "installed");
       if (streamlinedUiEnabled) return cardsForTab(discoveryCards, discoveryTab);
       if (legacyDiscoveryTab === "installed") return discoveryCards.filter((card) => card.installed);
       if (legacyDiscoveryTab === "catalog") return discoveryCards.filter((card) => card.catalogRef != null);
       if (legacyDiscoveryTab === "bundled") return discoveryCards.filter((card) => card.required);
       return discoveryCards;
     },
-    [discoveryCards, discoveryTab, legacyDiscoveryTab, streamlinedUiEnabled],
+    [collectionView, discoveryCards, discoveryTab, legacyDiscoveryTab, streamlinedUiEnabled],
   );
   const discoveryCategoryCounts = useMemo<DiscoveryCategory[]>(() => {
     const counts = new Map<string, number>();
@@ -5238,7 +5136,7 @@ export function CompanySkills() {
   // skills open the standalone catalog page (no modal, no legacy split view).
   function openDiscoveryCard(card: DiscoveryCard) {
     if (card.skillId) {
-      navigate(routeForSkillId(card.skillId));
+      navigate(collectionView === "authored" ? skillStudioRoute(card.skillId) : routeForSkillId(card.skillId));
       return;
     }
     if (card.catalogRef) {
@@ -5538,6 +5436,8 @@ export function CompanySkills() {
           </div>
         ) : null}
         <DiscoveryGrid
+          collectionView={collectionView}
+          navigation={streamlinedUiEnabled ? <SkillsNavigationTabs activeView={collectionView ?? effectiveDiscoveryTab} /> : undefined}
           tab={effectiveDiscoveryTab}
           categories={discoveryCategoryCounts}
           categoryTotal={discoveryTabCards.length}
@@ -5555,7 +5455,7 @@ export function CompanySkills() {
           onCreate={() => void openNewSkill()}
           onImport={() => setImportDialogOpen(true)}
           onImportFromProject={() => setImportFromProjectOpen(true)}
-          onBrowseDiscover={() => streamlinedUiEnabled ? setDiscoveryTab("discover") : setLegacyDiscoveryTab("catalog")}
+          onBrowseDiscover={() => collectionView === "authored" ? navigate("/skills?tab=discover") : streamlinedUiEnabled ? setDiscoveryTab("discover") : setLegacyDiscoveryTab("catalog")}
           onScan={(projectId) => scanProjects.mutate(projectId)}
           scanPending={scanProjects.isPending}
           scanStatus={scanStatusMessage}

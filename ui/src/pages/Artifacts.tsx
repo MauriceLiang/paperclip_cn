@@ -1,6 +1,7 @@
+import { useTranslation } from "@/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowLeft, Check, Layers, Package, Search, X } from "lucide-react";
+import { ArrowLeft, Layers, Package } from "lucide-react";
 import type { To } from "react-router-dom";
 import {
   artifactsApi,
@@ -15,35 +16,11 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { ArtifactCard } from "../components/artifacts/ArtifactCard";
 import { ArtifactGroupCard } from "../components/artifacts/ArtifactGroupCard";
 import { useSearchParams, Link } from "@/lib/router";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { t as translate, useTranslation } from "@/i18n";
+import { ArtifactsToolbar, ARTIFACT_KIND_FILTERS } from "@/components/artifacts/ArtifactsToolbar";
+export { ARTIFACT_KIND_FILTERS, ARTIFACT_GROUP_OPTIONS, artifactGroupByLabel } from "@/components/artifacts/ArtifactsToolbar";
 
 const ARTIFACTS_PAGE_SIZE = 30;
 const SEARCH_DEBOUNCE_MS = 250;
-
-export const ARTIFACT_KIND_FILTERS: { value: ArtifactKindFilter; label: string; labelKey: string }[] = [
-  { value: "all", label: "All", labelKey: "operationsPage.artifacts.kinds.all" },
-  { value: "image", label: "Images", labelKey: "operationsPage.artifacts.kinds.image" },
-  { value: "video", label: "Videos", labelKey: "operationsPage.artifacts.kinds.video" },
-  { value: "document", label: "Documents", labelKey: "operationsPage.artifacts.kinds.document" },
-  { value: "text", label: "Text", labelKey: "operationsPage.artifacts.kinds.text" },
-  { value: "file", label: "Files", labelKey: "operationsPage.artifacts.kinds.file" },
-];
-
-export const ARTIFACT_GROUP_OPTIONS: { value: ArtifactGroupBy; label: string; labelKey: string }[] = [
-  { value: "none", label: "None", labelKey: "operationsPage.artifacts.group.none" },
-  { value: "task", label: "Task", labelKey: "operationsPage.artifacts.group.task" },
-  { value: "parent_task", label: "Parent task", labelKey: "operationsPage.artifacts.group.parentTask" },
-];
 
 const KIND_VALUES = new Set(ARTIFACT_KIND_FILTERS.map((filter) => filter.value));
 
@@ -56,11 +33,6 @@ function parseKind(value: string | null): ArtifactKindFilter {
   return value && KIND_VALUES.has(value as ArtifactKindFilter)
     ? (value as ArtifactKindFilter)
     : "all";
-}
-
-export function artifactGroupByLabel(value: ArtifactGroupBy): string {
-  const option = ARTIFACT_GROUP_OPTIONS.find((candidate) => candidate.value === value);
-  return translate(option?.labelKey ?? "operationsPage.artifacts.group.none");
 }
 
 export function Artifacts() {
@@ -250,82 +222,7 @@ export function Artifacts() {
 
   return (
     <div className="w-full max-w-6xl space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={draftQuery}
-            onChange={(event) => setDraftQuery(event.currentTarget.value)}
-            placeholder={t("operationsPage.artifacts.searchPlaceholder")}
-            aria-label={t("operationsPage.artifacts.searchAria")}
-            className="h-9 pl-9 pr-9 text-sm"
-          />
-          {draftQuery.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setDraftQuery("")}
-              aria-label={t("operationsPage.artifacts.clearSearch")}
-              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label={t("operationsPage.artifacts.groupAria", { label: artifactGroupByLabel(groupBy) })}
-                title={t("operationsPage.artifacts.groupTitle")}
-                data-testid="artifact-group-control"
-                data-group-by={groupBy}
-                className={cn("h-8 w-8 shrink-0", grouping && "bg-accent")}
-              >
-                <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel>{t("operationsPage.artifacts.groupBy")}</DropdownMenuLabel>
-              {ARTIFACT_GROUP_OPTIONS.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  data-testid={`artifact-group-option-${option.value}`}
-                  aria-selected={groupBy === option.value}
-                  onSelect={() => selectGroupBy(option.value)}
-                  className="justify-between"
-                >
-                  {t(option.labelKey)}
-                  {groupBy === option.value ? <Check className="h-3.5 w-3.5" /> : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label={t("operationsPage.artifacts.filterAria")}>
-            {ARTIFACT_KIND_FILTERS.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                role="tab"
-                aria-selected={kind === filter.value}
-                onClick={() => selectKind(filter.value)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  kind === filter.value
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                )}
-              >
-                {t(filter.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <ArtifactsToolbar query={draftQuery} onQueryChange={setDraftQuery} groupBy={groupBy} onGroupByChange={selectGroupBy} kind={kind} onKindChange={selectKind} />
 
       {viewingSelectedStack ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">

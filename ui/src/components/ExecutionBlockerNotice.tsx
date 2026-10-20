@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import type { ExecutionBlocker, Issue } from "@paperclipai/shared";
 import { WorkspaceReconstructionRecovery } from "./WorkspaceReconstructionRecovery";
 import { agentsApi } from "../api/agents";
@@ -13,17 +14,19 @@ import { readRecoveryRetryLineage } from "../lib/recovery-lineage";
 import { useSecondTick } from "../hooks/useSecondTick";
 import { useTranslation } from "@/i18n";
 
-export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canManage = false, blocker, onRetried, className }: {
+export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canManage = false, canRecover = canManage, blocker, onRetried, className }: {
   className?: string;
   companyId: string;
   issueId: string;
   issueStatus?: Issue["status"];
   canManage?: boolean;
+  canRecover?: boolean;
   blocker: ExecutionBlocker;
   onRetried: () => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const recoveryRequestKey = useRef<string | null>(null);
   const { data: recovery, error: recoveryError } = useQuery({
     queryKey: queryKeys.issues.recoveryActions(issueId, blocker.recoveryActionId ?? null, blocker.runId ?? null),
     queryFn: () => issuesApi.recoveryActions(issueId),
@@ -52,6 +55,24 @@ export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canMan
       }
     },
   });
+  const repair = useMutation({
+    mutationFn: () => {
+      recoveryRequestKey.current ??= crypto.randomUUID();
+      return issuesApi.recoverWorkspace(issueId, { actionId: blocker.recoveryActionId!, runId: blocker.runId!,
+        idempotencyKey: recoveryRequestKey.current });
+    },
+    onSuccess: () => {
+      recoveryRequestKey.current = null;
+      onRetried();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.issues.detail(issueId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.issues.recoveryActions(issueId, blocker.recoveryActionId, blocker.runId) });
+    },
+  });
+  useEffect(() => {
+    if (recovery) void queryClient.invalidateQueries({ queryKey: queryKeys.issues.detail(issueId) });
+  }, [recovery, queryClient, issueId]);
+  const workspaceRecovery = blocker.workspaceRecovery;
+  const repairing = workspaceRecovery?.status === "queued" || workspaceRecovery?.status === "recovering";
   const now = Date.now();
   const lineage = hold ? readRecoveryRetryLineage(hold, { now }) : null;
   const recovering = Boolean(!recoveryError && !runsError && hold && !replayBlocked &&
@@ -59,19 +80,25 @@ export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canMan
   // Identical poll responses do not render again. Recheck a scheduled path's
   // expiry with the shared clock, and stop ticking once it expires or starts.
   useSecondTick(Boolean(recovering && lineage?.nextRetryAt && !lineage.liveRunId));
-  if (recovering) return null;
+  if (recovering && !workspaceRecovery) return null;
   const hasDetails = Boolean(blocker.runError || (blocker.workspaceRepairRequired && blocker.nextAction) ||
     (canManage && hold && (replayBlocked || hold.resolutionNote)));
   return (
     <div role="status" aria-label={t("issueComponents.executionBlocker.aria")} className={cn("task-context-notice flex flex-wrap items-center justify-between gap-2", className)}>
       <div className="min-w-0 flex-1 break-words">
-        <p className="font-medium">{blocker.workspaceReconstructionPending ? t("issueComponents.executionBlocker.continuationQueued") : modelRejected ? t("issueComponents.executionBlocker.modelUnavailable") : t("issueComponents.executionBlocker.workPaused")}</p>
-        {modelRejected && <p>{t("issueComponents.executionBlocker.chooseSupportedModel")}</p>}
-        {blocker.workspaceReconstructionPending ? <p>{blocker.nextAction}</p> : blocker.workspaceRepairRequired ? (
-          <p>{t("issueComponents.executionBlocker.workspaceAttention")}</p>
+        <p className="font-medium">{repairing ? "Recovering saved work…" : workspaceRecovery?.status === "blocked" ? "Recovery needs attention." : blocker.workspaceReconstructionPending ? "Continuation queued." : modelRejected ? "Model unavailable." : "Work paused."}</p>
+        {modelRejected && <p>Choose a supported model or clear the task's model override, then retry.</p>}
+        {workspaceRecovery ? (
+          repairing ? Boolean(blocker.savedMessageCount) && <p>Your message is saved and will continue after recovery.</p>
+            : <p>{workspaceRecovery.message}</p>
+        ) : blocker.workspaceReconstructionPending ? <p>{blocker.nextAction}</p> : blocker.workspaceRepairRequired ? (
+          <p>Paperclip must recover the saved workspace before work can continue.</p>
         ) : <p>{blocker.nextAction}</p>}
-        {Boolean(blocker.savedMessageCount) && (
-          <p>{t("issueComponents.executionBlocker.savedMessage", { count: blocker.savedMessageCount })}</p>
+        {!workspaceRecovery && Boolean(blocker.savedMessageCount) && (
+          <p>{blocker.savedMessageCount} saved {blocker.savedMessageCount === 1 ? "message is" : "messages are"} waiting for recovery.</p>
+        )}
+        {workspaceRecovery && !repairing && !workspaceRecovery.canRetry && Boolean(blocker.savedMessageCount) && (
+          <p>Your message is saved.</p>
         )}
       </div>
       {blocker.agentId && blocker.runId && (
@@ -79,6 +106,12 @@ export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canMan
           <Link to={`/agents/${blocker.agentId}/runs/${blocker.runId}`}>{t("issueComponents.executionBlocker.inspectRun")}</Link>
         </Button>
       )}
+      {canRecover && workspaceRecovery?.canRetry && blocker.recoveryActionId && blocker.runId && (
+        <Button size="sm" disabled={repair.isPending} onClick={() => repair.mutate()}>
+          {repair.isPending ? "Queuing recovery…" : "Retry recovery"}
+        </Button>
+      )}
+      {repair.isError && <p role="alert" className="w-full text-destructive">{repair.error.message}</p>}
       {!blocker.workspaceRepairRequired && (!requiresInspection || blocker.canRetry) && blocker.agentId && blocker.runId &&
         ((blocker.cause === "legacy_execution_requires_reconciliation" && failedRun) || blocker.canContinue || blocker.canRetry) && (
         <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
@@ -92,7 +125,7 @@ export function ExecutionBlockerNotice({ companyId, issueId, issueStatus, canMan
       {hasDetails && <details className="w-full text-muted-foreground">
         <summary className="cursor-pointer">{t("issueComponents.executionBlocker.details")}</summary>
         {blocker.runError && <p className="break-words">{blocker.runError}</p>}
-        {blocker.workspaceRepairRequired && <p>{blocker.nextAction}</p>}
+        {!blocker.workspaceRepairRequired && <p>{blocker.nextAction}</p>}
         {canManage && replayBlocked &&
           <p>{t("issueComponents.executionBlocker.autoRetryStopped")}</p>}
         {canManage && hold?.resolutionNote && <p>{hold.resolutionNote}</p>}

@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Archive, MoreHorizontal, Pencil, RefreshCw } from "lucide-react";
 import { agentsApi } from "@/api/agents";
-import { authApi } from "@/api/auth";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 import { useRecentTasks } from "@/hooks/useRecentTasks";
 import { useTranslation } from "@/i18n";
+import { useAccountIdentity } from "@/api/companies-query";
 import { useSidebar } from "@/context/SidebarContext";
 import { useOptionalToastActions } from "@/context/ToastContext";
 import {
@@ -77,15 +77,10 @@ export function SidebarRecentTasks({
 }) {
   const { collapsed, peeking } = useSidebar();
   const rail = collapsed && !peeking;
-  const { data: session, isPending } = useQuery({
-    queryKey: queryKeys.auth.session,
-    queryFn: () => authApi.getSession(),
-    retry: false,
-  });
+  const { userId, settled } = useAccountIdentity();
 
-  if (!companyId || isPending) return null;
+  if (!companyId || !settled) return null;
 
-  const userId = session?.user?.id ?? session?.session?.userId ?? null;
   return (
     <RecentTasksList
       key={`${companyId}:${userId ?? "__local_board__"}`}
@@ -238,6 +233,7 @@ function RecentTasksList({
       await queryClient.invalidateQueries({
         queryKey: ["issues", "tree-control-state", entry.id],
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.issues.summaries(companyId) });
     } catch (error) {
       toastActions?.pushToast({
         title: t("nav.recentTasks.pauseFailed"),

@@ -533,8 +533,8 @@ export function InstanceExperimentalSettings() {
 
 
         <ExperimentalToggleCard
-          title={t("settingsPage.instanceExperimental.cards.paperclipRunner.title")}
-          description={t("settingsPage.instanceExperimental.cards.paperclipRunner.description")}
+          title="Paperclip Runner"
+          description="Allow agents to select Paperclip Runner, including authenticated runner ingress when a sandbox requires it. First-run setup offers qualified GitHub Copilot. Turning this off hides the choice without affecting existing native runs."
           checked={enableNativeRunner}
           onCheckedChange={(checked) =>
             toggleMutation.mutate({ enableNativeRunner: checked })

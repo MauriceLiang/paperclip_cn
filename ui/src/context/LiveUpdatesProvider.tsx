@@ -1236,6 +1236,7 @@ function invalidateHeartbeatQueries(
   companyId: string,
   payload: Record<string, unknown>,
 ) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.issues.summaries(companyId) });
   // Note: liveRuns(companyId) is intentionally NOT invalidated here — it is
   // event-sourced via applyRunLifecycleToCompanyLiveRuns in the caller.
   queryClient.invalidateQueries({ queryKey: queryKeys.heartbeats(companyId) });
@@ -1900,6 +1901,8 @@ function canUseLiveSession(sessionStatus: string, hasSession: boolean, deploymen
 export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const { visible } = usePageVisibility();
   const wasHidden = useRef(!visible);
+  const hasOpenedSocket = useRef(false);
+  const hasNeededSocketRecovery = useRef(!visible);
   const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
   const { pushToast } = useToastActions();
@@ -1964,6 +1967,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!visible) {
       wasHidden.current = true;
+      hasNeededSocketRecovery.current = true;
       invalidationBatcher.dispose();
       return;
     }
@@ -2005,6 +2009,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     const scheduleReconnect = () => {
       if (closed || reconnectTimer !== null) return;
       reconnectAttempt += 1;
+      hasNeededSocketRecovery.current = true;
       const delayMs = Math.min(
         15000,
         1000 * 2 ** Math.min(reconnectAttempt - 1, 4),
@@ -2039,7 +2044,15 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         }
         // The initial page queries can finish before the first subscription,
         // too. Reconcile that gap as well as reconnects: events are not replayed.
-        void queryClient.invalidateQueries({ type: "active" }, { cancelRefetch: false });
+        const initialHealthyOpen = !hasOpenedSocket.current && !hasNeededSocketRecovery.current;
+        hasOpenedSocket.current = true;
+        void queryClient.invalidateQueries({
+          type: "active",
+          ...(initialHealthyOpen ? { predicate: (query) => {
+            const key = JSON.stringify(query.queryKey);
+            return key !== JSON.stringify(queryKeys.auth.session) && key !== JSON.stringify(queryKeys.health);
+          } } : {}),
+        }, { cancelRefetch: false });
         reconnectAttempt = 0;
       };
 
