@@ -29,6 +29,7 @@ import { collectSubtreeLiveCounts } from "../lib/liveIssueIds";
 import { cn } from "../lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/i18n";
 
 export const KANBAN_BOARD_HIGH_VOLUME_THRESHOLD = 100;
 export const KANBAN_COLUMN_PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
@@ -286,6 +287,7 @@ function KanbanCard({
   compact?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -335,11 +337,11 @@ function KanbanCard({
           {isSuccessfulRunHandoffRequired(issue) ? (
             <Badge variant="outline"
               className="border-amber-400/45 bg-amber-50/60 px-1.5 text-(length:--text-nano) text-amber-700 dark:border-amber-300/35 dark:bg-amber-400/10 dark:text-amber-300"
-              title="This task needs a next step"
-              aria-label="Needs next step"
+              title={t("issuesPage.kanbanBoard.needsNextStepDescription")}
+              aria-label={t("issuesPage.kanbanBoard.needsNextStep")}
             >
               <AlertTriangle className="h-3 w-3" />
-              Next step
+              {t("issuesPage.kanbanBoard.nextStep")}
             </Badge>
           ) : null}
           {isLive && (

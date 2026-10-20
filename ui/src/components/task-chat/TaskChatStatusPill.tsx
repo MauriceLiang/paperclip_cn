@@ -1,10 +1,45 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import { ChevronRight, Loader2, ShieldQuestion, OctagonX, Ban, Scissors } from "lucide-react";
 import type { TaskChatStatusItem } from "./task-chat-model";
 import { statusLabelIcon, toolTaxonomy } from "./tool-taxonomy";
 import { isGenericStatusLabel, whimsyWord } from "./status-whimsy";
 import { parseCssTimeMs } from "./motion-tokens";
+
+const WHIMSY_LABEL_KEYS: Record<string, string> = {
+  Clipping: "taskChatPage.statusWhimsy.clipping",
+  Organizing: "taskChatPage.statusWhimsy.organizing",
+  Sorting: "taskChatPage.statusWhimsy.sorting",
+  Synthesizing: "taskChatPage.statusWhimsy.synthesizing",
+  Analyzing: "taskChatPage.statusWhimsy.analyzing",
+  Filing: "taskChatPage.statusWhimsy.filing",
+  Collating: "taskChatPage.statusWhimsy.collating",
+  Stapling: "taskChatPage.statusWhimsy.stapling",
+  Indexing: "taskChatPage.statusWhimsy.indexing",
+  Annotating: "taskChatPage.statusWhimsy.annotating",
+  Drafting: "taskChatPage.statusWhimsy.drafting",
+  Proofreading: "taskChatPage.statusWhimsy.proofreading",
+  Alphabetizing: "taskChatPage.statusWhimsy.alphabetizing",
+  Photocopying: "taskChatPage.statusWhimsy.photocopying",
+  Laminating: "taskChatPage.statusWhimsy.laminating",
+  "Hole-punching": "taskChatPage.statusWhimsy.holePunching",
+  Bookmarking: "taskChatPage.statusWhimsy.bookmarking",
+  Highlighting: "taskChatPage.statusWhimsy.highlighting",
+  Typing: "taskChatPage.statusWhimsy.typing",
+  Trimming: "taskChatPage.statusWhimsy.trimming",
+  Aligning: "taskChatPage.statusWhimsy.aligning",
+  Combining: "taskChatPage.statusWhimsy.combining",
+  Whiteboarding: "taskChatPage.statusWhimsy.whiteboarding",
+  Diagramming: "taskChatPage.statusWhimsy.diagramming",
+  Sketching: "taskChatPage.statusWhimsy.sketching",
+  Labeling: "taskChatPage.statusWhimsy.labeling",
+  "Sticky-noting": "taskChatPage.statusWhimsy.stickyNoting",
+  Brewing: "taskChatPage.statusWhimsy.brewing",
+  Tinkering: "taskChatPage.statusWhimsy.tinkering",
+  Distilling: "taskChatPage.statusWhimsy.distilling",
+  Deliberating: "taskChatPage.statusWhimsy.deliberating",
+};
 
 function elapsedLabel(ms?: number): string | null {
   if (ms == null) return null;
@@ -289,6 +324,7 @@ export function TaskChatStatusPill({
   chevronOpen,
   onToggle,
 }: TaskChatStatusPillProps) {
+  const { t } = useTranslation();
   const { Icon, spin, tone } = CONFIG[item.status];
   const awaiting = item.status === "awaiting_approval";
   const live = item.status === "running" || item.status === "working";
@@ -313,7 +349,7 @@ export function TaskChatStatusPill({
     // gerund (seeded by the run-scoped item id, rotating ~10s via the live
     // tick).
     const label = streamingInterstitial || isGenericStatusLabel(item.label)
-      ? whimsyWord(item.id, liveElapsedMs ?? item.elapsedMs ?? 0)
+      ? t(WHIMSY_LABEL_KEYS[whimsyWord(item.id, liveElapsedMs ?? item.elapsedMs ?? 0)])
       : item.label;
     const statusLine = (
       <div className="tc-enter-status flex items-center gap-2 py-0.5 text-xs text-muted-foreground">
@@ -356,7 +392,10 @@ export function TaskChatStatusPill({
           ) : null}
           {item.tokens ? (
             <span className="ml-auto shrink-0 font-mono text-(length:--text-micro)">
-              {item.tokens.used.toLocaleString()}/{item.tokens.size.toLocaleString()} ctx
+              {t("taskChatPage.status.contextUsage", {
+                used: item.tokens.used.toLocaleString(),
+                size: item.tokens.size.toLocaleString(),
+              })}
             </span>
           ) : null}
         </span>
@@ -422,7 +461,10 @@ export function TaskChatStatusPill({
           {elapsed ? <span>{elapsed}</span> : null}
           {item.tokens ? (
             <span>
-              {item.tokens.used.toLocaleString()}/{item.tokens.size.toLocaleString()} ctx
+              {t("taskChatPage.status.contextUsage", {
+                used: item.tokens.used.toLocaleString(),
+                size: item.tokens.size.toLocaleString(),
+              })}
             </span>
           ) : null}
         </span>

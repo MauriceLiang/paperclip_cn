@@ -7,6 +7,7 @@ import { MarkdownBody } from "@/components/MarkdownBody";
 import { Button } from "@/components/ui/button";
 import { CircleHelp, ChevronRight } from "lucide-react";
 import { shouldHideInteractionCard } from "@/lib/issue-thread-interactions";
+import { useTranslation } from "@/i18n";
 import { TaskChatCompactInteractionCard } from "./TaskChatCompactInteractionCard";
 import { TaskChatPlanPreviewCard } from "./TaskChatPlanPreviewCard";
 import type { TaskChatInteractionItem } from "./task-chat-model";
@@ -44,21 +45,22 @@ export function TaskChatInteractionCard({
   draftKey,
   ...cardProps
 }: TaskChatInteractionCardProps) {
+  const { t } = useTranslation();
   const interaction = item.interaction;
   if (presentation === "timeline" && showUnansweredQuestion && !shouldHideInteractionCard(interaction) && interaction.kind === "ask_user_questions" && interaction.status === "pending") {
-    const prompt = interaction.payload.questionSet?.questions[0]?.prompt ?? interaction.payload.questions[0]?.prompt ?? interaction.title ?? "Question";
+    const prompt = interaction.payload.questionSet?.questions[0]?.prompt ?? interaction.payload.questions[0]?.prompt ?? interaction.title ?? t("taskChatPage.interaction.questionFallback");
     return (
       <button
         type="button"
         id={`interaction-${interaction.id}`}
         data-testid="task-chat-unanswered-question"
-        aria-label={`Answer question: ${prompt}`}
+        aria-label={t("taskChatPage.interaction.answerQuestionAria", { prompt })}
         disabled={!onReviewRequest}
         onClick={() => onReviewRequest?.(interaction.id)}
         className="group flex w-full items-center gap-2 rounded-sm px-1 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <CircleHelp aria-hidden className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 flex-1"><span className="block text-xs">Unanswered question</span><span className="block truncate">{prompt}</span></span>
+        <span className="min-w-0 flex-1"><span className="block text-xs">{t("taskChatPage.interaction.unansweredQuestion")}</span><span className="block truncate">{prompt}</span></span>
         <ChevronRight aria-hidden className="h-3 w-3 shrink-0" />
       </button>
     );
@@ -74,7 +76,7 @@ export function TaskChatInteractionCard({
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <AppLogo name={action.appDisplayName || action.toolDisplayName} size={36} />
             <div className="min-w-0 flex-1"><MarkdownBody>{action.previewMarkdown.split(/\n\s*\n/)[0] || action.toolDisplayName}</MarkdownBody></div>
-            <Button className="ml-auto" size="sm" variant="outline" disabled={!onReviewRequest} onClick={() => onReviewRequest?.(interaction.id)}>Review request</Button>
+            <Button className="ml-auto" size="sm" variant="outline" disabled={!onReviewRequest} onClick={() => onReviewRequest?.(interaction.id)}>{t("taskChatPage.interaction.reviewRequest")}</Button>
           </div>
         ) : (
           <IssueThreadInteractionCard interaction={interaction} {...cardProps} />

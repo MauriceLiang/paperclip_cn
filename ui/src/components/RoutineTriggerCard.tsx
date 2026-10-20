@@ -15,6 +15,8 @@ import {
 import { ScheduleEditor } from "./ScheduleEditor";
 import { buildRoutineTriggerPatch } from "../lib/routine-trigger-patch";
 import { describeCron } from "../lib/cron-readable";
+import { useTranslation } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
 
 const signingModes = ["app_webhook", "bearer", "hmac_sha256", "github_hmac", "none"];
 const SIGNING_MODES_WITHOUT_REPLAY_WINDOW = new Set(["app_webhook", "bearer", "github_hmac", "fireflies_hmac", "none"]);
@@ -44,6 +46,7 @@ export function RoutineTriggerCard({
   onDelete: (id: string) => void;
   disabled?: boolean;
 }) {
+  const { t, i18n } = useTranslation();
   const [draft, setDraft] = useState({
     label: trigger.label ?? "",
     cronExpression: trigger.cronExpression ?? "",
@@ -62,15 +65,18 @@ export function RoutineTriggerCard({
 
   const KindIcon =
     trigger.kind === "schedule" ? Clock3 : trigger.kind === "webhook" ? Webhook : Zap;
-  const humanCron = trigger.kind === "schedule" ? describeCron(draft.cronExpression) : null;
+  const humanCron = trigger.kind === "schedule"
+    ? describeCron(draft.cronExpression, t, i18n.resolvedLanguage ?? i18n.language)
+    : null;
   const lastResultFailed = /fail|error/i.test(trigger.lastResult ?? "");
   const lastResultLabel = trigger.lastResult?.startsWith("Created execution issue ")
-    ? "Task created"
+    ? t("operationsPage.routines.triggerList.status.taskCreated")
     : trigger.lastResult;
+  const triggerLabel = trigger.label || t(`operationsPage.routines.triggerList.kinds.${trigger.kind}`);
 
   return (
     <form
-      aria-label={`Trigger: ${trigger.label ?? trigger.kind}`}
+      aria-label={t("operationsPage.routines.triggerList.settings.triggerAria", { label: triggerLabel })}
       className="space-y-4 rounded-lg border border-border p-4"
       onSubmit={(event) => event.preventDefault()}
     >
@@ -78,7 +84,7 @@ export function RoutineTriggerCard({
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium">
             <KindIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{trigger.label ?? trigger.kind}</span>
+            <span className="truncate">{triggerLabel}</span>
           </div>
           {humanCron ? (
             <p id={`cron-readable-${trigger.id}`} className="text-xs text-muted-foreground">
@@ -94,27 +100,27 @@ export function RoutineTriggerCard({
           ) : null}
           <span className="text-xs text-muted-foreground">
             {trigger.kind === "schedule" && trigger.nextRunAt
-              ? `Next: ${new Date(trigger.nextRunAt).toLocaleString()}`
+              ? t("operationsPage.routines.triggerList.settings.nextRun", { date: formatDateTime(trigger.nextRunAt) })
               : trigger.kind === "webhook"
-                ? "Webhook"
-                : "API"}
+                ? t("operationsPage.routines.triggerList.kinds.webhook")
+                : t("operationsPage.routines.triggerList.kinds.api")}
           </span>
         </div>
       </div>
 
       {trigger.kind === "webhook" && trigger.webhookUrl && (
         <div className="space-y-1.5">
-          <Label htmlFor={`webhook-url-${trigger.id}`} className="text-xs">Webhook URL</Label>
+          <Label htmlFor={`webhook-url-${trigger.id}`} className="text-xs">{t("operationsPage.routines.triggerList.fields.webhookUrl")}</Label>
           <Input id={`webhook-url-${trigger.id}`} value={trigger.webhookUrl} readOnly onFocus={(event) => event.target.select()} />
           <p className="text-xs text-muted-foreground">
-            Send a POST request with Content-Type: application/json. Keep this URL private when signing is disabled.
+            {t("operationsPage.routines.triggerList.settings.webhookHelp")}
           </p>
         </div>
       )}
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-xs">Label</Label>
+          <Label className="text-xs">{t("operationsPage.routines.triggerList.settings.label")}</Label>
           <Input
             value={draft.label}
             disabled={disabled}
@@ -123,7 +129,7 @@ export function RoutineTriggerCard({
         </div>
         {trigger.kind === "schedule" && (
           <div className="space-y-1.5 md:col-span-2">
-            <Label className="text-xs">Schedule</Label>
+            <Label className="text-xs">{t("operationsPage.routines.triggerList.settings.schedule")}</Label>
             <ScheduleEditor
               value={draft.cronExpression}
               onChange={(cronExpression) =>
@@ -135,7 +141,7 @@ export function RoutineTriggerCard({
         {trigger.kind === "webhook" && (
           <>
             <div className="space-y-1.5">
-              <Label className="text-xs">Signing mode</Label>
+              <Label className="text-xs">{t("operationsPage.routines.triggerList.settings.signingMode")}</Label>
               <Select
                 value={draft.signingMode}
                 onValueChange={(signingMode) =>
@@ -149,7 +155,7 @@ export function RoutineTriggerCard({
                 <SelectContent>
                   {signingModes.map((mode) => (
                     <SelectItem key={mode} value={mode}>
-                      {mode}
+                      {t(`operationsPage.routines.triggers.signingModes.${mode}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -157,7 +163,7 @@ export function RoutineTriggerCard({
             </div>
             {!SIGNING_MODES_WITHOUT_REPLAY_WINDOW.has(draft.signingMode) && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Replay window (seconds)</Label>
+                <Label className="text-xs">{t("operationsPage.routines.triggerList.settings.replayWindow")}</Label>
                 <Input
                   value={draft.replayWindowSec}
                   disabled={disabled}
@@ -180,12 +186,12 @@ export function RoutineTriggerCard({
             onClick={() => onDelete(trigger.id)}
           >
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete
+            {t("operationsPage.routines.triggerList.settings.deleteTrigger")}
           </Button>
           {trigger.kind === "webhook" && (
             <Button variant="outline" size="sm" onClick={() => onRotate(trigger.id)}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              Rotate secret
+              {t("operationsPage.routines.triggerList.settings.rotateSecret")}
             </Button>
           )}
           <Button
@@ -196,7 +202,7 @@ export function RoutineTriggerCard({
             }
           >
             <Save className="mr-1.5 h-3.5 w-3.5" />
-            Save trigger
+            {t("operationsPage.routines.triggerList.settings.saveTrigger")}
           </Button>
         </div>
       )}

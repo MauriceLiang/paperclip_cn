@@ -18,33 +18,33 @@ import {
  * always shown verbatim in the run drill-down, so nothing is hidden.
  */
 
-export const SMOKE_PATH_LABELS: Record<SmokeRunStepPath, { title: string; detail: string }> = {
-  P1: { title: "Remote HTTP · OAuth", detail: "HTTP MCP fixture behind the fake OAuth provider" },
-  P2: { title: "Remote HTTP · API key", detail: "HTTP MCP fixture with a static bearer key" },
-  P3: { title: "Local stdio (template)", detail: "stdio fixture via the runtime supervisor" },
-  P4: { title: "Plugin integration", detail: "plugin-provided catalog entry + install flow" },
-  P5: { title: "Paste-a-config import", detail: "prosumer import via Advanced setup" },
-  P6: { title: "Token broker / gateway", detail: "run-scoped connection token, TTL + scope checks" },
-  P7: { title: "Governance surfaces", detail: "profiles, ask-first rules, quarantine" },
+export const SMOKE_PATH_LABELS: Record<SmokeRunStepPath, { titleKey: string; detailKey: string }> = {
+  P1: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P1.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P1.detail" },
+  P2: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P2.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P2.detail" },
+  P3: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P3.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P3.detail" },
+  P4: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P4.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P4.detail" },
+  P5: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P5.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P5.detail" },
+  P6: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P6.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P6.detail" },
+  P7: { titleKey: "toolsPage.smokeLab.matrix.pathLabels.P7.title", detailKey: "toolsPage.smokeLab.matrix.pathLabels.P7.detail" },
 };
 
 export interface LifecycleStage {
   key: string;
-  label: string;
+  labelKey: string;
   /** Keywords (lowercased) that fold a `scenarioStep` onto this stage. */
   match: string[];
 }
 
 /** The PAP-12373 governed lifecycle, in order (plan §3). */
 export const LIFECYCLE_STAGES: LifecycleStage[] = [
-  { key: "connect", label: "Connect", match: ["connect", "oauth", "login", "auth"] },
-  { key: "discover", label: "Discover catalog", match: ["discover", "catalog", "list-tools"] },
-  { key: "read", label: "Allowed read", match: ["read", "allowed"] },
-  { key: "write", label: "Ask-first write", match: ["write", "approve", "ask-first", "askfirst", "review"] },
-  { key: "deny", label: "Denied call", match: ["deny", "denied", "block", "forbidden"] },
-  { key: "quarantine", label: "Schema-change quarantine", match: ["quarantine", "schema"] },
-  { key: "revoke", label: "Revoke", match: ["revoke"] },
-  { key: "audit", label: "Audit evidence", match: ["audit", "activity", "evidence"] },
+  { key: "connect", labelKey: "toolsPage.smokeLab.matrix.stages.connect", match: ["connect", "oauth", "login", "auth"] },
+  { key: "discover", labelKey: "toolsPage.smokeLab.matrix.stages.discover", match: ["discover", "catalog", "list-tools"] },
+  { key: "read", labelKey: "toolsPage.smokeLab.matrix.stages.read", match: ["read", "allowed"] },
+  { key: "write", labelKey: "toolsPage.smokeLab.matrix.stages.write", match: ["write", "approve", "ask-first", "askfirst", "review"] },
+  { key: "deny", labelKey: "toolsPage.smokeLab.matrix.stages.deny", match: ["deny", "denied", "block", "forbidden"] },
+  { key: "quarantine", labelKey: "toolsPage.smokeLab.matrix.stages.quarantine", match: ["quarantine", "schema"] },
+  { key: "revoke", labelKey: "toolsPage.smokeLab.matrix.stages.revoke", match: ["revoke"] },
+  { key: "audit", labelKey: "toolsPage.smokeLab.matrix.stages.audit", match: ["audit", "activity", "evidence"] },
 ];
 
 /** Fold a free-form scenario step onto a canonical lifecycle stage, or null. */

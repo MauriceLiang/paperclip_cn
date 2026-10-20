@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArchiveRestore, Copy, Pencil, PlugZap, ShieldCheck, Trash2, UserMinus } from "lucide-react";
+import { Trans } from "react-i18next";
 import type {
   ToolCatalogEntry,
   ToolProfileBinding,
@@ -28,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/context/ToastContext";
+import { t as translate, useTranslation } from "@/i18n";
 import { ErrorState, LoadingState, RelativeTime, ToolsPageHeader } from "../shared";
 import { ProfileActionDialog, type ProfileActionDialogKind } from "./ProfileActionDialog";
 import { allowsLabel, STATUS_LABEL } from "./profile-summary";
@@ -35,12 +37,30 @@ import { useProfilesData } from "./useProfilesData";
 
 type DialogKind = "edit" | "duplicate" | "archive" | "delete" | "restore" | null;
 
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  active: "toolsPage.profileStatus.active",
+  disabled: "toolsPage.profileStatus.disabled",
+  archived: "toolsPage.profileStatus.archived",
+  draft: "toolsPage.profileStatus.draft",
+};
+
+const RISK_KEYS: Record<string, string> = {
+  read: "toolsPage.shared.badges.risk.read",
+  write: "toolsPage.shared.badges.risk.write",
+  destructive: "toolsPage.shared.badges.risk.destructive",
+  low: "toolsPage.shared.badges.risk.low",
+  medium: "toolsPage.shared.badges.risk.medium",
+  high: "toolsPage.shared.badges.risk.high",
+  critical: "toolsPage.shared.badges.risk.critical",
+};
+
 interface AllowRow {
   id: string;
   app: string;
   tool: string;
   capabilities: string;
   source: string;
+  sourceIsRule: boolean;
   autoAddedAt: Date | string | null;
   degraded: boolean;
   connectionId: string | null;
@@ -61,6 +81,7 @@ export function ProfileDetail({
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const { t } = useTranslation();
   const data = useProfilesData(companyId);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [assignmentToRemove, setAssignmentToRemove] = useState<ToolProfileBinding | null>(null);
@@ -107,29 +128,29 @@ export function ProfileDetail({
     mutationFn: (input: Parameters<typeof toolsApi.updateProfile>[1]) => toolsApi.updateProfile(profileId, input),
     onSuccess: () => {
       invalidate();
-      pushToast({ title: "Profile updated", tone: "success" });
+      pushToast({ title: t("toolsPage.profiles.detail.toasts.updated"), tone: "success" });
     },
-    onError: (error: unknown) => pushToast({ title: "Could not update profile", body: errorBody(error), tone: "error" }),
+    onError: (error: unknown) => pushToast({ title: t("toolsPage.profiles.detail.toasts.updateFailed"), body: errorBody(error), tone: "error" }),
   });
 
   const duplicateProfile = useMutation({
     mutationFn: (input: { name: string; includeAssignments: boolean }) => toolsApi.duplicateProfile(profileId, input),
     onSuccess: (copy) => {
       invalidate();
-      pushToast({ title: "Profile duplicated", body: "The copy is not assigned to anyone yet.", tone: "success" });
+      pushToast({ title: t("toolsPage.profiles.detail.toasts.duplicated"), body: t("toolsPage.profiles.detail.toasts.duplicatedBody"), tone: "success" });
       navigate(`/apps/advanced/profiles/${copy.id}?created=1`);
     },
-    onError: (error: unknown) => pushToast({ title: "Could not duplicate", body: errorBody(error), tone: "error" }),
+    onError: (error: unknown) => pushToast({ title: t("toolsPage.profiles.detail.toasts.duplicateFailed"), body: errorBody(error), tone: "error" }),
   });
 
   const deleteProfile = useMutation({
     mutationFn: () => toolsApi.deleteProfile(profileId),
     onSuccess: () => {
       invalidate();
-      pushToast({ title: "Profile deleted", tone: "success" });
+      pushToast({ title: t("toolsPage.profiles.detail.toasts.deleted"), tone: "success" });
       navigate("/apps/advanced/profiles");
     },
-    onError: (error: unknown) => pushToast({ title: "Could not delete", body: errorBody(error), tone: "error" }),
+    onError: (error: unknown) => pushToast({ title: t("toolsPage.profiles.detail.toasts.deleteFailed"), body: errorBody(error), tone: "error" }),
   });
 
   const removeAssignment = useMutation({
@@ -138,9 +159,9 @@ export function ProfileDetail({
     onSuccess: () => {
       setAssignmentToRemove(null);
       invalidate();
-      pushToast({ title: "Assignment removed", tone: "success" });
+      pushToast({ title: t("toolsPage.profiles.detail.toasts.assignmentRemoved"), tone: "success" });
     },
-    onError: (error: unknown) => pushToast({ title: "Could not remove assignment", body: errorBody(error), tone: "error" }),
+    onError: (error: unknown) => pushToast({ title: t("toolsPage.profiles.detail.toasts.assignmentRemoveFailed"), body: errorBody(error), tone: "error" }),
   });
 
   const reviewNewTools = useMutation({
@@ -156,18 +177,18 @@ export function ProfileDetail({
       setSearchParams({});
       queryClient.invalidateQueries({ queryKey: queryKeys.tools.profiles(companyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tools.profileNewTools(profileId) });
-      pushToast({ title: "New tools reviewed", tone: "success" });
+      pushToast({ title: t("toolsPage.profiles.detail.toasts.reviewed"), tone: "success" });
     },
-    onError: (error: unknown) => pushToast({ title: "Could not submit review", body: errorBody(error), tone: "error" }),
+    onError: (error: unknown) => pushToast({ title: t("toolsPage.profiles.detail.toasts.reviewFailed"), body: errorBody(error), tone: "error" }),
   });
 
-  if (data.profiles.isLoading) return <LoadingState label="Loading profile..." />;
+  if (data.profiles.isLoading) return <LoadingState label={t("toolsPage.profiles.detail.loadingProfile")} />;
   if (data.profiles.isError) return <ErrorState error={data.profiles.error} onRetry={() => data.profiles.refetch()} />;
   if (!profile) {
     return (
       <div className="space-y-4">
-        <ToolsPageHeader title="Profile not found" description="This access profile may have been deleted." />
-        <Button variant="outline" onClick={() => navigate("/apps/advanced/profiles")}>Back to profiles</Button>
+        <ToolsPageHeader title={t("toolsPage.profiles.detail.notFoundTitle")} description={t("toolsPage.profiles.detail.notFoundBody")} />
+        <Button variant="outline" onClick={() => navigate("/apps/advanced/profiles")}>{t("toolsPage.profiles.detail.backToProfiles")}</Button>
       </div>
     );
   }
@@ -179,53 +200,60 @@ export function ProfileDetail({
     <div className="space-y-6">
       <ToolsPageHeader
         title={profile.name}
-        description={profile.description ?? "No description yet."}
+        description={profile.description ?? t("toolsPage.profiles.detail.noDescription")}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={archived} onClick={() => setDialog("edit")}>
               <Pencil className="mr-1.5 h-4 w-4" />
-              Edit
+              {t("toolsPage.profiles.detail.edit")}
             </Button>
             <Button variant="outline" disabled={archived} onClick={() => setDialog("duplicate")}>
               <Copy className="mr-1.5 h-4 w-4" />
-              Duplicate
+              {t("toolsPage.profiles.detail.duplicate")}
             </Button>
             {archived ? (
               <Button variant="outline" onClick={() => setDialog("restore")}>
                 <ArchiveRestore className="mr-1.5 h-4 w-4" />
-                Restore
+                {t("toolsPage.profiles.detail.restore")}
               </Button>
             ) : (
-              <Button variant="outline" onClick={() => setDialog("archive")}>Archive</Button>
+              <Button variant="outline" onClick={() => setDialog("archive")}>{t("toolsPage.profiles.detail.archive")}</Button>
             )}
             <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDialog("delete")}>
               <Trash2 className="mr-1.5 h-4 w-4" />
-              Delete
+              {t("toolsPage.profiles.detail.delete")}
             </Button>
           </div>
         }
       />
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Badge variant={archived ? "outline" : "default"}>{STATUS_LABEL[profile.status]}</Badge>
-        <span className="text-muted-foreground">Updated <RelativeTime value={profile.updatedAt} /></span>
+        <Badge variant={archived ? "outline" : "default"}>
+          {STATUS_LABEL_KEYS[profile.status] ? t(STATUS_LABEL_KEYS[profile.status]) : STATUS_LABEL[profile.status]}
+        </Badge>
+        <span className="text-muted-foreground">
+          <Trans
+            i18nKey="toolsPage.profiles.detail.updated"
+            components={{ time: <RelativeTime value={profile.updatedAt} /> }}
+          />
+        </span>
         <span className="text-muted-foreground">{allowsLabel(profile.summary)}</span>
       </div>
 
       {created ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
           <div>
-            <p className="text-sm font-medium text-foreground">Profile saved</p>
+            <p className="text-sm font-medium text-foreground">{t("toolsPage.profiles.detail.savedTitle")}</p>
             <p className="text-sm text-muted-foreground">
-              {unassigned ? "Assign it to agents before it changes their access." : "Assignments are active now."}
+              {unassigned ? t("toolsPage.profiles.detail.savedUnassigned") : t("toolsPage.profiles.detail.savedAssigned")}
             </p>
           </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={() => navigate(`/apps/advanced/profiles/${profile.id}/edit?step=3`)}>
-              Assign
+              {t("toolsPage.profiles.detail.assign")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setSearchParams({})}>
-              Dismiss
+              {t("toolsPage.profiles.detail.dismiss")}
             </Button>
           </div>
         </div>
@@ -233,7 +261,7 @@ export function ProfileDetail({
 
       {archived ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          This profile is archived. It does not apply to agents until it is restored.
+          {t("toolsPage.profiles.detail.archivedBanner")}
         </div>
       ) : null}
 
@@ -248,9 +276,9 @@ export function ProfileDetail({
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-foreground">What it allows</h2>
+          <h2 className="text-base font-semibold text-foreground">{t("toolsPage.profiles.detail.whatItAllows")}</h2>
           <Button variant="outline" size="sm" disabled={archived} onClick={() => navigate(`/apps/advanced/profiles/${profile.id}/edit?step=2`)}>
-            Edit tools
+            {t("toolsPage.profiles.detail.editTools")}
           </Button>
         </div>
         <AllowList rows={allowRows} total={profile.summary.totalToolCount} />
@@ -258,9 +286,9 @@ export function ProfileDetail({
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-foreground">Who has it</h2>
+          <h2 className="text-base font-semibold text-foreground">{t("toolsPage.profiles.detail.whoHasIt")}</h2>
           <Button variant="outline" size="sm" disabled={archived} onClick={() => navigate(`/apps/advanced/profiles/${profile.id}/edit?step=3`)}>
-            Assign
+            {t("toolsPage.profiles.detail.assign")}
           </Button>
         </div>
         <Assignments
@@ -273,7 +301,7 @@ export function ProfileDetail({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-foreground">New tools that appear later</h2>
+        <h2 className="text-base font-semibold text-foreground">{t("toolsPage.profiles.detail.newToolsSection")}</h2>
         <NewToolsSetting
           value={profile.defaultAction}
           disabled={archived || updateProfile.isPending}
@@ -283,7 +311,7 @@ export function ProfileDetail({
 
       <Button variant="link" className="h-auto px-0" onClick={() => navigate("/apps/advanced/profiles?check=1")}>
         <ShieldCheck className="mr-1.5 h-4 w-4" />
-        Check what an agent can actually do
+        {t("toolsPage.profiles.detail.checkActual")}
       </Button>
 
       <ProfileDialogs
@@ -336,16 +364,19 @@ function NewToolsReviewBanner({
   loading: boolean;
   onReview: () => void;
 }) {
+  const { t } = useTranslation();
   const appLabel = newToolsAppLabel(tools);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
       <div>
         <p className="font-medium">
-          {loading ? "New tools need review" : `${appLabel} added ${count} new ${count === 1 ? "tool" : "tools"} since your last review`}
+          {loading
+            ? t("toolsPage.profiles.detail.newToolsBanner.needsReview")
+            : t("toolsPage.profiles.detail.newToolsBanner.added", { app: appLabel, count })}
         </p>
-        <p className="text-amber-900/80">Choose which ones this profile should allow.</p>
+        <p className="text-amber-900/80">{t("toolsPage.profiles.detail.newToolsBanner.choose")}</p>
       </div>
-      <Button size="sm" onClick={onReview}>Review</Button>
+      <Button size="sm" onClick={onReview}>{t("toolsPage.profiles.detail.newToolsBanner.review")}</Button>
     </div>
   );
 }
@@ -373,22 +404,23 @@ function NewToolsReviewDialog({
   onDecision: (catalogEntryId: string, decision: ToolProfileNewToolReviewDecision) => void;
   onSubmit: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Review new tools</DialogTitle>
+          <DialogTitle>{t("toolsPage.profiles.detail.newToolsDialog.title")}</DialogTitle>
           <DialogDescription>
-            Allow the tools this profile should use. Keep the rest blocked.
+            {t("toolsPage.profiles.detail.newToolsDialog.description")}
           </DialogDescription>
         </DialogHeader>
         {loading ? (
-          <LoadingState label="Loading new tools..." />
+          <LoadingState label={t("toolsPage.profiles.detail.loadingNewTools")} />
         ) : error ? (
           <ErrorState error={error} onRetry={onRetry} />
         ) : tools.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-            There are no new tools waiting for review.
+            {t("toolsPage.profiles.detail.newToolsDialog.empty")}
           </div>
         ) : (
           <div className="max-h-(--sz-52vh) divide-y divide-border overflow-y-auto rounded-lg border border-border">
@@ -405,7 +437,10 @@ function NewToolsReviewDialog({
                     <p className="mt-1 text-sm text-muted-foreground">{tool.description}</p>
                   ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {tool.applicationName ?? tool.connectionName ?? "App tool"} · added {formatShortDate(tool.addedAt)}
+                    {t("toolsPage.profiles.detail.newToolsDialog.added", {
+                      app: tool.applicationName ?? tool.connectionName ?? t("toolsPage.profiles.detail.newToolsDialog.appTool"),
+                      date: formatShortDate(tool.addedAt),
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 sm:justify-end">
@@ -416,7 +451,7 @@ function NewToolsReviewDialog({
                       checked={(decisions[tool.catalogEntryId] ?? "keep_blocked") === "allow"}
                       onChange={() => onDecision(tool.catalogEntryId, "allow")}
                     />
-                    Allow
+                    {t("toolsPage.profiles.detail.newToolsDialog.allow")}
                   </label>
                   <label className="inline-flex items-center gap-1.5 text-sm">
                     <input
@@ -425,7 +460,7 @@ function NewToolsReviewDialog({
                       checked={(decisions[tool.catalogEntryId] ?? "keep_blocked") === "keep_blocked"}
                       onChange={() => onDecision(tool.catalogEntryId, "keep_blocked")}
                     />
-                    Keep blocked
+                    {t("toolsPage.profiles.detail.newToolsDialog.keepBlocked")}
                   </label>
                 </div>
               </div>
@@ -433,9 +468,9 @@ function NewToolsReviewDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t("toolsPage.profiles.detail.newToolsDialog.cancel")}</Button>
           <Button disabled={pending || loading || tools.length === 0} onClick={onSubmit}>
-            Submit review
+            {t("toolsPage.profiles.detail.newToolsDialog.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -444,10 +479,11 @@ function NewToolsReviewDialog({
 }
 
 function AllowList({ rows, total }: { rows: AllowRow[]; total: number }) {
+  const { t } = useTranslation();
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        This profile allows 0 tools. Agents with only this profile will not be able to use app tools.
+        {t("toolsPage.profiles.detail.allowList.empty")}
       </div>
     );
   }
@@ -456,10 +492,10 @@ function AllowList({ rows, total }: { rows: AllowRow[]; total: number }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40 text-left text-xs font-medium text-muted-foreground">
-            <th className="px-3 py-2 font-medium">Tool</th>
-            <th className="px-3 py-2 font-medium">App</th>
-            <th className="px-3 py-2 font-medium">Capabilities</th>
-            <th className="px-3 py-2 font-medium">Source</th>
+            <th className="px-3 py-2 font-medium">{t("toolsPage.profiles.detail.allowList.tool")}</th>
+            <th className="px-3 py-2 font-medium">{t("toolsPage.profiles.detail.allowList.app")}</th>
+            <th className="px-3 py-2 font-medium">{t("toolsPage.profiles.detail.allowList.capabilities")}</th>
+            <th className="px-3 py-2 font-medium">{t("toolsPage.profiles.detail.allowList.source")}</th>
           </tr>
         </thead>
         <tbody>
@@ -471,25 +507,25 @@ function AllowList({ rows, total }: { rows: AllowRow[]; total: number }) {
                   {row.degraded ? (
                     <a className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline" href={`/apps/${row.connectionId}`}>
                       <PlugZap className="h-3 w-3" />
-                      Reconnect
+                      {t("toolsPage.profiles.detail.allowList.reconnect")}
                     </a>
                   ) : null}
                 </div>
               </td>
               <td className="px-3 py-2">
                 <span>{row.app}</span>
-                {row.degraded ? <span className="ml-2 text-xs text-muted-foreground">{row.app} is disconnected</span> : null}
+                {row.degraded ? <span className="ml-2 text-xs text-muted-foreground">{t("toolsPage.profiles.detail.allowList.disconnected", { app: row.app })}</span> : null}
               </td>
               <td className="px-3 py-2 text-muted-foreground">{row.capabilities}</td>
               <td className="px-3 py-2">
-                {row.source.startsWith("added by rule") ? (
+                {row.sourceIsRule ? (
                   <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-950">{row.source}</span>
                 ) : (
                   <span className="text-muted-foreground">{row.source}</span>
                 )}
                 {row.autoAddedAt ? (
                   <div className="mt-0.5 text-xs text-muted-foreground">
-                    added automatically · {formatShortDate(row.autoAddedAt)}
+                    {t("toolsPage.profiles.detail.allowList.addedAutomatically", { date: formatShortDate(row.autoAddedAt) })}
                   </div>
                 ) : null}
               </td>
@@ -499,11 +535,11 @@ function AllowList({ rows, total }: { rows: AllowRow[]; total: number }) {
       </table>
       {rows.length > 80 ? (
         <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
-          Showing 80 of {rows.length} allowed tools.
+          {t("toolsPage.profiles.detail.allowList.showing", { count: rows.length })}
         </p>
       ) : (
         <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
-          Allows {rows.length} of {total} known tools.
+          {t("toolsPage.profiles.detail.allowList.allowsOf", { count: rows.length, total })}
         </p>
       )}
     </div>
@@ -523,11 +559,12 @@ function Assignments({
   archived: boolean;
   onRemove: (binding: ToolProfileBinding) => void;
 }) {
+  const { t } = useTranslation();
   if (profile.bindings.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-4 py-5">
-        <p className="text-sm font-medium text-foreground">Not assigned yet</p>
-        <p className="text-sm text-muted-foreground">Assign this profile before it changes access.</p>
+        <p className="text-sm font-medium text-foreground">{t("toolsPage.profiles.detail.assignments.emptyTitle")}</p>
+        <p className="text-sm text-muted-foreground">{t("toolsPage.profiles.detail.assignments.emptyBody")}</p>
       </div>
     );
   }
@@ -537,7 +574,9 @@ function Assignments({
         <div key={binding.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-              {binding.targetType === "company" ? "Or" : binding.targetType.slice(0, 2).toUpperCase()}
+              {binding.targetType === "company"
+                ? t("toolsPage.profiles.detail.assignments.companyInitials")
+                : binding.targetType.slice(0, 2).toUpperCase()}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-foreground">{assignmentLabel(binding, companyId, maps)}</p>
@@ -546,7 +585,7 @@ function Assignments({
           </div>
           <Button variant="ghost" size="sm" disabled={archived} onClick={() => onRemove(binding)}>
             <UserMinus className="mr-1.5 h-4 w-4" />
-            Remove
+            {t("toolsPage.profiles.detail.assignments.remove")}
           </Button>
         </div>
       ))}
@@ -563,9 +602,18 @@ function NewToolsSetting({
   disabled: boolean;
   onChange: (value: ToolProfileDefaultAction) => void;
 }) {
+  const { t } = useTranslation();
   const options: Array<{ value: ToolProfileDefaultAction; title: string; body: string }> = [
-    { value: "deny", title: "Stay blocked until reviewed", body: "New tools do not become available automatically." },
-    { value: "allow", title: "Allowed automatically", body: "New tools from selected apps become available right away." },
+    {
+      value: "deny",
+      title: t("toolsPage.profiles.detail.newToolsSetting.denyTitle"),
+      body: t("toolsPage.profiles.detail.newToolsSetting.denyBody"),
+    },
+    {
+      value: "allow",
+      title: t("toolsPage.profiles.detail.newToolsSetting.allowTitle"),
+      body: t("toolsPage.profiles.detail.newToolsSetting.allowBody"),
+    },
   ];
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -618,10 +666,11 @@ function ProfileDialogs({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(profile.name);
   const [description, setDescription] = useState(profile.description ?? "");
   const [profileKey, setProfileKey] = useState(profile.profileKey);
-  const [copyName, setCopyName] = useState(`${profile.name} copy`);
+  const [copyName, setCopyName] = useState(t("toolsPage.profiles.detail.dialogs.copySuffix", { name: profile.name }));
   const [copyAssignments, setCopyAssignments] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -636,33 +685,33 @@ function ProfileDialogs({
       <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit profile</DialogTitle>
-            <DialogDescription>Update the profile name and description.</DialogDescription>
+            <DialogTitle>{t("toolsPage.profiles.detail.dialogs.editTitle")}</DialogTitle>
+            <DialogDescription>{t("toolsPage.profiles.detail.dialogs.editDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-profile-name">Name</Label>
+              <Label htmlFor="edit-profile-name">{t("toolsPage.profiles.detail.dialogs.name")}</Label>
               <Input id="edit-profile-name" value={name} onChange={(e) => setName(e.target.value)} />
-              {duplicateName ? <p className="text-xs text-destructive">Another profile already uses this name.</p> : null}
+              {duplicateName ? <p className="text-xs text-destructive">{t("toolsPage.profiles.detail.dialogs.duplicateName")}</p> : null}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-profile-description">Description</Label>
+              <Label htmlFor="edit-profile-description">{t("toolsPage.profiles.detail.dialogs.description")}</Label>
               <Textarea id="edit-profile-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
             </div>
             <button type="button" className="text-sm font-medium text-muted-foreground hover:text-foreground" onClick={() => setAdvancedOpen((v) => !v)}>
-              Advanced
+              {t("toolsPage.profiles.detail.dialogs.advanced")}
             </button>
             {advancedOpen ? (
               <div className="space-y-1.5">
-                <Label htmlFor="edit-profile-key">Identifier</Label>
+                <Label htmlFor="edit-profile-key">{t("toolsPage.profiles.detail.dialogs.identifier")}</Label>
                 <Input id="edit-profile-key" value={profileKey} onChange={(e) => setProfileKey(e.target.value)} className="font-mono text-xs" />
               </div>
             ) : null}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" onClick={onClose}>{t("toolsPage.profiles.detail.dialogs.cancel")}</Button>
             <Button disabled={!name.trim() || duplicateName || pending} onClick={() => onUpdate({ name: name.trim(), description: description.trim() || null, profileKey: profileKey.trim() })}>
-              Save
+              {t("toolsPage.profiles.detail.dialogs.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -675,24 +724,24 @@ function ProfileDialogs({
       <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Duplicate profile</DialogTitle>
-            <DialogDescription>The copy starts unassigned unless you choose to copy assignments too.</DialogDescription>
+            <DialogTitle>{t("toolsPage.profiles.detail.dialogs.duplicateTitle")}</DialogTitle>
+            <DialogDescription>{t("toolsPage.profiles.detail.dialogs.duplicateDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="copy-profile-name">Name</Label>
+              <Label htmlFor="copy-profile-name">{t("toolsPage.profiles.detail.dialogs.name")}</Label>
               <Input id="copy-profile-name" value={copyName} onChange={(e) => setCopyName(e.target.value)} />
-              {duplicateCopyName ? <p className="text-xs text-destructive">Another profile already uses this name.</p> : null}
+              {duplicateCopyName ? <p className="text-xs text-destructive">{t("toolsPage.profiles.detail.dialogs.duplicateName")}</p> : null}
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={copyAssignments} onChange={(e) => setCopyAssignments(e.target.checked)} />
-              Also copy assignments?
+              {t("toolsPage.profiles.detail.dialogs.copyAssignments")}
             </label>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" onClick={onClose}>{t("toolsPage.profiles.detail.dialogs.cancel")}</Button>
             <Button disabled={!copyName.trim() || duplicateCopyName || pending} onClick={() => onDuplicate({ name: copyName.trim(), includeAssignments: copyAssignments })}>
-              Duplicate
+              {t("toolsPage.profiles.detail.dialogs.duplicate")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -726,20 +775,21 @@ function RemoveAssignmentDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog open={Boolean(binding)} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Remove assignment</DialogTitle>
+          <DialogTitle>{t("toolsPage.profiles.detail.dialogs.removeTitle")}</DialogTitle>
           <DialogDescription>
             {binding?.targetType === "company"
-              ? "Removing the organization default changes access for every agent that relies on it."
-              : `Remove this profile from ${label}.`}
+              ? t("toolsPage.profiles.detail.dialogs.removeCompanyBody")
+              : t("toolsPage.profiles.detail.dialogs.removeBody", { label })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button disabled={pending} onClick={onConfirm}>Remove</Button>
+          <Button variant="ghost" onClick={onClose}>{t("toolsPage.profiles.detail.dialogs.cancel")}</Button>
+          <Button disabled={pending} onClick={onConfirm}>{t("toolsPage.profiles.detail.dialogs.remove")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -761,7 +811,7 @@ function buildAllowRows(
     .filter((tool) => includeAllExcept || included.some((entry) => entryMatchesTool(entry, tool)))
     .map((tool) => {
       const match = includeAllExcept ? null : included.find((entry) => entryMatchesTool(entry, tool)) ?? null;
-      const app = appNames.get(tool.applicationId ?? "") ?? connectionNames.get(tool.connectionId) ?? "Unknown app";
+      const app = appNames.get(tool.applicationId ?? "") ?? connectionNames.get(tool.connectionId) ?? translate("toolsPage.profiles.detail.dialogs.unknownApp");
       const connection = connections.find((item) => item.id === tool.connectionId);
       return {
         id: tool.id,
@@ -769,6 +819,7 @@ function buildAllowRows(
         tool: tool.title || tool.toolName,
         capabilities: capabilityLabel(tool),
         source: sourceLabel(match, app),
+        sourceIsRule: Boolean(match && (match.selectorType === "application" || match.selectorType === "connection" || match.selectorType === "risk_level")),
         autoAddedAt: profile.defaultAction === "allow" && isRecentTool(tool) ? (tool.addedAt ?? tool.firstSeenAt) : null,
         degraded: Boolean(connection && (connection.status !== "active" || connection.healthStatus === "error")),
         connectionId: tool.connectionId,
@@ -794,31 +845,38 @@ function entryMatchesTool(entry: ToolProfileEntry, tool: ToolCatalogEntry): bool
 }
 
 function sourceLabel(entry: ToolProfileEntry | null, app: string): string {
-  if (!entry) return "added directly";
-  if (entry.selectorType === "application" || entry.selectorType === "connection") return `added by rule: all ${app}`;
-  if (entry.selectorType === "risk_level" && entry.riskLevel) return `added by rule: ${entry.riskLevel} tools`;
-  return "added directly";
+  if (!entry) return translate("toolsPage.profiles.detail.allowList.addedDirectly");
+  if (entry.selectorType === "application" || entry.selectorType === "connection") {
+    return translate("toolsPage.profiles.detail.allowList.addedByRuleAll", { app });
+  }
+  if (entry.selectorType === "risk_level" && entry.riskLevel) {
+    const riskKey = RISK_KEYS[entry.riskLevel];
+    return translate("toolsPage.profiles.detail.allowList.addedByRuleRisk", {
+      risk: riskKey ? translate(riskKey) : entry.riskLevel,
+    });
+  }
+  return translate("toolsPage.profiles.detail.allowList.addedDirectly");
 }
 
 function capabilityLabel(tool: ToolCatalogEntry): string {
-  if (tool.isDestructive) return "Destructive";
-  if (tool.isWrite) return "Write";
-  return "Read";
+  if (tool.isDestructive) return translate("toolsPage.profiles.detail.capability.destructive");
+  if (tool.isWrite) return translate("toolsPage.profiles.detail.capability.write");
+  return translate("toolsPage.profiles.detail.capability.read");
 }
 
 function capabilityText(tool: ToolProfileNewToolReviewItem): string {
-  if (tool.riskLevel === "destructive") return "Destructive";
-  if (tool.riskLevel === "write") return "Write";
-  if (tool.riskLevel === "read") return "Read";
+  if (tool.riskLevel === "destructive") return translate("toolsPage.profiles.detail.capability.destructive");
+  if (tool.riskLevel === "write") return translate("toolsPage.profiles.detail.capability.write");
+  if (tool.riskLevel === "read") return translate("toolsPage.profiles.detail.capability.read");
   return tool.capability;
 }
 
 function newToolsAppLabel(tools: ToolProfileNewToolReviewItem[]): string {
   const names = [...new Set(tools.map((tool) => tool.applicationName ?? tool.connectionName).filter(Boolean))] as string[];
-  if (names.length === 0) return "An app";
-  if (names.length === 1) return names[0] ?? "An app";
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names[0]} and ${names.length - 1} more apps`;
+  if (names.length === 0) return translate("toolsPage.profiles.detail.newToolsBanner.anApp");
+  if (names.length === 1) return names[0] ?? translate("toolsPage.profiles.detail.newToolsBanner.anApp");
+  if (names.length === 2) return translate("toolsPage.profiles.detail.newToolsBanner.twoApps", { first: names[0], second: names[1] });
+  return translate("toolsPage.profiles.detail.newToolsBanner.moreApps", { first: names[0], count: names.length - 1 });
 }
 
 function isRecentTool(tool: ToolCatalogEntry): boolean {
@@ -834,18 +892,18 @@ function assignmentLabel(
   companyId: string,
   maps: ReturnType<typeof useProfilesData>["maps"],
 ): string {
-  if (binding.targetType === "company") return "Organization default";
-  if (binding.targetType === "agent") return maps.agentsById.get(binding.targetId) ?? "Unknown agent";
-  if (binding.targetType === "project") return maps.projectsById.get(binding.targetId) ?? "Unknown project";
-  if (binding.targetType === "routine") return maps.routinesById.get(binding.targetId) ?? "Unknown routine";
-  if (binding.targetId === companyId) return "Organization";
+  if (binding.targetType === "company") return translate("toolsPage.profiles.detail.assignments.organizationDefault");
+  if (binding.targetType === "agent") return maps.agentsById.get(binding.targetId) ?? translate("toolsPage.profiles.detail.assignments.unknownAgent");
+  if (binding.targetType === "project") return maps.projectsById.get(binding.targetId) ?? translate("toolsPage.profiles.detail.assignments.unknownProject");
+  if (binding.targetType === "routine") return maps.routinesById.get(binding.targetId) ?? translate("toolsPage.profiles.detail.assignments.unknownRoutine");
+  if (binding.targetId === companyId) return translate("toolsPage.profiles.detail.assignments.organization");
   return binding.targetId;
 }
 
 function assignmentTypeLabel(type: ToolProfileBinding["targetType"]): string {
-  if (type === "company") return "Organization default";
-  if (type === "agent") return "Agent";
-  if (type === "project") return "Project";
-  if (type === "routine") return "Routine";
-  return "Scoped assignment";
+  if (type === "company") return translate("toolsPage.profiles.detail.assignments.organizationDefault");
+  if (type === "agent") return translate("toolsPage.targetType.agent");
+  if (type === "project") return translate("toolsPage.targetType.project");
+  if (type === "routine") return translate("toolsPage.targetType.routine");
+  return translate("toolsPage.targetType.scoped");
 }

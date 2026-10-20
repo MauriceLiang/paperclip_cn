@@ -1,4 +1,5 @@
 import type { ActivityEvent } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 
 export interface AssigneeSelection {
   assigneeAgentId: string | null;
@@ -93,7 +94,7 @@ export function currentUserAssigneeOption(currentUserId: string | null | undefin
   if (!currentUserId) return [];
   return [{
     id: assigneeValueFromSelection({ assigneeUserId: currentUserId }),
-    label: "Me",
+    label: translate("common.me"),
     searchText: currentUserId === "local-board" ? "me board human local-board" : `me human ${currentUserId}`,
   }];
 }
@@ -104,7 +105,7 @@ export function formatAssigneeUserLabel(
   userLabels?: ReadonlyMap<string, string> | Record<string, string> | null,
 ): string | null {
   if (!userId) return null;
-  if (currentUserId && userId === currentUserId) return "You";
+  if (currentUserId && userId === currentUserId) return translate("issueChat.you");
   return formatUserLabel(userId, userLabels);
 }
 
@@ -113,12 +114,12 @@ export function formatUserLabel(
   userLabels?: ReadonlyMap<string, string> | Record<string, string> | null,
 ): string | null {
   if (!userId) return null;
+  if (userId === "local-board") return translate("issueComponents.documents.actorBoard");
   if (userLabels) {
     const label = userLabels instanceof Map
       ? userLabels.get(userId)
       : (userLabels as Record<string, string>)[userId];
     if (typeof label === "string" && label.trim()) return label;
   }
-  if (userId === "local-board") return "Board";
   return userId.slice(0, 5);
 }

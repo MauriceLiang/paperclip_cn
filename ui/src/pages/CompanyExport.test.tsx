@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ExportFidelityReport } from "@paperclipai/shared/portability-fidelity";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompanyExport, resolveExportPreviewImageSrc } from "./CompanyExport";
+import { i18n } from "@/i18n";
 
 const mockCompaniesApi = vi.hoisted(() => ({
   exportPreview: vi.fn(),
@@ -172,7 +173,8 @@ describe("CompanyExport", () => {
   let container: HTMLDivElement;
   let root: Root | null = null;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     mockAuthApi.getSession.mockResolvedValue({ user: { id: "user-1" } });
@@ -198,6 +200,7 @@ describe("CompanyExport", () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    await i18n.changeLanguage("en");
   });
 
   async function renderPage() {
@@ -301,6 +304,31 @@ describe("CompanyExport", () => {
       allFiles: {},
       orgChartPreviewUrl: "/api/companies/company-1/org.svg",
     })).toBe("/api/companies/company-1/org.svg");
+  });
+
+  it("uses Simplified Chinese in the README preview and downloaded bundle", async () => {
+    await i18n.changeLanguage("zh-CN");
+
+    await renderPage();
+
+    expect(mockCompaniesApi.exportPreview.mock.calls[0]?.[1]).toMatchObject({
+      readmeLocale: "zh-CN",
+    });
+    const readmeRow = container.querySelector<HTMLElement>('[data-file-tree-path="README.md"]');
+    expect(readmeRow).not.toBeNull();
+    await clickElement(readmeRow!);
+    expect(container.textContent).toContain("内容概览");
+    expect(container.textContent).not.toContain("What's Inside");
+
+    const download = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("导出"),
+    );
+    expect(download).toBeDefined();
+    await clickElement(download!);
+
+    expect(mockCompaniesApi.exportBundle).toHaveBeenCalledWith("company-1", expect.objectContaining({
+      readmeLocale: "zh-CN",
+    }));
   });
 
   it("keeps task history opt-in, then requests all selected files on download", async () => {
@@ -469,7 +497,7 @@ describe("CompanyExport", () => {
   });
 
   it("renders the export fidelity panel with blocker and warning messages", async () => {
-    mockCompaniesApi.exportFidelity.mockResolvedValue(buildFidelityReport([
+    const report = buildFidelityReport([
       {
         code: "bundle_incompatible",
         severity: "blocker",
@@ -480,7 +508,9 @@ describe("CompanyExport", () => {
         severity: "warning",
         message: "3 approvals are not included in the export bundle.",
       },
-    ]));
+    ]);
+    report.counts.approvals = 3;
+    mockCompaniesApi.exportFidelity.mockResolvedValue(report);
 
     await renderPage();
 
@@ -490,5 +520,37 @@ describe("CompanyExport", () => {
       "Importing this export will fail because the bundle references data this board cannot restore.",
     );
     expect(container.textContent).toContain("3 approvals are not included in the export bundle.");
+  });
+
+  it("localizes known export fidelity warnings from their stable codes and counts", async () => {
+    const report = buildFidelityReport([
+      {
+        code: "approvals_not_exported",
+        severity: "warning",
+        message: "3 approvals are not included in the export bundle.",
+      },
+      {
+        code: "cost_history_not_exported",
+        severity: "warning",
+        message: "2 cost events are not included in the export bundle.",
+      },
+      {
+        code: "activity_history_not_exported",
+        severity: "warning",
+        message: "1 activity log entry is not included in the export bundle.",
+      },
+    ]);
+    report.counts.approvals = 3;
+    report.counts.costEvents = 2;
+    report.counts.activityLogEntries = 1;
+    mockCompaniesApi.exportFidelity.mockResolvedValue(report);
+    await i18n.changeLanguage("zh-CN");
+
+    await renderPage();
+
+    expect(container.textContent).toContain("导出包中不包含 3 个审批。");
+    expect(container.textContent).toContain("导出包中不包含 2 条成本事件。");
+    expect(container.textContent).toContain("导出包中不包含 1 条活动日志。");
+    expect(container.textContent).not.toContain("approvals are not included");
   });
 });

@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import type { BudgetIncident } from "@paperclipai/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BudgetIncidentCard } from "./BudgetIncidentCard";
+import { setLocale } from "@/i18n";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -55,6 +56,22 @@ async function renderCard(value: BudgetIncident) {
 
 describe("BudgetIncidentCard", () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it("localizes budget status, explanation, and actions in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    try {
+      const { div, buttons, cleanup } = await renderCard(
+        incident({ thresholdType: "soft", amountObserved: 80_000 }),
+      );
+      expect(div.textContent).toContain("Agent预算预警");
+      expect(div.textContent).toContain("支出已超过预警阈值");
+      expect(div.textContent).toContain("新预算（美元）");
+      expect(buttons()).toEqual(["提高预算", "忽略预警"]);
+      await cleanup();
+    } finally {
+      await setLocale("en");
+    }
+  });
 
   it("labels a hard-stop incident as paused", async () => {
     const { div, buttons, cleanup } = await renderCard(incident());

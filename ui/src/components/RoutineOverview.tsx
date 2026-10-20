@@ -17,6 +17,7 @@ import {
   routineDetailHref,
 } from "./RoutineContextualSidebar";
 import { useRoutineDetail } from "./routine-sections/context";
+import { t as translate, useTranslation } from "@/i18n";
 
 export type RoutineScheduleSummary = {
   label: string;
@@ -42,20 +43,24 @@ export function summarizeRoutineSchedule(triggers: RoutineTrigger[]): RoutineSch
     const webhooks = triggers.filter((trigger) => trigger.kind === "webhook" && trigger.enabled);
     if (webhooks.length > 0) {
       return {
-        label: `${webhooks.length} active webhook${webhooks.length === 1 ? "" : "s"}`,
-        detail: "Runs on incoming requests",
+        label: translate("settingsComponents.routineOverview.schedule.activeWebhook", { count: webhooks.length }),
+        detail: translate("settingsComponents.routineOverview.schedule.incomingRequests"),
         nextRunAt: null,
       };
     }
-    return { label: "No active schedule", detail: "Manual runs only", nextRunAt: null };
+    return {
+      label: translate("settingsComponents.routineOverview.schedule.noActive"),
+      detail: translate("settingsComponents.routineOverview.schedule.manualOnly"),
+      nextRunAt: null,
+    };
   }
 
   const first = schedules[0]!;
   return {
-    label: schedules.length === 1 ? "1 active schedule" : `${schedules.length} active schedules`,
+    label: translate("settingsComponents.routineOverview.schedule.activeSchedule", { count: schedules.length }),
     detail: first.cronExpression
       ? `${first.cronExpression}${first.timezone ? ` · ${first.timezone}` : ""}`
-      : first.label ?? "Scheduled trigger",
+      : first.label ?? translate("settingsComponents.routineOverview.schedule.scheduledTrigger"),
     nextRunAt,
   };
 }
@@ -138,6 +143,7 @@ function OverviewFact({
 }
 
 export function RoutineOverview() {
+  const { t } = useTranslation();
   const { routine, routineRuns, currentAssignee, hasLiveRun } = useRoutineDetail();
   const schedule = summarizeRoutineSchedule(routine.triggers);
   const hasWebhook = routine.triggers.some((trigger) => trigger.kind === "webhook" && trigger.enabled);
@@ -162,32 +168,44 @@ export function RoutineOverview() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewFact
           icon={Repeat}
-          label="State"
+          label={t("settingsComponents.routineOverview.facts.state")}
           value={<StatusBadge status={automationState} />}
-          detail={hasLiveRun ? "A run is active now" : "No active run"}
+          detail={hasLiveRun
+            ? t("settingsComponents.routineOverview.facts.runActive")
+            : t("settingsComponents.routineOverview.facts.noActiveRun")}
         />
         <OverviewFact
           icon={CalendarClock}
-          label="Triggers"
+          label={t("settingsComponents.routineOverview.facts.triggers")}
           value={schedule.label}
           detail={<span className="font-mono">{schedule.detail}</span>}
         />
         <OverviewFact
           icon={Clock3}
-          label="Next run"
-          value={schedule.nextRunAt ? formatRoutineTimestamp(schedule.nextRunAt) : hasWebhook ? "On webhook delivery" : "Not scheduled"}
-          detail={schedule.nextRunAt ? "Scheduled" : hasWebhook ? "Waiting for an incoming request" : "Add or enable a schedule"}
+          label={t("settingsComponents.routineOverview.facts.nextRun")}
+          value={schedule.nextRunAt
+            ? formatRoutineTimestamp(schedule.nextRunAt)
+            : hasWebhook
+              ? t("settingsComponents.routineOverview.facts.onWebhook")
+              : t("settingsComponents.routineOverview.facts.notScheduled")}
+          detail={schedule.nextRunAt
+            ? t("settingsComponents.routineOverview.facts.scheduled")
+            : hasWebhook
+              ? t("settingsComponents.routineOverview.facts.waitingRequest")
+              : t("settingsComponents.routineOverview.facts.addSchedule")}
         />
         <OverviewFact
           icon={Play}
-          label="Last run"
-          value={lastRun ? <StatusBadge status={lastRun.status} /> : "No runs yet"}
-          detail={lastRun ? formatRoutineTimestamp(lastRun.triggeredAt) : "Run manually or wait for a trigger"}
+          label={t("settingsComponents.routineOverview.facts.lastRun")}
+          value={lastRun ? <StatusBadge status={lastRun.status} /> : t("settingsComponents.routineOverview.facts.noRuns")}
+          detail={lastRun
+            ? formatRoutineTimestamp(lastRun.triggeredAt)
+            : t("settingsComponents.routineOverview.facts.runManual")}
         />
       </div>
 
       <section className="flex flex-col gap-2" aria-labelledby="routine-agent-heading">
-        <h2 id="routine-agent-heading" className="text-sm font-semibold">Default agent</h2>
+        <h2 id="routine-agent-heading" className="text-sm font-semibold">{t("settingsComponents.routineOverview.defaultAgent")}</h2>
         {currentAssignee ? (
           <Link
             to={`/agents/${currentAssignee.urlKey ?? currentAssignee.id}`}
@@ -197,31 +215,31 @@ export function RoutineOverview() {
             {currentAssignee.name}
           </Link>
         ) : (
-          <p className="text-sm text-muted-foreground">No default agent. Automatic triggers remain paused.</p>
+          <p className="text-sm text-muted-foreground">{t("settingsComponents.routineOverview.noDefaultAgent")}</p>
         )}
       </section>
 
       <section className="flex flex-col gap-2" aria-labelledby="routine-description-heading">
-        <h2 id="routine-description-heading" className="text-sm font-semibold">Description</h2>
+        <h2 id="routine-description-heading" className="text-sm font-semibold">{t("settingsComponents.routineOverview.description")}</h2>
         {routine.description?.trim() ? (
           <MarkdownBody className="text-sm text-foreground" linkIssueReferences>
             {routine.description}
           </MarkdownBody>
         ) : (
-          <p className="text-sm text-muted-foreground">No description yet.</p>
+          <p className="text-sm text-muted-foreground">{t("settingsComponents.routineOverview.noDescription")}</p>
         )}
       </section>
 
       <section className="flex flex-col gap-2" aria-labelledby="routine-recent-runs-heading">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="routine-recent-runs-heading" className="text-sm font-semibold">Recent runs</h2>
+          <h2 id="routine-recent-runs-heading" className="text-sm font-semibold">{t("settingsComponents.routineOverview.recentRuns")}</h2>
           <Button variant="ghost" size="sm" asChild>
-            <Link to={routineDetailHref(routine.id, "runs")}>View all runs</Link>
+            <Link to={routineDetailHref(routine.id, "runs")}>{t("settingsComponents.routineOverview.viewAllRuns")}</Link>
           </Button>
         </div>
         {recentRuns.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No runs yet. Run the routine now or wait for its schedule.
+            {t("settingsComponents.routineOverview.emptyRuns")}
           </p>
         ) : (
           <div className="flex flex-col gap-0.5">
@@ -241,14 +259,14 @@ export function RoutineOverview() {
             ) : (
               <div key={run.id} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-sm">
                 <StatusBadge status={run.status} />
-                <span className="min-w-0 flex-1 truncate">{run.trigger?.label ?? "Routine run"}</span>
+                <span className="min-w-0 flex-1 truncate">{run.trigger?.label ?? t("settingsComponents.routineOverview.routineRun")}</span>
                 <span className="shrink-0 font-mono text-xs text-muted-foreground">{formatRoutineTimestamp(run.triggeredAt)}</span>
               </div>
             ))}
           </div>
         )}
         <Button variant="link" size="sm" className="w-fit px-0" asChild>
-          <Link to={routineDetailHref(routine.id, "activity")}>View routine activity</Link>
+          <Link to={routineDetailHref(routine.id, "activity")}>{t("settingsComponents.routineOverview.viewActivity")}</Link>
         </Button>
       </section>
     </div>

@@ -12,6 +12,7 @@ import {
   type AiAuthMethod,
   type AiProvider,
 } from "./model";
+import { useTranslation } from "@/i18n";
 
 /** Redacted view of the existing login lifecycle, supplied by the host. */
 export type AiAuthState =
@@ -49,6 +50,7 @@ function AuthAttempt({
   onCancel,
   onDone,
 }: AiConnectionAuthProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const info = AI_PROVIDERS[provider];
   const busy = state.phase === "starting" || state.phase === "submitting";
@@ -63,21 +65,21 @@ function AuthAttempt({
   };
   return (
     <section
-      aria-label={`Connect ${info.name}`}
+      aria-label={t("agentSetupPage.aiConnections.auth.connectAria", { provider: info.name })}
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-semibold">Connect {info.name}</h3>
+        <h3 className="text-sm font-semibold">{t("agentSetupPage.aiConnections.auth.connectTitle", { provider: info.name })}</h3>
         <p className="text-xs text-muted-foreground">
-          {aiMethodLabel(provider, method)}
+          {aiMethodLabel(provider, method, t)}
         </p>
       </div>
       {state.phase === "connected" ? (
         <>
           <p role="status" className="text-sm">
-            Connected. This account is saved in Connections and can be reused.
+            {t("agentSetupPage.aiConnections.auth.connected")}
           </p>
-          <Button onClick={onDone}>Use connection</Button>
+          <Button onClick={onDone}>{t("agentSetupPage.aiConnections.auth.useConnection")}</Button>
         </>
       ) : (
         <>
@@ -85,7 +87,7 @@ function AuthAttempt({
             <p role="status" className="text-sm text-muted-foreground">
               {state.phase === "unsupported"
                 ? state.message
-                : "This provider does not offer a subscription connection."}
+                : t("agentSetupPage.aiConnections.auth.noSubscription")}
             </p>
           ) : (
             <>
@@ -96,7 +98,7 @@ function AuthAttempt({
               )}
               {state.phase === "cancelled" && (
                 <p role="status" className="text-sm text-muted-foreground">
-                  Sign-in cancelled. No connection was created.
+                  {t("agentSetupPage.aiConnections.auth.signInCancelled")}
                 </p>
               )}
               {method === "api_key" ? (
@@ -105,7 +107,7 @@ function AuthAttempt({
                   value={value}
                   onChange={setValue}
                   onSubmit={submit}
-                  placeholder="Enter API key here"
+                  placeholder={t("agentSetupPage.aiConnections.auth.enterApiKey")}
                   disabled={busy}
                   autoFocus
                 />
@@ -143,7 +145,7 @@ function AuthAttempt({
                 </ProviderSubscriptionCard>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Sign in with your {info.subscriptionName}.
+                  {t("agentSetupPage.aiConnections.auth.signInWith", { subscription: info.subscriptionName })}
                 </p>
               )}
             </>
@@ -156,30 +158,30 @@ function AuthAttempt({
                 onCancel();
               }}
             >
-              Cancel
+              {t("agentSetupPage.common.cancel")}
             </Button>
             {!unsupported &&
               (method === "api_key" ? (
                 <Button disabled={busy || !value.trim()} onClick={submit}>
-                  {busy ? "Connecting…" : "Connect"}
+                  {busy ? t("agentSetupPage.aiConnections.auth.connecting") : t("agentSetupPage.aiConnections.auth.connect")}
                 </Button>
               ) : state.phase === "waiting" ? (
                 provider === "anthropic" ? (
                   <Button disabled={!value.trim()} onClick={submit}>
-                    Submit code
+                    {t("agentSetupPage.aiConnections.auth.submitCode")}
                   </Button>
                 ) : (
                   <span role="status" className="text-sm text-muted-foreground">
-                    Waiting for sign-in…
+                    {t("agentSetupPage.aiConnections.auth.waitingForSignIn")}
                   </span>
                 )
               ) : (
                 <Button disabled={busy} onClick={onStart}>
                   {busy
-                    ? "Preparing sign-in…"
+                    ? t("agentSetupPage.aiConnections.auth.preparingSignIn")
                     : state.phase === "idle"
-                      ? "Sign in"
-                      : "Try again"}
+                      ? t("agentSetupPage.aiConnections.auth.signIn")
+                      : t("agentSetupPage.aiConnections.auth.tryAgain")}
                 </Button>
               ))}
           </div>

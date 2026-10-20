@@ -23,110 +23,24 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
-
-/* ------------------------------------------------------------------ */
-/*  Canonical verb table — one verb per action, used on every card.    */
-/* ------------------------------------------------------------------ */
+import { approvalTypeLabel } from "@/components/ApprovalPayload";
+import { t as translate } from "@/i18n";
+import { formatActivityVerb } from "@/lib/activity-format";
 
 type VerbContext = "pinned" | "chronological";
 
-function humanize(value: unknown): string {
-  return typeof value === "string" ? value.replace(/_/g, " ") : String(value ?? "");
-}
-
-/** One verb per action. Pinned context (Tier 0) swaps a couple of verbs to
- *  emphasize that user action is needed. */
 function formatVerb(
   action: string,
   details: Record<string, unknown> | null | undefined,
   context: VerbContext = "chronological",
 ): string {
-  switch (action) {
-    case "issue.created":
-      return "opened";
-    case "issue.updated": {
-      const status = details?.status;
-      if (status === "in_review" && details?.externalConversationState === "waiting") return "moved to idle";
-      if (typeof status === "string") return `moved to ${humanize(status)}`;
-      const priority = details?.priority;
-      if (typeof priority === "string") return `set priority to ${humanize(priority)} on`;
-      return "updated";
-    }
-    case "issue.document_created":
-      return "wrote doc on";
-    case "issue.document_updated":
-      return "edited doc on";
-    case "issue.document_deleted":
-      return "deleted doc from";
-    case "issue.work_product_created":
-      return "delivered work on";
-    case "issue.work_product_updated":
-      return "updated work on";
-    case "issue.work_product_deleted":
-      return "removed work from";
-    case "issue.checked_out":
-      return "picked up";
-    case "issue.released":
-      return "released";
-    case "issue.commented":
-    case "issue.comment_added":
-      return "commented on";
-    case "issue.attachment_added":
-      return "attached a file to";
-    case "issue.attachment_removed":
-      return "removed attachment from";
-    case "issue.deleted":
-      return "deleted";
-
-    case "approval.created":
-      return context === "pinned" ? "needs approval on" : "requested approval on";
-    case "approval.approved":
-      return "approved";
-    case "approval.rejected":
-      return "rejected";
-    case "approval.revision_requested":
-      return "requested changes on";
-
-    case "agent.created":
-      return context === "pinned" ? "wants to hire" : "hired";
-    case "agent.paused":
-      return "paused";
-    case "agent.resumed":
-      return "resumed";
-    case "agent.updated":
-      return "updated";
-    case "agent.terminated":
-      return "terminated";
-
-    case "heartbeat.invoked":
-      return "started a run on";
-    case "heartbeat.cancelled":
-      return "cancelled a run on";
-
-    case "project.created":
-      return "created project";
-    case "project.updated":
-      return "updated project";
-    case "project.deleted":
-      return "deleted project";
-    case "goal.created":
-      return "created goal";
-    case "goal.updated":
-      return "updated goal";
-    case "goal.deleted":
-      return "deleted goal";
-    case "company.created":
-      return "created organization";
-    case "company.updated":
-      return "updated organization";
-    case "company.archived":
-      return "archived organization";
-    case "company.budget_updated":
-      return "updated organization budget";
-
-    default:
-      return action.replace(/[._]/g, " ");
+  if (context === "pinned" && action === "approval.created") {
+    return translate("dashboardPage.activityFeed.pinnedApprovalVerb");
   }
+  if (context === "pinned" && action === "agent.created") {
+    return translate("dashboardPage.activityFeed.pinnedAgentVerb");
+  }
+  return formatActivityVerb(action, details);
 }
 
 /* ------------------------------------------------------------------ */
@@ -295,10 +209,10 @@ function resolveContent(
   const actorName =
     actor?.name ??
     (event.actorType === "system"
-      ? "System"
+      ? translate("dashboardPage.actors.system")
       : event.actorType === "user"
-        ? "Board"
-        : event.actorId || "Unknown");
+        ? translate("shell.account.board")
+        : event.actorId || translate("dashboardPage.actors.unknown"));
 
   const entityTitle = entityTitleMap?.get(`${event.entityType}:${event.entityId}`) ?? null;
 
@@ -353,7 +267,7 @@ function resolveContent(
     if (approvalAgentName) {
       identifier = approvalAgentName;
     } else {
-      identifier = approvalType ? humanize(approvalType) : "approval";
+      identifier = approvalType ? approvalTypeLabel(approvalType) : "approval";
       identifierMono = false;
     }
     title = entityTitle;
@@ -468,7 +382,9 @@ export function FeedCard({
         )}
       </span>
       {isPinned && (
-        <span className="shrink-0 text-xs text-muted-foreground">Review →</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {translate("dashboardPage.activityFeed.reviewAction")}
+        </span>
       )}
       <span data-fc="time" className="shrink-0 text-muted-foreground">
         {timeAgo(event.createdAt)}

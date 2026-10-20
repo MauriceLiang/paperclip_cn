@@ -1,3 +1,5 @@
+import { t as translate } from "@/i18n";
+import type { TFunction } from "i18next";
 import type { IssueRecoveryAction, IssueRecoveryActionKind } from "@paperclipai/shared";
 import { Eye, OctagonAlert, RefreshCw, TriangleAlert } from "lucide-react";
 import {
@@ -17,29 +19,29 @@ export type ActiveRecoveryDisplayState = Exclude<RecoveryDisplayState, "resolved
 
 export const RECOVERY_CHIP_DEFAULT_TONE: Record<
   ActiveRecoveryDisplayState,
-  { className: string; icon: typeof TriangleAlert; label: string }
+  { className: string; icon: typeof TriangleAlert; labelKey: string }
 > = {
   needed: {
     className:
       "border-amber-500/60 bg-amber-500/15 text-amber-700 dark:text-amber-300",
     icon: TriangleAlert,
-    label: "Recovery needed",
+    labelKey: "recoveryDisplay.recoveryNeeded",
   },
   in_progress: {
     className:
       "border-sky-500/60 bg-sky-500/15 text-sky-700 dark:text-sky-300",
     icon: RefreshCw,
-    label: "Recovery in progress",
+    labelKey: "recoveryDisplay.recoveryInProgress",
   },
   observe_only: {
     className: "border-border bg-muted text-muted-foreground",
     icon: Eye,
-    label: "Observing active run",
+    labelKey: "recoveryDisplay.observingActiveRun",
   },
   escalated: {
     className: "border-red-500/60 bg-red-500/15 text-red-700 dark:text-red-300",
     icon: OctagonAlert,
-    label: "Recovery escalated",
+    labelKey: "recoveryDisplay.recoveryEscalated",
   },
 };
 
@@ -117,9 +119,10 @@ export function recoveryChipLabel(
   state: ActiveRecoveryDisplayState,
   kind: IssueRecoveryActionKind,
   lineage?: RecoveryRetryLineage | null,
+  t: TFunction = translate,
 ): string {
   if (kind === "workspace_validation" && state === "needed") {
-    return "Workspace recovery needed";
+    return t("recoveryDisplay.workspaceRecoveryNeeded");
   }
   if (
     state === "in_progress" &&
@@ -129,5 +132,5 @@ export function recoveryChipLabel(
   ) {
     return `Recovery in progress · ${Math.min(lineage.attempt, lineage.maxAttempts)}/${lineage.maxAttempts}`;
   }
-  return RECOVERY_CHIP_DEFAULT_TONE[state].label;
+  return t(RECOVERY_CHIP_DEFAULT_TONE[state].labelKey);
 }

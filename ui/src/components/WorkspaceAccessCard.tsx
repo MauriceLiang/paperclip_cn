@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "../lib/utils";
 import type { WorkspaceAccessState } from "../lib/workspace-access-state";
+import { useTranslation } from "@/i18n";
 
 /**
  * Workspace access surface (PAP-17572).
@@ -30,15 +31,6 @@ const STATE_BADGE_CLASSES: Record<ActiveWorkspaceAccessState, string> = {
   failed: "border-destructive/50 text-destructive",
 };
 
-const STATE_LABELS: Record<ActiveWorkspaceAccessState, string> = {
-  provisioning: "Provisioning",
-  validating: "Validating clone",
-  ready: "Ready",
-  degraded: "Degraded",
-  repairing: "Repairing",
-  failed: "Failed",
-};
-
 const ACTION_ICONS = {
   open: ExternalLink,
   start: Play,
@@ -64,6 +56,7 @@ export function WorkspaceAccessCard({
   onViewLogs: () => void;
   errorMessage?: string | null;
 }) {
+  const { t } = useTranslation();
   const Icon = ACTION_ICONS[access.action.kind];
   const isWaiting = access.action.kind === "wait";
   const handlers: Record<WorkspaceAccessState["action"]["kind"], () => void> = {
@@ -93,7 +86,7 @@ export function WorkspaceAccessCard({
               {(access.state === "repairing" || access.state === "provisioning") && (
                 <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
               )}
-              {STATE_LABELS[access.state]}
+              {t(`remainingSurfaces.workspaceAccess.states.${access.state}`)}
             </span>
           ) : null}
         </div>
@@ -116,12 +109,12 @@ export function WorkspaceAccessCard({
           </Button>
           {access.state === "ready" && !access.handoffAvailable ? (
             <span className="text-xs text-muted-foreground">
-              Signs in with the snapshot-local credentials captured when this clone was made.
+              {t("remainingSurfaces.workspaceAccess.snapshotCredentials")}
             </span>
           ) : null}
           {access.state === "ready" && access.handoffAvailable ? (
             <span className="text-xs text-muted-foreground">
-              Uses a single-use login handoff — no password needed.
+              {t("remainingSurfaces.workspaceAccess.loginHandoff")}
             </span>
           ) : null}
         </div>

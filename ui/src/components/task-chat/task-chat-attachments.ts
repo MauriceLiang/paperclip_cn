@@ -23,6 +23,20 @@ export interface FileKind {
   label: string;
 }
 
+export const FILE_KIND_TRANSLATION_KEYS: Record<string, string> = {
+  Archive: "taskChatPage.fileKind.archive",
+  Audio: "taskChatPage.fileKind.audio",
+  Code: "taskChatPage.fileKind.code",
+  Doc: "taskChatPage.fileKind.doc",
+  File: "taskChatPage.fileKind.file",
+  Log: "taskChatPage.fileKind.log",
+  Markdown: "taskChatPage.fileKind.markdown",
+  Patch: "taskChatPage.fileKind.patch",
+  Sheet: "taskChatPage.fileKind.sheet",
+  Text: "taskChatPage.fileKind.text",
+  Video: "taskChatPage.fileKind.video",
+};
+
 const IMAGE_EXTENSIONS = new Set([
   "png",
   "jpg",

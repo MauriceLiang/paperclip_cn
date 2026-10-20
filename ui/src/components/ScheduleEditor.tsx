@@ -3,22 +3,24 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { nextCronFires, parseCronExpression } from "../lib/cron-fires";
+import { t as translate, useTranslation } from "@/i18n";
 
 export type SchedulePreset = "every_minute" | "every_hour" | "every_day" | "weekdays" | "weekly" | "monthly" | "custom";
 
-const PRESETS: { value: SchedulePreset; label: string }[] = [
-  { value: "every_minute", label: "Every minute" },
-  { value: "every_hour", label: "Every hour" },
-  { value: "every_day", label: "Every day" },
-  { value: "weekdays", label: "Weekdays" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "custom", label: "Custom (cron)" },
+const PRESETS: { value: SchedulePreset; labelKey: string }[] = [
+  { value: "every_minute", labelKey: "settingsComponents.scheduleEditor.presets.everyMinute" },
+  { value: "every_hour", labelKey: "settingsComponents.scheduleEditor.presets.everyHour" },
+  { value: "every_day", labelKey: "settingsComponents.scheduleEditor.presets.everyDay" },
+  { value: "weekdays", labelKey: "settingsComponents.scheduleEditor.presets.weekdays" },
+  { value: "weekly", labelKey: "settingsComponents.scheduleEditor.presets.weekly" },
+  { value: "monthly", labelKey: "settingsComponents.scheduleEditor.presets.monthly" },
+  { value: "custom", labelKey: "settingsComponents.scheduleEditor.presets.custom" },
 ];
 
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
   value: String(i),
-  label: i === 0 ? "12 AM" : i < 12 ? `${i} AM` : i === 12 ? "12 PM" : `${i - 12} PM`,
+  hour12: i === 0 ? "12" : i < 12 ? String(i) : i === 12 ? "12" : String(i - 12),
+  period: i < 12 ? "am" : "pm",
 }));
 
 const MINUTES = Array.from({ length: 12 }, (_, i) => ({
@@ -26,14 +28,14 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => ({
   label: String(i * 5).padStart(2, "0"),
 }));
 
-const DAYS_OF_WEEK = [
-  { value: "1", label: "Mon" },
-  { value: "2", label: "Tue" },
-  { value: "3", label: "Wed" },
-  { value: "4", label: "Thu" },
-  { value: "5", label: "Fri" },
-  { value: "6", label: "Sat" },
-  { value: "0", label: "Sun" },
+const DAYS_OF_WEEK: { value: string; labelKey: string }[] = [
+  { value: "1", labelKey: "settingsComponents.scheduleEditor.day.mon" },
+  { value: "2", labelKey: "settingsComponents.scheduleEditor.day.tue" },
+  { value: "3", labelKey: "settingsComponents.scheduleEditor.day.wed" },
+  { value: "4", labelKey: "settingsComponents.scheduleEditor.day.thu" },
+  { value: "5", labelKey: "settingsComponents.scheduleEditor.day.fri" },
+  { value: "6", labelKey: "settingsComponents.scheduleEditor.day.sat" },
+  { value: "0", labelKey: "settingsComponents.scheduleEditor.day.sun" },
 ];
 
 const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => ({
@@ -119,35 +121,54 @@ export function buildCron(preset: SchedulePreset, hour: string, minute: string, 
   }
 }
 
+function hourLabel(hour: (typeof HOURS)[number]): string {
+  return translate("settingsComponents.scheduleEditor.hourOption", {
+    hour: hour.hour12,
+    period: translate(hour.period === "am"
+      ? "settingsComponents.scheduleEditor.period.am"
+      : "settingsComponents.scheduleEditor.period.pm"),
+  });
+}
+
 function describeSchedule(cron: string): string {
   const { preset, hour, minute, dayOfWeek, dayOfMonth } = parseCronToPreset(cron);
-  const hourLabel = HOURS.find((h) => h.value === hour)?.label ?? `${hour}`;
-  const timeStr = `${hourLabel.replace(/ (AM|PM)$/, "")}:${minute.padStart(2, "0")} ${hourLabel.match(/(AM|PM)$/)?.[0] ?? ""}`;
+  const hourEntry = HOURS.find((h) => h.value === hour);
+  const hourText = hourEntry?.hour12 ?? `${hour}`;
+  const periodText = hourEntry
+    ? translate(hourEntry.period === "am"
+      ? "settingsComponents.scheduleEditor.period.am"
+      : "settingsComponents.scheduleEditor.period.pm")
+    : "";
+  const timeStr = translate("settingsComponents.scheduleEditor.describe.time", {
+    hour: hourText,
+    minute: minute.padStart(2, "0"),
+    period: periodText,
+  });
 
   switch (preset) {
     case "every_minute":
-      return "Every minute";
+      return translate("settingsComponents.scheduleEditor.describe.everyMinute");
     case "every_hour":
-      return `Every hour at :${minute.padStart(2, "0")}`;
+      return translate("settingsComponents.scheduleEditor.describe.everyHour", { minute: minute.padStart(2, "0") });
     case "every_day":
-      return `Every day at ${timeStr}`;
+      return translate("settingsComponents.scheduleEditor.describe.everyDay", { time: timeStr });
     case "weekdays":
-      return `Weekdays at ${timeStr}`;
+      return translate("settingsComponents.scheduleEditor.describe.weekdays", { time: timeStr });
     case "weekly": {
-      const day = DAYS_OF_WEEK.find((d) => d.value === dayOfWeek)?.label ?? dayOfWeek;
-      return `Every ${day} at ${timeStr}`;
+      const dayEntry = DAYS_OF_WEEK.find((d) => d.value === dayOfWeek);
+      const day = dayEntry ? translate(dayEntry.labelKey) : dayOfWeek;
+      return translate("settingsComponents.scheduleEditor.describe.weekly", { day, time: timeStr });
     }
-    case "monthly":
-      return `Monthly on the ${dayOfMonth}${ordinalSuffix(Number(dayOfMonth))} at ${timeStr}`;
+    case "monthly": {
+      const day = translate("settingsComponents.scheduleEditor.describe.monthlyDay", {
+        count: Number(dayOfMonth),
+        ordinal: true,
+      });
+      return translate("settingsComponents.scheduleEditor.describe.monthly", { day, time: timeStr });
+    }
     case "custom":
-      return cron || "No schedule set";
+      return cron || translate("settingsComponents.scheduleEditor.describe.noSchedule");
   }
-}
-
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return s[(v - 20) % 10] || s[v] || s[0];
 }
 
 export { describeSchedule };
@@ -161,7 +182,7 @@ export function getScheduleCronValidation(cron: string): {
   if (!trimmed) {
     return {
       valid: false,
-      message: "Enter a 5-field cron expression.",
+      message: translate("settingsComponents.scheduleEditor.validation.required"),
       nextFires: [],
     };
   }
@@ -170,7 +191,7 @@ export function getScheduleCronValidation(cron: string): {
   if (fields.length !== 5) {
     return {
       valid: false,
-      message: `Use exactly 5 fields; this has ${fields.length}.`,
+      message: translate("settingsComponents.scheduleEditor.validation.fields", { count: fields.length }),
       nextFires: [],
     };
   }
@@ -178,7 +199,7 @@ export function getScheduleCronValidation(cron: string): {
   if (!parseCronExpression(trimmed)) {
     return {
       valid: false,
-      message: "Cron fields must use valid numbers, ranges, lists, wildcards, or steps.",
+      message: translate("settingsComponents.scheduleEditor.validation.invalidFields"),
       nextFires: [],
     };
   }
@@ -186,7 +207,9 @@ export function getScheduleCronValidation(cron: string): {
   const nextFires = nextCronFires(trimmed, 3, { timeZone: "UTC" });
   return {
     valid: true,
-    message: nextFires.length > 0 ? "Valid cron." : "Valid cron, but no upcoming fires were found.",
+    message: nextFires.length > 0
+      ? translate("settingsComponents.scheduleEditor.validation.valid")
+      : translate("settingsComponents.scheduleEditor.validation.validNoFires"),
     nextFires,
   };
 }
@@ -200,6 +223,7 @@ export function ScheduleEditor({
   onChange: (cron: string) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const parsed = useMemo(() => parseCronToPreset(value), [value]);
   const [preset, setPreset] = useState<SchedulePreset>(parsed.preset);
   const [hour, setHour] = useState(parsed.hour);
@@ -247,13 +271,13 @@ export function ScheduleEditor({
   return (
     <div className="space-y-3">
       <Select value={preset} onValueChange={(v) => handlePresetChange(v as SchedulePreset)}>
-        <SelectTrigger className="w-full" aria-label="Schedule frequency">
-          <SelectValue placeholder="Choose frequency..." />
+        <SelectTrigger className="w-full" aria-label={t("settingsComponents.scheduleEditor.aria.frequency")}>
+          <SelectValue placeholder={t("settingsComponents.scheduleEditor.placeholder.frequency")} />
         </SelectTrigger>
         <SelectContent>
           {PRESETS.map((p) => (
             <SelectItem key={p.value} value={p.value}>
-              {p.label}
+              {t(p.labelKey)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -277,12 +301,12 @@ export function ScheduleEditor({
               }
             }}
             placeholder="0 10 * * *"
-            aria-label="Cron expression"
+            aria-label={t("settingsComponents.scheduleEditor.aria.cron")}
             aria-invalid={!customValidation.valid}
             className="font-mono text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Five fields: minute hour day-of-month month day-of-week
+            {t("settingsComponents.scheduleEditor.fieldsHint")}
           </p>
           <p
             className={customValidation.valid ? "text-xs text-muted-foreground" : "text-xs text-destructive"}
@@ -290,7 +314,9 @@ export function ScheduleEditor({
           >
             {customValidation.message}
             {customValidation.valid && customValidation.nextFires.length > 0
-              ? ` Next: ${customValidation.nextFires.map((fire) => fire.toLocaleString()).join(", ")}.`
+              ? ` ${t("settingsComponents.scheduleEditor.validation.next", {
+                fires: customValidation.nextFires.map((fire) => fire.toLocaleString()).join(", "),
+              })}`
               : null}
           </p>
         </div>
@@ -298,7 +324,7 @@ export function ScheduleEditor({
         <div className="flex flex-wrap items-center gap-2">
           {preset !== "every_minute" && preset !== "every_hour" && (
             <>
-              <span className="text-sm text-muted-foreground">at</span>
+              <span className="text-sm text-muted-foreground">{t("settingsComponents.scheduleEditor.controls.at")}</span>
               <Select
                 value={hour}
                 onValueChange={(h) => {
@@ -312,7 +338,7 @@ export function ScheduleEditor({
                 <SelectContent>
                   {HOURS.map((h) => (
                     <SelectItem key={h.value} value={h.value}>
-                      {h.label}
+                      {hourLabel(h)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -341,7 +367,7 @@ export function ScheduleEditor({
 
           {preset === "every_hour" && (
             <>
-              <span className="text-sm text-muted-foreground">at minute</span>
+              <span className="text-sm text-muted-foreground">{t("settingsComponents.scheduleEditor.controls.atMinute")}</span>
               <Select
                 value={minute}
                 onValueChange={(m) => {
@@ -365,7 +391,7 @@ export function ScheduleEditor({
 
           {preset === "weekly" && (
             <>
-              <span className="text-sm text-muted-foreground">on</span>
+              <span className="text-sm text-muted-foreground">{t("settingsComponents.scheduleEditor.controls.on")}</span>
               <div className="flex gap-1">
                 {DAYS_OF_WEEK.map((d) => (
                   <Button
@@ -380,7 +406,7 @@ export function ScheduleEditor({
                       emitChange(preset, hour, minute, d.value, dayOfMonth, customCron);
                     }}
                   >
-                    {d.label}
+                    {t(d.labelKey)}
                   </Button>
                 ))}
               </div>
@@ -389,7 +415,7 @@ export function ScheduleEditor({
 
           {preset === "monthly" && (
             <>
-              <span className="text-sm text-muted-foreground">on day</span>
+              <span className="text-sm text-muted-foreground">{t("settingsComponents.scheduleEditor.controls.onDay")}</span>
               <Select
                 value={dayOfMonth}
                 onValueChange={(dom) => {

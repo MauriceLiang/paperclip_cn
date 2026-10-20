@@ -7,6 +7,7 @@
  */
 import type { ComponentType } from "react";
 import { agentHarnessType } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 import {
   Bot,
   Code,
@@ -39,10 +40,6 @@ function getTypeSuffix(type: string): string | null {
     if (type.endsWith(suffix)) return mode;
   }
   return null;
-}
-
-function withSuffix(label: string, suffix: string | null): string {
-  return suffix ? `${label} (${suffix})` : label;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +166,41 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
   },
 };
 
+const ADAPTER_DISPLAY_TEXT_KEYS: Record<
+  string,
+  { label?: string; description: string; disabledLabel?: string }
+> = {
+  acpx_local: {
+    label: "agentSetupPage.adapters.display.labels.acpxRetired",
+    description: "agentSetupPage.adapters.display.descriptions.acpxRetired",
+    disabledLabel: "agentSetupPage.adapters.display.disabled.acpx",
+  },
+  claude_local: { description: "agentSetupPage.adapters.display.descriptions.claude" },
+  codex_local: { description: "agentSetupPage.adapters.display.descriptions.codex" },
+  paperclip_runner: { description: "agentSetupPage.adapters.display.descriptions.paperclipRunner" },
+  gemini_local: { description: "agentSetupPage.adapters.display.descriptions.gemini" },
+  grok_local: { description: "agentSetupPage.adapters.display.descriptions.grok" },
+  kimi_local: { description: "agentSetupPage.adapters.display.descriptions.kimi" },
+  hermes_gateway: { description: "agentSetupPage.adapters.display.descriptions.hermesGateway" },
+  hermes_local: { description: "agentSetupPage.adapters.display.descriptions.hermes" },
+  opencode_local: { description: "agentSetupPage.adapters.display.descriptions.opencode" },
+  pi_local: { description: "agentSetupPage.adapters.display.descriptions.pi" },
+  cursor: { description: "agentSetupPage.adapters.display.descriptions.cursor" },
+  grok_bot: { description: "agentSetupPage.adapters.display.descriptions.grokBot" },
+  openai_dot: { description: "agentSetupPage.adapters.display.descriptions.openAiDot" },
+  muse: {
+    label: "agentSetupPage.adapters.display.labels.musePersonalAgent",
+    description: "agentSetupPage.adapters.display.descriptions.muse",
+  },
+  cursor_cloud: { description: "agentSetupPage.adapters.display.descriptions.cursorCloud" },
+  openclaw_gateway: {
+    description: "agentSetupPage.adapters.display.descriptions.openclawGateway",
+    disabledLabel: "agentSetupPage.adapters.display.disabled.openclaw",
+  },
+  process: { description: "agentSetupPage.adapters.display.descriptions.process" },
+  http: { description: "agentSetupPage.adapters.display.descriptions.http" },
+};
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -190,27 +222,57 @@ export function getAdapterLabel(type: string): string {
   // suffix, so labels like "OpenClaw Gateway" don't become
   // "OpenClaw Gateway (gateway)".
   const known = adapterDisplayMap[type];
-  if (known) return known.label;
-  return withSuffix(humanizeType(type), getTypeSuffix(type));
+  if (known) {
+    const labelKey = ADAPTER_DISPLAY_TEXT_KEYS[type]?.label;
+    return labelKey ? translate(labelKey) : known.label;
+  }
+  const suffix = getTypeSuffix(type);
+  if (!suffix) return humanizeType(type);
+  const suffixLabel = translate("agentSetupPage.adapters.display.gatewaySuffix");
+  return translate("agentSetupPage.adapters.display.derivedLabelWithSuffix", {
+    name: humanizeType(type),
+    suffix: suffixLabel,
+  });
 }
 
 export function getAdapterLabels(): Record<string, string> {
   const labels: Record<string, string> = {};
-  for (const [type, info] of Object.entries(adapterDisplayMap)) {
-    labels[type] = info.label;
+  for (const type of Object.keys(adapterDisplayMap)) {
+    labels[type] = getAdapterLabel(type);
   }
   return labels;
 }
 
 export function getAdapterDisplay(type: string): AdapterDisplayInfo {
   const known = adapterDisplayMap[type];
-  if (known) return known;
+  if (known) {
+    const textKeys = ADAPTER_DISPLAY_TEXT_KEYS[type];
+    return {
+      ...known,
+      label: getAdapterLabel(type),
+      description: textKeys ? translate(textKeys.description) : known.description,
+      disabledLabel:
+        textKeys?.disabledLabel && known.disabledLabel
+          ? translate(textKeys.disabledLabel)
+          : known.disabledLabel,
+    };
+  }
 
   const suffix = getTypeSuffix(type);
-  const label = withSuffix(humanizeType(type), suffix);
+  const suffixLabel = suffix ? translate("agentSetupPage.adapters.display.gatewaySuffix") : null;
+  const label = suffixLabel
+    ? translate("agentSetupPage.adapters.display.derivedLabelWithSuffix", {
+        name: humanizeType(type),
+        suffix: suffixLabel,
+      })
+    : humanizeType(type);
   return {
     label,
-    description: suffix ? `External ${suffix} adapter` : "External adapter",
+    description: suffixLabel
+      ? translate("agentSetupPage.adapters.display.externalAdapterWithSuffix", {
+          suffix: suffixLabel,
+        })
+      : translate("agentSetupPage.adapters.display.externalAdapter"),
     icon: Cpu,
   };
 }

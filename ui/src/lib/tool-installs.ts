@@ -54,6 +54,3 @@ export const INSTALL_ALL_WARNING =
 export function autoExtendNotice(agentName: string): string {
   return `Installing on ${agentName} will also grant access. A tool can't be installed on an agent that isn't allowed to use it, so we'll add ${agentName} to who can use it. This is logged.`;
 }
-
-export const INSTALLED_HINT =
-  "Has access — tick to load its tools into this agent's context.";

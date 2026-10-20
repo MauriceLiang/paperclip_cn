@@ -2,6 +2,7 @@
 
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { DocumentAnnotationLayer } from "./DocumentAnnotationLayer";
 
 const mockBuildAnchorFromContainerSelection = vi.hoisted(() => vi.fn());
@@ -64,6 +65,7 @@ describe("DocumentAnnotationLayer", () => {
     rectSpy.mockRestore();
     container.remove();
     vi.clearAllMocks();
+    await i18n.changeLanguage("en");
   });
 
   it("uses borderless token-driven overlay boxes for annotation highlight states", async () => {
@@ -143,6 +145,34 @@ describe("DocumentAnnotationLayer", () => {
 
     expect(container.querySelector(".paperclip-doc-annotation-highlight")).toBeNull();
     expect(container.querySelector(".paperclip-doc-annotation-hit-target")).toBeNull();
+  });
+
+  it("localizes annotation thread controls in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const body = document.createElement("div");
+    body.textContent = "Annotated body text.";
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        <DocumentAnnotationLayer
+          containerRef={{ current: body }}
+          markdown="Annotated body text."
+          threads={[
+            { id: "active", selectedText: "Annotated", status: "open", anchorState: "active" },
+          ]}
+          focusedThreadId={null}
+          onThreadFocus={vi.fn()}
+          pendingAnchor={null}
+          onPendingAnchorChange={vi.fn()}
+          onRequestComment={vi.fn()}
+        />,
+      );
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    expect(container.querySelector(".paperclip-doc-annotation-hit-target")?.getAttribute("aria-label"))
+      .toBe("打开标注讨论");
   });
 
   it("does not capture annotation comments from editable selections", async () => {

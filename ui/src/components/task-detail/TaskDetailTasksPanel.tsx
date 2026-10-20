@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RelationNavigationList, TaskDetailSubtasksPanel, TaskDetailTaskList } from "./TaskDetailRelationsPanel";
 import { IssueCreatedFromNote } from "./IssueCreatedFromNote";
+import { useTranslation } from "@/i18n";
 
 function TaskGroup({ name, projectPath, children }: { name: string; projectPath?: string; children: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <Collapsible defaultOpen asChild>
       <section aria-label={name}>
@@ -23,7 +25,7 @@ function TaskGroup({ name, projectPath, children }: { name: string; projectPath?
             </CollapsibleTrigger>
           </h2>
           {projectPath && (
-            <Link to={projectPath} aria-label={`Go to ${name} project`} title={`Go to ${name} project`} className="ml-auto inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity duration-(--motion-duration-fast) ease-(--motion-ease-standard) hover:bg-accent hover:text-foreground group-hover/header:opacity-100 group-focus-within/header:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link to={projectPath} aria-label={t("issuesPage.detail.tasksPanel.goToProject", { name })} title={t("issuesPage.detail.tasksPanel.goToProject", { name })} className="ml-auto inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity duration-(--motion-duration-fast) ease-(--motion-ease-standard) hover:bg-accent hover:text-foreground group-hover/header:opacity-100 group-focus-within/header:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
             </Link>
           )}
@@ -49,6 +51,7 @@ export interface TaskDetailTasksPanelProps {
 }
 
 export function TaskDetailTasksPanel({ ancestors = [], createdFrom = null, subtasks, createdTasks, projects, isLoading, hasError, onRetry, issueLinkState }: TaskDetailTasksPanelProps) {
+  const { t } = useTranslation();
   const sortedSubtasks = sortTasks(subtasks);
   const groups = new Map<string, { name: string; path?: string; tasks: Issue[] }>();
   for (const item of sortTasks(createdTasks)) {
@@ -57,7 +60,9 @@ export function TaskDetailTasksPanel({ ancestors = [], createdFrom = null, subta
       ? projects.find((candidate) => candidate.id === item.projectId) ?? item.project
       : null;
     const group = groups.get(key) ?? {
-      name: project?.name ?? (item.projectId ? "Project" : "No project"),
+      name: project?.name ?? t(item.projectId
+        ? "issuesPage.detail.tasksPanel.projectFallback"
+        : "issuesPage.detail.tasksPanel.noProject"),
       path: item.projectId ? `/projects/${projectRouteRef(project ?? { id: item.projectId })}/issues` : undefined,
       tasks: [],
     };
@@ -65,24 +70,24 @@ export function TaskDetailTasksPanel({ ancestors = [], createdFrom = null, subta
     groups.set(key, group);
   }
   return (
-    <section className="flex flex-col gap-6" aria-label="Related tasks">
+    <section className="flex flex-col gap-6" aria-label={t("issuesPage.detail.tasksPanel.relatedTasks")}>
       {createdFrom && (
-        <TaskGroup name="Created from">
+        <TaskGroup name={t("issuesPage.detail.createdFrom.label")}>
           <IssueCreatedFromNote createdFrom={createdFrom} issueLinkState={issueLinkState} className="px-2 text-sm" />
         </TaskGroup>
       )}
       {ancestors.length > 0 && (
-        <TaskGroup name="Ancestors">
+        <TaskGroup name={t("issuesPage.detail.tasksPanel.ancestors")}>
           <RelationNavigationList
             items={[...ancestors].reverse()}
             emptyMessage=""
-            ariaLabel="Ancestor tasks, root to parent"
+            ariaLabel={t("issuesPage.detail.tasksPanel.ancestorAria")}
             issueLinkState={issueLinkState}
           />
         </TaskGroup>
       )}
       {sortedSubtasks.length > 0 && (
-        <TaskGroup name="Subtasks">
+        <TaskGroup name={t("issuesPage.detail.tasksPanel.subtasks")}>
           <TaskDetailSubtasksPanel items={sortedSubtasks} issueLinkState={issueLinkState} />
         </TaskGroup>
       )}
@@ -91,15 +96,15 @@ export function TaskDetailTasksPanel({ ancestors = [], createdFrom = null, subta
           <TaskDetailTaskList items={group.tasks} ariaLabel={`${group.name} tasks`} issueLinkState={issueLinkState} />
         </TaskGroup>
       ))}
-      {isLoading && <p role="status" className="text-sm text-muted-foreground">Loading tasks…</p>}
+      {isLoading && <p role="status" className="text-sm text-muted-foreground">{t("issuesPage.detail.tasksPanel.loading")}</p>}
       {hasError && (
         <div role="alert" className="flex items-center gap-2 text-sm text-destructive">
-          <span>Could not load all tasks.</span>
-          {onRetry && <Button variant="ghost" size="sm" onClick={onRetry}>Retry</Button>}
+          <span>{t("issuesPage.detail.tasksPanel.loadFailed")}</span>
+          {onRetry && <Button variant="ghost" size="sm" onClick={onRetry}>{t("issuesPage.detail.tasksPanel.retry")}</Button>}
         </div>
       )}
       {!isLoading && !hasError && !createdFrom && ancestors.length === 0 && subtasks.length === 0 && createdTasks.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">No tasks yet.</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{t("issuesPage.detail.tasksPanel.empty")}</p>
       )}
     </section>
   );

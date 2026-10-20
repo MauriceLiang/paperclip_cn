@@ -24,6 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn, formatDateTime, relativeTime } from "@/lib/utils";
+import { Trans } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useTranslation } from "@/i18n";
 
 const SUMMARIZER_KEY = "summarizer";
 const TERMINAL_ISSUE_STATUSES = new Set(["done", "cancelled"]);
@@ -44,8 +47,8 @@ function issueLabel(issue: SummarySlotIssueRef) {
   return issue.identifier ? `${issue.identifier}: ${issue.title}` : issue.title;
 }
 
-function revisionLabel(revision: SummarySlotRevision) {
-  return `Rev ${revision.revisionNumber}`;
+function revisionLabel(revision: SummarySlotRevision, t: TFunction) {
+  return t("chatComponents.summarySlotCard.revisionLabel", { number: revision.revisionNumber });
 }
 
 function formatRevisionTimestamp(date: Date | string) {
@@ -58,17 +61,22 @@ function formatRevisionTimestamp(date: Date | string) {
   }).format(new Date(date)).replace(",", "");
 }
 
-function revisionOptionLabel(revision: SummarySlotRevision) {
-  return `${revisionLabel(revision)} - ${formatRevisionTimestamp(revision.createdAt)}`;
+function revisionOptionLabel(revision: SummarySlotRevision, t: TFunction) {
+  return t("chatComponents.summarySlotCard.revisionOption", {
+    revision: revisionLabel(revision, t),
+    date: formatRevisionTimestamp(revision.createdAt),
+  });
 }
 
 function latestRevisionOptionLabel(
   document: SummarySlotDocument,
   revision: SummarySlotRevision | null,
+  t: TFunction,
 ) {
-  return `Latest (Rev ${document.latestRevisionNumber}) - ${
-    formatRevisionTimestamp(revision?.createdAt ?? document.updatedAt)
-  }`;
+  return t("chatComponents.summarySlotCard.latestRevisionOption", {
+    number: document.latestRevisionNumber,
+    date: formatRevisionTimestamp(revision?.createdAt ?? document.updatedAt),
+  });
 }
 
 interface LiveGenerationStatus {
@@ -87,11 +95,18 @@ function readPayloadString(value: unknown): string | null {
  * assistant snippet, then the active tool name. Returns null when nothing
  * has streamed yet so the card falls back to its static generating text.
  */
-export function resolveGenerationStatusLine(status: LiveGenerationStatus | null): string | null {
+export function resolveGenerationStatusLine(
+  status: LiveGenerationStatus | null,
+  t?: TFunction,
+): string | null {
   if (!status) return null;
   if (status.message) return status.message;
   if (status.lastAssistantSnippet) return status.lastAssistantSnippet;
-  if (status.currentToolName) return `Working with ${status.currentToolName}`;
+  if (status.currentToolName) {
+    return t
+      ? t("chatComponents.summarySlotCard.workingWith", { tool: status.currentToolName })
+      : `Working with ${status.currentToolName}`;
+  }
   return null;
 }
 
@@ -141,6 +156,7 @@ export function SummarySlotCard({
   description,
   className,
 }: SummarySlotCardProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
   const [configureOpen, setConfigureOpen] = useState(false);
@@ -201,7 +217,7 @@ export function SummarySlotCard({
       ]);
     },
     onError: (error) => {
-      setActionError(error instanceof Error ? error.message : "Summary generation could not be started.");
+      setActionError(error instanceof Error ? error.message : t("chatComponents.summarySlotCard.generationStartFailed"));
     },
   });
 
@@ -234,9 +250,11 @@ export function SummarySlotCard({
     .toSorted((left, right) => right.revisionNumber - left.revisionNumber)
     .slice(0, MAX_REVISION_OPTIONS - (latestDocument ? 1 : 0));
   const revisionSelectValue = historicalRevision?.id ?? LATEST_REVISION_SELECT_VALUE;
-  const latestSelectLabel = latestDocument ? latestRevisionOptionLabel(latestDocument, latestRevision) : "Latest";
+  const latestSelectLabel = latestDocument
+    ? latestRevisionOptionLabel(latestDocument, latestRevision, t)
+    : t("chatComponents.summarySlotCard.latest");
   const generatingIssue = slotQuery.data?.generatingIssue ?? null;
-  const liveStatusLine = resolveGenerationStatusLine(useGenerationStatus(generatingIssue?.id ?? null));
+  const liveStatusLine = resolveGenerationStatusLine(useGenerationStatus(generatingIssue?.id ?? null), t);
   const draftStream = useSummaryDraftStream(companyId, generatingIssue);
   // The token-streamed STATUS line is more responsive than the server-derived
   // progress snippet; prefer it and fall back to the Phase 1 status line.
@@ -261,9 +279,13 @@ export function SummarySlotCard({
           <div className="flex flex-wrap items-center gap-2">
             <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-sm font-semibold">{title}</h2>
-            {isGenerating ? <Badge variant="secondary">Generating</Badge> : null}
-            {displayingHistoricalRevision ? <Badge variant="outline">Historical revision</Badge> : null}
-            {latestDocument && !displayingHistoricalRevision ? <Badge variant="outline">Latest revision</Badge> : null}
+            {isGenerating ? <Badge variant="secondary">{t("chatComponents.summarySlotCard.generating")}</Badge> : null}
+            {displayingHistoricalRevision ? (
+              <Badge variant="outline">{t("chatComponents.summarySlotCard.historicalRevision")}</Badge>
+            ) : null}
+            {latestDocument && !displayingHistoricalRevision ? (
+              <Badge variant="outline">{t("chatComponents.summarySlotCard.latestRevision")}</Badge>
+            ) : null}
           </div>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
@@ -275,7 +297,7 @@ export function SummarySlotCard({
               variant="outline"
               onClick={() => setSelectedRevisionId(null)}
             >
-              Latest
+              {t("chatComponents.summarySlotCard.latest")}
             </Button>
           ) : null}
           {latestDocument && !generationFailed ? (
@@ -287,7 +309,7 @@ export function SummarySlotCard({
               disabled={!selector || generateMutation.isPending || Boolean(isGenerating)}
             >
               {generateMutation.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-              Refresh
+              {t("chatComponents.summarySlotCard.refresh")}
             </Button>
           ) : null}
         </div>
@@ -305,18 +327,17 @@ export function SummarySlotCard({
               <div className="space-y-1 text-sm">
                 <p className="font-medium text-foreground">
                   {needsSetup.status === "pending_approval"
-                    ? "Summarizer setup is pending approval"
-                    : "Set up the Summarizer"}
+                    ? t("chatComponents.summarySlotCard.setupPendingApproval")
+                    : t("chatComponents.summarySlotCard.setupSummarizer")}
                 </p>
                 <p className="text-muted-foreground">
-                  Summaries are generated by Paperclip's built-in Summarizer agent. Configure its adapter and model
-                  before requesting this summary.
+                  {t("chatComponents.summarySlotCard.setupDescription")}
                 </p>
               </div>
             </div>
             {needsSetup.status === "pending_approval" ? null : (
               <Button type="button" size="sm" onClick={() => setConfigureOpen(true)}>
-                Set up Summarizer
+                {t("chatComponents.summarySlotCard.setupButton")}
               </Button>
             )}
           </div>
@@ -335,7 +356,7 @@ export function SummarySlotCard({
       {!needsSetup && summarizerState?.status === "paused" && summarizerState.agent ? (
         <InlineBanner
           tone="warning"
-          title="Summarizer is paused"
+          title={t("chatComponents.summarySlotCard.pausedTitle")}
           actions={
             <Button
               type="button"
@@ -343,16 +364,18 @@ export function SummarySlotCard({
               onClick={() => summarizerState.agent && resumeSummarizer.mutate(summarizerState.agent.id)}
               disabled={resumeSummarizer.isPending}
             >
-              {resumeSummarizer.isPending ? "Resuming..." : "Resume agent"}
+              {resumeSummarizer.isPending
+                ? t("chatComponents.summarySlotCard.resuming")
+                : t("chatComponents.summarySlotCard.resumeAgent")}
             </Button>
           }
         >
-          Existing summaries remain readable, but new summaries will not be generated until the agent resumes.
+          {t("chatComponents.summarySlotCard.pausedBody")}
         </InlineBanner>
       ) : null}
 
       {actionError ? (
-        <InlineBanner tone="warning" title="Summary request failed">
+        <InlineBanner tone="warning" title={t("chatComponents.summarySlotCard.actionFailedTitle")}>
           {actionError}
         </InlineBanner>
       ) : null}
@@ -360,21 +383,23 @@ export function SummarySlotCard({
       {slotQuery.isError ? (
         <InlineBanner
           tone="warning"
-          title="Summary could not be loaded"
+          title={t("chatComponents.summarySlotCard.loadFailedTitle")}
           actions={
             <Button type="button" size="sm" variant="outline" onClick={() => void slotQuery.refetch()}>
-              Retry
+              {t("common.actions.retry")}
             </Button>
           }
         >
-          {slotQuery.error instanceof Error ? slotQuery.error.message : "Try loading the summary again."}
+          {slotQuery.error instanceof Error
+            ? slotQuery.error.message
+            : t("chatComponents.summarySlotCard.tryLoadAgain")}
         </InlineBanner>
       ) : null}
 
       {!slotQuery.isError && generationFailed ? (
         <InlineBanner
           tone="danger"
-          title="Summary generation failed"
+          title={t("chatComponents.summarySlotCard.generationFailedTitle")}
           actions={
             <Button
               type="button"
@@ -382,11 +407,13 @@ export function SummarySlotCard({
               onClick={startGeneration}
               disabled={!selector || generateMutation.isPending}
             >
-              {generateMutation.isPending ? "Retrying..." : "Retry"}
+              {generateMutation.isPending
+                ? t("chatComponents.summarySlotCard.retrying")
+                : t("common.actions.retry")}
             </Button>
           }
         >
-          {slotQuery.data?.slot?.failureReason ?? "The generation task ended before writing a summary."}
+          {slotQuery.data?.slot?.failureReason ?? t("chatComponents.summarySlotCard.generationEnded")}
         </InlineBanner>
       ) : null}
 
@@ -394,7 +421,7 @@ export function SummarySlotCard({
         <div className="flex items-start gap-3 text-sm">
           <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
           <div className="min-w-0 space-y-1">
-            <p className="font-medium text-foreground">Generating summary</p>
+            <p className="font-medium text-foreground">{t("chatComponents.summarySlotCard.generatingSummary")}</p>
             {generationStatusLine ? (
               <p
                 className="animate-pulse truncate text-muted-foreground"
@@ -424,11 +451,18 @@ export function SummarySlotCard({
               </div>
             ) : null}
             <p className="text-muted-foreground">
-              Summarizer is working in{" "}
-              <Link className="underline" to={`/issues/${generatingIssue.identifier ?? generatingIssue.id}`}>
-                {issueLabel(generatingIssue)}
-              </Link>
-              .
+              <Trans
+                i18nKey="chatComponents.summarySlotCard.workingIn"
+                values={{ issue: issueLabel(generatingIssue) }}
+                components={{
+                  issue: (
+                    <Link
+                      className="underline"
+                      to={`/issues/${generatingIssue.identifier ?? generatingIssue.id}`}
+                    />
+                  ),
+                }}
+              />
             </p>
           </div>
         </div>
@@ -437,8 +471,8 @@ export function SummarySlotCard({
       {!slotQuery.isError && !latestDocument && !isGenerating && !generationFailed && canGenerateFirstSummary ? (
         <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1 text-sm">
-            <p className="font-medium text-foreground">No summary yet</p>
-            <p className="text-muted-foreground">Generate a concise status snapshot for this surface.</p>
+            <p className="font-medium text-foreground">{t("chatComponents.summarySlotCard.noSummary")}</p>
+            <p className="text-muted-foreground">{t("chatComponents.summarySlotCard.noSummaryBody")}</p>
           </div>
           <Button
             type="button"
@@ -446,8 +480,12 @@ export function SummarySlotCard({
             onClick={startGeneration}
             disabled={!selector || generateMutation.isPending}
           >
-            {generateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            {generateMutation.isPending ? "Generating..." : "Generate summary"}
+            {generateMutation.isPending
+              ? <Loader2 className="animate-spin" />
+              : <Sparkles />}
+            {generateMutation.isPending
+              ? t("chatComponents.summarySlotCard.generatingAction")
+              : t("chatComponents.summarySlotCard.generateSummary")}
           </Button>
         </div>
       ) : null}
@@ -460,7 +498,9 @@ export function SummarySlotCard({
 
           <div className="flex flex-col gap-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span title={formatDateTime(historicalRevision?.createdAt ?? latestRevision?.createdAt ?? latestDocument.updatedAt)}>
-              Updated {relativeTime(historicalRevision?.createdAt ?? latestRevision?.createdAt ?? latestDocument.updatedAt)}
+              {t("chatComponents.summarySlotCard.updatedAt", {
+                time: relativeTime(historicalRevision?.createdAt ?? latestRevision?.createdAt ?? latestDocument.updatedAt),
+              })}
             </span>
 
             {revisions.length > 1 ? (
@@ -473,12 +513,12 @@ export function SummarySlotCard({
                 <SelectTrigger
                   size="sm"
                   className="h-auto border-0 bg-transparent p-0 text-xs shadow-none hover:text-foreground focus-visible:ring-0"
-                  aria-label="Select summary revision"
-                  title={historicalRevision ? revisionOptionLabel(historicalRevision) : latestSelectLabel}
+                  aria-label={t("chatComponents.summarySlotCard.selectRevision")}
+                  title={historicalRevision ? revisionOptionLabel(historicalRevision, t) : latestSelectLabel}
                 >
                   <SelectValue>
                     <History className="size-3.5" aria-hidden="true" />
-                    <span>{revisions.length} revisions</span>
+                    <span>{t("chatComponents.summarySlotCard.revisionsCount", { count: revisions.length })}</span>
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="end" position="popper">
@@ -493,7 +533,7 @@ export function SummarySlotCard({
                       className="text-xs"
                       title={formatDateTime(revision.createdAt)}
                     >
-                      {revisionOptionLabel(revision)}
+                      {revisionOptionLabel(revision, t)}
                     </SelectItem>
                   ))}
                 </SelectContent>

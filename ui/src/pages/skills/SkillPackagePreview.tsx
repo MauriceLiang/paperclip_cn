@@ -8,12 +8,14 @@ import { FileTree, buildFileTree, collectAllPaths } from '@/components/FileTree'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/lib/router';
+import { useTranslation } from '@/i18n';
 import type { SkillTreeCandidate } from './SkillSourceTree';
 
 export function SkillPackagePreview({ companyId, repository, commitSha, skill, initialFile, repositoryPackage, onClose }: {
   companyId: string; repository: SkillSourceDiscoveryRequest; commitSha: string | null;
   repositoryPackage?: SkillRepositoryPackage; skill: SkillTreeCandidate; initialFile?: string; onClose: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const inspection = repositoryPackage ? { ...repositoryPackage, references: [] } : skill.inspection;
   const [filePath, setFilePath] = useState(initialFile ?? (repositoryPackage ? skill.path : 'SKILL.md'));
   const nodes = buildFileTree(Object.fromEntries((inspection?.files ?? []).map(file => [file.path, null]))).sort((a, b) => Number(b.name === 'SKILL.md') - Number(a.name === 'SKILL.md'));
@@ -29,51 +31,52 @@ export function SkillPackagePreview({ companyId, repository, commitSha, skill, i
   });
   const githubPath = repositoryPackage ? filePath : filePath === 'SKILL.md' ? skill.path : [root, filePath].filter(Boolean).join('/');
   const githubUrl = commitSha ? `${repository.repositoryUrl}/blob/${commitSha}/${githubPath.split('/').map(encodeURIComponent).join('/')}` : repository.repositoryUrl;
+  const fileCount = inspection?.files.length ?? skill.fileCount;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="flex max-h-(--sz-calc-18) flex-col overflow-y-auto p-4 sm:max-w-4xl sm:p-6">
       <DialogHeader>
-        <DialogTitle>{repositoryPackage ? 'Included repository files' : skill.name}</DialogTitle>
-        <DialogDescription className="break-all font-mono text-xs">{repositoryPackage ? 'Repository root' : root || 'Repository root'}/ · {inspection?.files.length ?? skill.fileCount ?? '?'} files{commitSha ? ` · ${commitSha.slice(0, 8)}` : ''}</DialogDescription>
+        <DialogTitle>{repositoryPackage ? t('skillsPage.sourceImport.preview.repositoryFiles') : skill.name}</DialogTitle>
+        <DialogDescription className="break-all font-mono text-xs">{repositoryPackage ? t('skillsPage.sourceImport.preview.repositoryRoot') : root || t('skillsPage.sourceImport.preview.repositoryRoot')}/ · {fileCount === undefined ? t('skillsPage.sourceImport.preview.unknownFileCount') : t('skillsPage.sourceImport.preview.fileCount', { count: fileCount })}{commitSha ? ` · ${commitSha.slice(0, 8)}` : ''}</DialogDescription>
       </DialogHeader>
-      {!inspection && <p role="status" className="text-sm text-muted-foreground">Refresh this source to inspect its complete package contents.</p>}
-      {skill.error && <p className="text-sm text-muted-foreground">Needs setup: {skill.error}</p>}
+      {!inspection && <p role="status" className="text-sm text-muted-foreground">{t('skillsPage.sourceImport.preview.refreshRequired')}</p>}
+      {skill.error && <p className="text-sm text-muted-foreground">{t('skillsPage.sourceImport.preview.needsSetup')}: {skill.error}</p>}
       {inspection?.requirements && <section className="rounded-md border border-border bg-muted/30 p-3 text-sm">
-        <h3 className="font-medium">Runtime requirements</h3>
+        <h3 className="font-medium">{t('skillsPage.sourceImport.preview.runtimeRequirements')}</h3>
         <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{inspection.requirements}</p>
       </section>}
-      {Boolean(inspection?.references.length) && <section className="rounded-md border border-border p-3 text-sm" aria-label="Package reference warnings">
-        <h3 className="flex items-center gap-2 font-medium"><AlertTriangle className="size-4" />Files not included</h3>
+      {Boolean(inspection?.references.length) && <section className="rounded-md border border-border p-3 text-sm" aria-label={t('skillsPage.sourceImport.preview.referenceWarnings')}>
+        <h3 className="flex items-center gap-2 font-medium"><AlertTriangle className="size-4" />{t('skillsPage.sourceImport.preview.filesNotIncluded')}</h3>
         <ul className="mt-2 space-y-2">
           {inspection!.references.map(reference => <li key={`${reference.fromPath}:${reference.resolvedPath}`} className="break-all text-xs">
-            <span className="font-mono">{reference.target}</span> · {reference.kind === 'outside_package' ? 'Outside this package' : 'Not found'}
-            <span className="text-muted-foreground"> · referenced in {reference.fromPath}</span>
+            <span className="font-mono">{reference.target}</span> · {t(reference.kind === 'outside_package' ? 'skillsPage.sourceImport.preview.outsidePackage' : 'skillsPage.sourceImport.preview.notFound')}
+            <span className="text-muted-foreground"> · {t('skillsPage.sourceImport.preview.referencedIn', { path: reference.fromPath })}</span>
           </li>)}
         </ul>
       </section>}
       {Boolean(inspection?.warnings.length) && <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">Content audit · {inspection!.warnings.length} {inspection!.warnings.length === 1 ? 'notice' : 'notices'}</summary>
+        <summary className="cursor-pointer">{t('skillsPage.sourceImport.preview.contentAudit')} · {t('skillsPage.sourceImport.preview.noticeCount', { count: inspection!.warnings.length })}</summary>
         <ul className="mt-2 space-y-1">{inspection!.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
       </details>}
       {inspection && <div className="flex min-h-0 flex-col overflow-hidden rounded-md border border-border md:flex-row">
         <div className="max-h-48 shrink-0 overflow-auto border-b border-border py-1 md:max-h-(--sz-480px) md:w-56 md:border-b-0 md:border-r">
           <FileTree nodes={nodes} selectedFile={filePath} expandedDirs={expanded} showCheckboxes={false} wrapLabels={false}
-            ariaLabel="Included package files" onSelectFile={setFilePath} onToggleDir={path => setCollapsed(previous => { const next = new Set(previous); if (next.has(path)) next.delete(path); else next.add(path); return next; })} />
+            ariaLabel={t('skillsPage.sourceImport.preview.includedPackageFiles')} onSelectFile={setFilePath} onToggleDir={path => setCollapsed(previous => { const next = new Set(previous); if (next.has(path)) next.delete(path); else next.add(path); return next; })} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2 text-xs">
             <span className="break-all font-mono">{filePath}</span>
-            {file && <span className="text-muted-foreground">{file.sizeBytes.toLocaleString()} bytes{file.executable ? ' · executable' : ''}</span>}
+            {file && <span className="text-muted-foreground">{t('skillsPage.sourceImport.preview.byteCount', { count: file.sizeBytes.toLocaleString(i18n.language) })}{file.executable ? ` · ${t('skillsPage.sourceImport.preview.executable')}` : ''}</span>}
           </div>
           <div className="max-h-(--sz-480px) min-h-40 overflow-auto p-3">
-            {preview.isFetching && <p role="status" className="text-sm text-muted-foreground">Loading preview…</p>}
-            {preview.error && <div role="alert" className="space-y-2 text-sm"><p className="text-destructive">{preview.error.message}</p><Button variant="outline" size="sm" onClick={() => void preview.refetch()}>Try again</Button> <Link to="/apps" className="underline">Manage GitHub access</Link></div>}
-            {preview.data?.file.encoding === 'base64' && <div className="flex flex-col items-center gap-3 py-8 text-sm text-muted-foreground"><FileImage className="size-6" /><p>Binary asset · included without changes</p><p className="text-xs">Open on GitHub to preview or download this file.</p></div>}
+            {preview.isFetching && <p role="status" className="text-sm text-muted-foreground">{t('skillsPage.sourceImport.preview.loading')}</p>}
+            {preview.error && <div role="alert" className="space-y-2 text-sm"><p className="text-destructive">{preview.error.message}</p><Button variant="outline" size="sm" onClick={() => void preview.refetch()}>{t('skillsPage.sourceImport.preview.tryAgain')}</Button> <Link to="/apps" className="underline">{t('skillsPage.sourceImport.preview.manageGithubAccess')}</Link></div>}
+            {preview.data?.file.encoding === 'base64' && <div className="flex flex-col items-center gap-3 py-8 text-sm text-muted-foreground"><FileImage className="size-6" /><p>{t('skillsPage.sourceImport.preview.binaryAsset')} · {t('skillsPage.sourceImport.preview.includedWithoutChanges')}</p><p className="text-xs">{t('skillsPage.sourceImport.preview.openOnGithub')}</p></div>}
             {preview.data?.content !== null && preview.data?.content !== undefined && <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">{preview.data.content}</pre>}
-            {preview.data?.truncated && <p className="mt-3 text-xs text-muted-foreground">Showing the first 64 KB. The complete file is imported.</p>}
+            {preview.data?.truncated && <p className="mt-3 text-xs text-muted-foreground">{t('skillsPage.sourceImport.preview.truncated')}</p>}
           </div>
         </div>
       </div>}
-      <div className="flex items-center justify-between gap-3"><Button type="button" variant="outline" onClick={onClose}>Back to selection</Button><Button asChild variant="ghost" size="sm"><a href={githubUrl} target="_blank" rel="noreferrer">Open on GitHub<ExternalLink className="size-3.5" /></a></Button></div>
+      <div className="flex items-center justify-between gap-3"><Button type="button" variant="outline" onClick={onClose}>{t('skillsPage.sourceImport.preview.backToSelection')}</Button><Button asChild variant="ghost" size="sm"><a href={githubUrl} target="_blank" rel="noreferrer">{t('skillsPage.sourceImport.preview.openOnGithub')}<ExternalLink className="size-3.5" /></a></Button></div>
     </DialogContent>
   </Dialog>;
 }

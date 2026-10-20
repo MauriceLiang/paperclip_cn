@@ -6,23 +6,41 @@ import {
   type ToolIcon,
 } from "./tool-taxonomy";
 import { protocolActivityPresentation, providerNoticeSeverity } from "./task-chat-activity-presentation";
+import { t as translate } from "@/i18n";
 
 type Activity = TaskChatActivityPhaseItem["items"][number];
-const labels: Record<ToolFamily, string> = {
-  terminal: "Ran commands",
-  grep: "Searched files",
-  search: "Searched files",
-  read: "Read files",
-  edit: "Edited files",
-  web: "Searched the web",
-  plan: "Worked on a plan",
-  question: "Requested input",
-  agent: "Worked with agents",
-  safety: "Reviewed safety",
-  image: "Worked with images",
-  wait: "Waited",
-  mcp: "Used connected tools",
-  other: "Used tools",
+const familyLabelKeys: Record<ToolFamily, string> = {
+  terminal: "taskChatPage.summary.family.terminal",
+  grep: "taskChatPage.summary.family.grep",
+  search: "taskChatPage.summary.family.search",
+  read: "taskChatPage.summary.family.read",
+  edit: "taskChatPage.summary.family.edit",
+  web: "taskChatPage.summary.family.web",
+  plan: "taskChatPage.summary.family.plan",
+  question: "taskChatPage.summary.family.question",
+  agent: "taskChatPage.summary.family.agent",
+  safety: "taskChatPage.summary.family.safety",
+  image: "taskChatPage.summary.family.image",
+  wait: "taskChatPage.summary.family.wait",
+  mcp: "taskChatPage.summary.family.mcp",
+  other: "taskChatPage.summary.family.other",
+};
+const providerLabelKeys: Record<string, string> = {
+  research: "taskChatPage.summary.provider.research",
+  plan: "taskChatPage.summary.provider.plan",
+  delegation: "taskChatPage.summary.provider.delegation",
+  artifact: "taskChatPage.summary.provider.artifact",
+  context: "taskChatPage.summary.provider.context",
+  memory: "taskChatPage.summary.provider.memory",
+  model_identity: "taskChatPage.summary.provider.modelIdentity",
+  review: "taskChatPage.summary.provider.review",
+  hook: "taskChatPage.summary.provider.hook",
+  safety: "taskChatPage.summary.provider.safety",
+  terminal: "taskChatPage.summary.provider.terminal",
+  wait: "taskChatPage.summary.provider.wait",
+  workspace_change: "taskChatPage.summary.provider.workspaceChange",
+  workspace_file: "taskChatPage.summary.provider.workspaceFile",
+  resource: "taskChatPage.summary.provider.resource",
 };
 
 /** Describe observed activities, never infer success from a finished group. */
@@ -82,27 +100,11 @@ export function completedActivitySummary(items: Activity[]) {
         }
         const family =
           item.surface === "provider_activity" ? item.family : item.surface;
-        const label =
-          (
-            {
-              research: "Searched the web",
-              plan: "Worked on a plan",
-              delegation: "Worked with agents",
-              artifact: "Worked with artifacts",
-              context: "Managed context",
-              memory: "Checked memory",
-              model_identity: "Checked model settings",
-              review: "Worked in review mode",
-              hook: "Ran hooks",
-              safety: "Reviewed safety",
-              terminal: "Ran commands",
-              wait: "Waited",
-              workspace_change: "Worked on files",
-              workspace_file: "Referenced files",
-              resource: "Added resources",
-            } as Record<string, string>
-          )[family] ?? "Used tools";
-        add(label, p.icon, order);
+        const labelKey = providerLabelKeys[family];
+        const translatedLabel = labelKey
+          ? translate(labelKey)
+          : translate(familyLabelKeys.other);
+        add(translatedLabel, p.icon, order);
       }
     }
   }
@@ -111,12 +113,12 @@ export function completedActivitySummary(items: Activity[]) {
       ?? notices.find((notice) => notice.severity === "warning")
       ?? notices[0]!;
     const label = notices.length === 1
-      ? strongest.summary || "Received a provider update"
+      ? strongest.summary || translate("taskChatPage.summary.receivedProviderUpdate")
       : strongest.severity === "error"
-        ? "Provider error reported"
+        ? translate("taskChatPage.summary.providerErrorReported")
         : strongest.severity === "warning"
-          ? "Provider warning reported"
-          : "Received provider updates";
+          ? translate("taskChatPage.summary.providerWarningReported")
+          : translate("taskChatPage.summary.receivedProviderUpdates");
     // One notice category leaves room for actual work. Keep warnings and errors
     // visible when the compact label truncates other activity categories.
     add(label, strongest.icon, strongest.severity === "info" ? notices[0]!.order : -1);
@@ -129,29 +131,29 @@ export function completedActivitySummary(items: Activity[]) {
     const succeeded = completedFamilies.has(tool.family);
     const label =
       tool.family === "read" && !succeeded
-        ? "Checked files"
+        ? translate("taskChatPage.summary.checkedFiles")
         : tool.family === "edit" && !succeeded
-          ? "Worked on files"
-          : labels[tool.family];
+          ? translate("taskChatPage.summary.workedOnFiles")
+          : translate(familyLabelKeys[tool.family]);
     add(label, tool.icon, tool.order);
   }
   if (!categories.size) {
     if (items.some((item) => item.kind === "thinking"))
-      add("Thought through the task", Brain);
+      add(translate("taskChatPage.summary.thoughtThroughTask"), Brain);
     else if (items.some((item) => item.kind === "marker"))
-      add("Activity stopped", CirclePause);
-    else add("Recorded usage", Gauge);
+      add(translate("taskChatPage.summary.activityStopped"), CirclePause);
+    else add(translate("taskChatPage.summary.recordedUsage"), Gauge);
   }
   const values = [...categories.values()].sort((a, b) => a.order - b.order);
   const join = (parts: string[]) =>
     parts
       .map((p, i) => (i ? p.charAt(0).toLowerCase() + p.slice(1) : p))
-      .join(", ");
+      .join(translate("taskChatPage.summary.separator"));
   const fullLabel = join(values.map((v) => v.label));
   return {
     label:
       values.length > 3
-        ? `${join(values.slice(0, 2).map((v) => v.label))}, and more`
+        ? `${join(values.slice(0, 2).map((v) => v.label))}${translate("taskChatPage.summary.andMore")}`
         : fullLabel,
     fullLabel,
     icon: values.length === 1 ? values[0].icon : Layers3,

@@ -1,6 +1,8 @@
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "@/lib/router";
+import { useTranslation } from "@/i18n";
+import type { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
@@ -12,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { Download, Maximize2, Minus, Network, Plus, Upload } from "lucide-react";
-import { AGENT_ROLE_LABELS, type Agent } from "@paperclipai/shared";
+import { type Agent } from "@paperclipai/shared";
 import { useCloudInstance } from "@/hooks/useCloudInstance";
 import { useHiddenSettings } from "@/hooks/useHiddenSettings";
 
@@ -174,6 +176,7 @@ const defaultDotColor = "var(--hex-a3a3a3)";
 // ── Main component ──────────────────────────────────────────────────────
 
 export function OrgChart() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
@@ -204,8 +207,8 @@ export function OrgChart() {
   }, [agents]);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Org Chart" }]);
-  }, [setBreadcrumbs]);
+    setBreadcrumbs([{ label: t("agentsPage.orgChart.breadcrumb") }]);
+  }, [setBreadcrumbs, t]);
 
   // Layout computation
   const layout = useMemo(() => layoutForest(orgTree ?? []), [orgTree]);
@@ -439,7 +442,7 @@ export function OrgChart() {
   }, [pan, zoom]);
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={Network} message="Select a company to view the org chart." />;
+    return <EmptyState icon={Network} message={t("agentsPage.orgChart.selectCompany")} />;
   }
 
   if (isLoading) {
@@ -447,7 +450,7 @@ export function OrgChart() {
   }
 
   if (orgTree && orgTree.length === 0) {
-    return <EmptyState icon={Network} message="No organizational hierarchy defined." />;
+    return <EmptyState icon={Network} message={t("agentsPage.agents.noHierarchy")} />;
   }
 
   return (
@@ -457,7 +460,7 @@ export function OrgChart() {
           <Link to="/company/import">
             <Button variant="outline" size="sm">
               <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Import company
+              {t("agentsPage.orgChart.importCompany")}
             </Button>
           </Link>
         )}
@@ -465,7 +468,7 @@ export function OrgChart() {
           <Link to="/company/export">
             <Button variant="outline" size="sm">
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              Export company
+              {t("agentsPage.orgChart.exportCompany")}
             </Button>
           </Link>
         )}
@@ -502,8 +505,8 @@ export function OrgChart() {
                 });
               }
             }}
-            title="Zoom in"
-            aria-label="Zoom in"
+            title={t("agentsPage.orgChart.zoomIn")}
+            aria-label={t("agentsPage.orgChart.zoomIn")}
           >
             <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
@@ -518,16 +521,16 @@ export function OrgChart() {
                 });
               }
             }}
-            title="Zoom out"
-            aria-label="Zoom out"
+            title={t("agentsPage.orgChart.zoomOut")}
+            aria-label={t("agentsPage.orgChart.zoomOut")}
           >
             <Minus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             className="flex size-9 items-center justify-center rounded border border-border bg-background text-(length:--text-nano) transition-colors hover:bg-accent sm:size-7"
             onClick={fitToScreen}
-            title="Fit to screen"
-            aria-label="Fit chart to screen"
+            title={t("agentsPage.orgChart.fitToScreen")}
+            aria-label={t("agentsPage.orgChart.fitAria")}
           >
             <Maximize2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
@@ -611,7 +614,7 @@ export function OrgChart() {
                       {node.name}
                     </span>
                     <span className="text-(length:--text-micro) text-muted-foreground leading-tight mt-0.5">
-                      {agent?.title ?? roleLabel(node.role)}
+                      {agent?.title ?? roleLabel(node.role, t)}
                     </span>
                     {agent && (
                       <span className="text-(length:--text-nano) text-muted-foreground/60 font-mono leading-tight mt-1">
@@ -634,8 +637,22 @@ export function OrgChart() {
   );
 }
 
-const roleLabels: Record<string, string> = AGENT_ROLE_LABELS;
+const AGENT_ROLE_KEYS: Record<string, string> = {
+  ceo: "agentsPage.roles.ceo",
+  cto: "agentsPage.roles.cto",
+  cmo: "agentsPage.roles.cmo",
+  cfo: "agentsPage.roles.cfo",
+  security: "agentsPage.roles.security",
+  engineer: "agentsPage.roles.engineer",
+  designer: "agentsPage.roles.designer",
+  pm: "agentsPage.roles.pm",
+  qa: "agentsPage.roles.qa",
+  devops: "agentsPage.roles.devops",
+  researcher: "agentsPage.roles.researcher",
+  general: "agentsPage.roles.general",
+};
 
-function roleLabel(role: string): string {
-  return roleLabels[role] ?? role;
+function roleLabel(role: string, t: TFunction): string {
+  const key = AGENT_ROLE_KEYS[role];
+  return key ? t(key) : role;
 }

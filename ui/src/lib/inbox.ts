@@ -1,4 +1,5 @@
 import { isHeartbeatRunVisibleInMine } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 import type {
   Approval,
   DashboardSummary,
@@ -646,7 +647,7 @@ export function resolveIssueWorkspaceGroup(
 
   return {
     key: "workspace:none",
-    label: "No workspace",
+    label: translate("attention.filter.noWorkspace"),
   };
 }
 
@@ -865,10 +866,10 @@ const inboxWorkItemKindOrder: InboxWorkItem["kind"][] = [
 ];
 
 const inboxWorkItemKindLabels: Record<InboxWorkItem["kind"], string> = {
-  issue: "Tasks",
-  approval: "Approvals",
-  failed_run: "Failed runs",
-  join_request: "Join requests",
+  issue: "inbox.kind.tasks",
+  approval: "inbox.kind.approvals",
+  failed_run: "inbox.kind.failedRuns",
+  join_request: "inbox.kind.joinRequests",
 };
 
 function resolveIssueAssigneeGroup(
@@ -890,18 +891,18 @@ function resolveIssueAssigneeGroup(
   if (issue.assigneeUserId) {
     return {
       key: `assignee:user:${issue.assigneeUserId}`,
-      label: formatAssigneeUserLabel(issue.assigneeUserId, currentUserId, userLabelById) ?? "User",
+      label: formatAssigneeUserLabel(issue.assigneeUserId, currentUserId, userLabelById) ?? translate("search.user"),
     };
   }
 
-  return { key: "assignee:none", label: "Unassigned" };
+  return { key: "assignee:none", label: translate("search.unassigned") };
 }
 
 function resolveIssueProjectGroup(
   issue: Pick<Issue, "projectId">,
   { projectById }: Pick<InboxWorkspaceGroupingOptions, "projectById">,
 ): { key: string; label: string } {
-  if (!issue.projectId) return { key: "project:none", label: "No project" };
+  if (!issue.projectId) return { key: "project:none", label: translate("attention.filter.noProject") };
 
   const projectName = projectById?.get(issue.projectId)?.name?.trim();
   return {
@@ -918,7 +919,7 @@ function groupInboxWorkItemsByIssueGroup(
   for (const item of items) {
     const resolvedGroup = item.kind === "issue"
       ? resolveIssueGroup(item.issue)
-      : { key: `kind:${item.kind}`, label: inboxWorkItemKindLabels[item.kind] };
+      : { key: `kind:${item.kind}`, label: translate(inboxWorkItemKindLabels[item.kind]) };
     const existing = groups.get(resolvedGroup.key);
     if (existing) {
       existing.items.push(item);
@@ -985,7 +986,7 @@ export function groupInboxWorkItems(
     if (groupItems.length === 0) continue;
     orderedGroups.push({
         key: kind,
-        label: inboxWorkItemKindLabels[kind],
+        label: translate(inboxWorkItemKindLabels[kind]),
         items: groupItems,
     });
   }

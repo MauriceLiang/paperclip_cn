@@ -32,7 +32,7 @@ it("reconnects an older OpenRouter account without adding routing metadata", asy
   }
 });
 
-const providerSources = ["openrouter", "bedrock", "responses-api", "messages-api", "chat-completions-api", "local"];
+const providerSources = ["openrouter", "bedrock", "gateway", "responses-api", "messages-api", "chat-completions-api", "local"];
 it("shows advanced providers directly when entered from advanced connection mode", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData(["ai-connections", "company", undefined], { canManageConnections: true, connections: [] });
@@ -59,8 +59,10 @@ it.each(providerSources)("opens %s directly with shared access folded under Adva
   const root = createRoot(container);
   const onCancel = vi.fn();
   try {
-    await act(async () => root.render(<QueryClientProvider client={client}><TooltipProvider><AiProviderSetup companyId="company" initialProvider={preset.provider} initialProtocol={preset.protocol} providerLabel={preset.label} onCancel={onCancel} onComplete={() => {}} /></TooltipProvider></QueryClientProvider>));
+    await act(async () => root.render(<QueryClientProvider client={client}><TooltipProvider><AiProviderSetup companyId="company" initialProvider={preset.provider} initialProtocol={preset.protocol} providerLabel={source === "local" ? "Raw local endpoint label" : preset.label} onCancel={onCancel} onComplete={() => {}} /></TooltipProvider></QueryClientProvider>));
     expect(container.textContent).not.toContain("Connect a model provider");
+    if (source === "local") expect(container.textContent).toContain("Connect Local endpoint");
+    if (source === "gateway") expect(container.textContent).toContain("Connect Custom gateway");
     expect(container.textContent).toContain("Connects for everyone in your organization, available to all agents.");
     expect(container.querySelector('[role="radio"]')).toBeNull();
     const change = Array.from(container.querySelectorAll('button')).find(b => b.textContent === "Change")!;

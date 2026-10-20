@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { IssueWorkProduct } from "@paperclipai/shared";
+import { i18n } from "@/i18n";
 import { IssueOutputSection } from "./IssueOutputSection";
 
 function makeWorkProduct(overrides: Partial<IssueWorkProduct> & { id: string }): IssueWorkProduct {
@@ -76,6 +77,34 @@ describe("IssueOutputSection", () => {
     // Section header + size formatting
     expect(markup).toContain("Output");
     expect(markup).toContain("18.4 MB");
+  });
+
+  it("renders output labels and accessible actions in Simplified Chinese", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("zh-CN");
+    try {
+      const markup = renderToStaticMarkup(
+        <IssueOutputSection
+          workProducts={[
+            makeWorkProduct({
+              id: "wp-zh",
+              isPrimary: true,
+              metadata: metadata("att-img", "image/png", "screenshot.png"),
+            }),
+          ]}
+          onMediaClick={() => undefined}
+        />,
+      );
+
+      expect(markup).toContain('aria-label="任务产出"');
+      expect(markup).toContain("产出");
+      expect(markup).toContain("主要产出");
+      expect(markup).toContain("浏览");
+      expect(markup).toContain("下载");
+      expect(markup).toContain('aria-label="在图库中浏览 screenshot.png"');
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
   });
 
   it("keeps the open action for primary videos when gallery browsing is enabled", () => {

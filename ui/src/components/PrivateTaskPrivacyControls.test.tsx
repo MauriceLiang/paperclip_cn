@@ -15,6 +15,7 @@ vi.mock("@/context/ToastContext", () => ({ useToastActions: () => ({ pushToast: 
 import { IssuePrivacyActions } from "./IssuePrivacyActions";
 import { ProjectAccessMembers } from "./ProjectAccessMembers";
 import type { Project } from "@paperclipai/shared";
+import { setLocale } from "@/i18n";
 async function settle() {
   for (let i = 0; i < 8; i++) { await new Promise(resolve => setTimeout(resolve, 0)); flushSync(() => {}); }
 }
@@ -120,4 +121,23 @@ it("invalidates cached task audience when project membership is removed", async 
   await settle();
   expect(api.remove).toHaveBeenCalledWith("project", "m1", "company");
   expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+});
+
+it("localizes project access membership controls", async () => {
+  await setLocale("zh-CN");
+  try {
+    api.members.mockResolvedValue([]);
+    render(<ProjectAccessMembers project={{ id: "project", companyId: "company" } as Project} canManage />);
+    flushSync(() => [...document.body.querySelectorAll("button")].find(button => button.textContent?.includes("管理访问权限"))!.click());
+    await settle();
+    expect(document.body.textContent).toContain("私有项目访问权限");
+    expect(document.body.textContent).toContain("添加人员或 Agent");
+    const picker = document.body.querySelector<HTMLButtonElement>('button[role="combobox"]');
+    expect(picker).not.toBeNull();
+    flushSync(() => picker?.focus());
+    await settle();
+    expect(document.body.textContent).toContain("没有更多可添加的组织成员");
+  } finally {
+    await setLocale("en");
+  }
 });

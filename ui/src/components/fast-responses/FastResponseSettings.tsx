@@ -23,6 +23,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Link } from "@/lib/router";
+import { useTranslation } from "@/i18n";
 
 const editable = (s: FastResponseSettings): UpdateFastResponse => ({
   enabled: s.enabled,
@@ -59,6 +60,7 @@ export function FastResponseSettingsView({
   onTest: () => void;
   onConnectionChange?: (id: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<UpdateFastResponse>(() =>
     editable(settings),
   );
@@ -98,21 +100,20 @@ export function FastResponseSettingsView({
     draft.model !== settings.model ||
     draft.allowSponsored !== settings.allowSponsored;
   return (
-    <section className="max-w-2xl space-y-4" aria-label="Fast response">
+    <section className="max-w-2xl space-y-4" aria-label={t("settingsPage.fastResponse.title")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">
-          Fast response
+          {t("settingsPage.fastResponse.title")}
         </h2>
         <Link
           to="/activity/costs?tab=fast-responses"
           className="text-sm underline underline-offset-4"
         >
-          View usage
+          {t("settingsPage.decisionModel.viewUsage")}
         </Link>
       </div>
       <p className="text-sm text-muted-foreground">
-        Send a short acknowledgement while your agent starts work. Usage is
-        charged to the selected shared API connection.
+        {t("settingsPage.fastResponse.description")}
       </p>
       <ConnectionChoiceList
         selectedId={draft.grantId ?? undefined}
@@ -120,8 +121,9 @@ export function FastResponseSettingsView({
         choices={choices.map((c) => ({
           id: c.grantId,
           name: c.name,
-          description:
-            c.status === "connected" ? "Connected" : "Needs attention",
+          description: t(c.status === "connected"
+            ? "settingsPage.decisionModel.connected"
+            : "settingsPage.decisionModel.needsAttention"),
           icon: <AppLogo name={c.provider} brandKey={c.provider} size={24} />,
         }))}
         onSelect={(grantId) => {
@@ -141,25 +143,24 @@ export function FastResponseSettingsView({
       />
       {!choices.length && (
         <p className="text-sm text-muted-foreground">
-          Add a shared API connection in Apps to get started.
+          {t("settingsPage.fastResponse.noConnection")}
         </p>
       )}
       <div className="flex items-center gap-3">
         {onAdd && (
           <Button variant="outline" size="sm" onClick={onAdd}>
-            Add connection
+            {t("settingsPage.decisionModel.addConnection")}
           </Button>
         )}
         <Link to="/apps" className="text-sm underline underline-offset-4">
-          Manage connections
+          {t("settingsPage.fastResponse.manageConnections")}
         </Link>
       </div>
       {draft.connectionId && (
         <fieldset disabled={saving || testing} className="space-y-4">
           {!selected && (
             <p role="status" className="text-sm text-muted-foreground">
-              The saved connection is unavailable. Disable fast responses or
-              choose another connection.
+              {t("settingsPage.fastResponse.connectionUnavailable")}
             </p>
           )}
           <div className="space-y-2">
@@ -167,13 +168,13 @@ export function FastResponseSettingsView({
               htmlFor={`${modelListId}-input`}
               className="text-sm font-medium"
             >
-              Model
+              {t("settingsPage.fastResponse.model")}
             </label>
             <Input
               id={`${modelListId}-input`}
               list={modelListId}
               value={draft.model ?? ""}
-              placeholder="Choose or enter a model ID"
+              placeholder={t("settingsPage.fastResponse.modelPlaceholder")}
               onChange={(e) =>
                 setDraft((d) => ({ ...d, model: e.target.value || null }))
               }
@@ -187,21 +188,20 @@ export function FastResponseSettingsView({
             </datalist>
           </div>
           <ToggleField
-            label="Enable fast responses"
+            label={t("settingsPage.fastResponse.enable")}
             checked={draft.enabled}
             onChange={(enabled) => setDraft((d) => ({ ...d, enabled }))}
           />
           <div className="space-y-2">
             <ToggleField
-              label="Allow company-sponsored fast responses"
+              label={t("settingsPage.fastResponse.allowSponsored")}
               checked={draft.allowSponsored}
               onChange={(allowSponsored) =>
                 setDraft((d) => ({ ...d, allowSponsored }))
               }
             />
             <p className="text-xs text-muted-foreground">
-              Covers accepted external messages from people without a linked
-              Paperclip account.
+              {t("settingsPage.fastResponse.sponsoredDescription")}
             </p>
           </div>
         </fieldset>
@@ -217,17 +217,18 @@ export function FastResponseSettingsView({
           <div role="status" className="space-y-2 text-sm">
             <p>{result.text}</p>
             <p className="text-xs text-muted-foreground">
-              {(result.durationMs / 1000).toFixed(2)} seconds ·{" "}
-              {result.usage.inputTokens ?? "—"} input /{" "}
-              {result.usage.outputTokens ?? "—"} output tokens · Usage recorded
-              in Costs.
+              {t("settingsPage.fastResponse.usageSummary", {
+                seconds: (result.durationMs / 1000).toFixed(2),
+                inputTokens: result.usage.inputTokens ?? "—",
+                outputTokens: result.usage.outputTokens ?? "—",
+              })}
             </p>
           </div>
         ) : (
           <p role="alert" className="text-sm text-destructive">
             {result.reason === "timeout"
-              ? "The model did not respond within three seconds. Try a faster model."
-              : "Could not generate a response. Check the connection and model, then try again."}
+              ? t("settingsPage.fastResponse.timeout")
+              : t("settingsPage.fastResponse.testFailed")}
           </p>
         ))}
       <div className="flex items-center justify-between gap-3">
@@ -238,12 +239,12 @@ export function FastResponseSettingsView({
             onClick={onTest}
             disabled={dirty || !settings.enabled || saving || testing}
           >
-            {testing ? "Testing…" : "Test response"}
+            {t(testing ? "settingsPage.fastResponse.testing" : "settingsPage.fastResponse.testResponse")}
           </Button>
           <p className="text-xs text-muted-foreground">
             {dirty
-              ? "Save changes before testing."
-              : "Runs a small sample with an API charge."}
+              ? t("settingsPage.decisionModel.saveBeforeTest")
+              : t("settingsPage.decisionModel.testCostHint")}
           </p>
         </div>
         {dirty && (
@@ -256,7 +257,7 @@ export function FastResponseSettingsView({
             }
             onClick={() => onSave(draft)}
           >
-            {saving ? "Saving…" : "Save fast response"}
+            {t(saving ? "settingsPage.decisionModel.saving" : "settingsPage.fastResponse.save")}
           </Button>
         )}
       </div>
@@ -268,6 +269,7 @@ export function FastResponseSettingsSection({
 }: {
   companyId: string;
 }) {
+  const { t } = useTranslation();
   const client = useQueryClient(),
     key = ["fast-response", companyId];
   const query = useQuery({
@@ -311,16 +313,16 @@ export function FastResponseSettingsSection({
   });
   if (query.isPending)
     return (
-      <p className="text-sm text-muted-foreground">Loading fast response…</p>
+      <p className="text-sm text-muted-foreground">{t("settingsPage.fastResponse.loading")}</p>
     );
   if (query.error)
     return (
       <div role="alert">
         <p className="text-sm text-destructive">
-          Could not load fast response settings.
+          {t("settingsPage.fastResponse.loadFailed")}
         </p>
         <Button variant="outline" onClick={() => void query.refetch()}>
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     );
@@ -339,7 +341,7 @@ export function FastResponseSettingsSection({
           save.error?.message ??
           test.error?.message ??
           (models.error
-            ? "Could not load models. Enter a model ID or retry later."
+            ? t("settingsPage.fastResponse.modelsLoadFailed")
             : null)
         }
         result={test.variables === settingsRevision ? test.data : null}
@@ -354,9 +356,9 @@ export function FastResponseSettingsSection({
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="sm:max-w-2xl max-h-(--sz-85vh) overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add a fast response connection</DialogTitle>
+            <DialogTitle>{t("settingsPage.fastResponse.addDialogTitle")}</DialogTitle>
             <DialogDescription>
-              Use a shared API connection for short acknowledgements.
+              {t("settingsPage.fastResponse.addDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           {provider ? (
@@ -390,7 +392,7 @@ export function FastResponseSettingsSection({
                 "xai",
               ].map((id) => ({
                 id,
-                description: "Shared API connection",
+                description: t("settingsPage.fastResponse.sharedApiConnection"),
                 name:
                   id === "openrouter"
                     ? "OpenRouter"

@@ -11,6 +11,7 @@ import type {
   CompanySkillVersion,
 } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import {
   AgentsUsingSkillBadge,
   AgentsUsingSkillDialog,
@@ -178,7 +179,8 @@ function makeSkill(overrides: Partial<CompanySkillDetail> = {}): CompanySkillDet
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await i18n.changeLanguage("en");
   mockAgentsApi.list.mockResolvedValue([]);
   mockAgentsApi.skills.mockResolvedValue({
     adapterType: "claude_local",
@@ -194,9 +196,10 @@ beforeEach(() => {
   mockPushToast.mockReset();
 });
 
-afterEach(() => {
+afterEach(async () => {
   teardown();
   vi.clearAllMocks();
+  await i18n.changeLanguage("en");
 });
 
 describe("AgentsUsingSkillBadge", () => {
@@ -223,6 +226,19 @@ describe("AgentsUsingSkillBadge", () => {
 });
 
 describe("AgentsUsingSkillDialog", () => {
+  it("localizes the usage dialog and accessible controls in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const skill = makeSkill({ usedByAgents: [makeAgent()] });
+    await renderNode(
+      <AgentsUsingSkillDialog open onOpenChange={() => {}} companyId="company-1" skill={skill} />,
+    );
+
+    expect(document.body.textContent).toContain("使用 Demo Skill 的 Agent");
+    expect(document.body.textContent).toContain("1 个 Agent 的目标技能集中包含此技能。");
+    expect(document.body.textContent).toContain("最新版本 (v3)");
+    expect(document.body.querySelector('button[aria-label="从 Reviewer 移除此技能"]')).not.toBeNull();
+  });
+
   it("shows a version select with Latest (vN) and a static '—' when no version history", async () => {
     mockCompanySkillsApi.versions.mockResolvedValue([
       makeVersion({ id: "ver-3", revisionNumber: 3 }),

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
 import { InlineBanner } from "@/components/InlineBanner";
+import { useTranslation } from "@/i18n";
 import { formatCents, formatTokens } from "./format";
 import { StatusCardTile } from "./StatusCardTile";
 import { ArchivedStatusCardRow } from "./ArchivedStatusCardRow";
@@ -19,6 +20,7 @@ import { StatusCardDetailDrawer } from "./StatusCardDetailDrawer";
 import type { StatusCardView } from "./types";
 
 export function StatusCards() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
@@ -33,8 +35,8 @@ export function StatusCards() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Status" }]);
-  }, [setBreadcrumbs]);
+    setBreadcrumbs([{ label: t("nav.status") }]);
+  }, [setBreadcrumbs, t]);
 
   const activeQuery = useQuery({
     queryKey: selectedCompanyId ? queryKeys.statusCards.list(selectedCompanyId, false) : ["status-cards", "none", "active"],
@@ -75,25 +77,35 @@ export function StatusCards() {
     mutationFn: (id: string) => statusCardsApi.refresh(id),
     onMutate: () => setActionError(null),
     onSuccess: () => invalidateLists(),
-    onError: (err) => setActionError(err instanceof Error ? err.message : "Could not refresh the card."),
+    onError: (err) =>
+      setActionError(
+        err instanceof Error ? err.message : t("catalogPage.statusCards.page.errors.refresh"),
+      ),
   });
   const recompileMutation = useMutation({
     mutationFn: (id: string) => statusCardsApi.recompile(id),
     onMutate: () => setActionError(null),
     onSuccess: () => invalidateLists(),
-    onError: (err) => setActionError(err instanceof Error ? err.message : "Could not run the card."),
+    onError: (err) =>
+      setActionError(err instanceof Error ? err.message : t("catalogPage.statusCards.page.errors.run")),
   });
   const archiveMutation = useMutation({
     mutationFn: (id: string) => statusCardsApi.patch(id, { archived: true }),
     onMutate: () => setActionError(null),
     onSuccess: () => invalidateLists(),
-    onError: (err) => setActionError(err instanceof Error ? err.message : "Could not archive the card."),
+    onError: (err) =>
+      setActionError(
+        err instanceof Error ? err.message : t("catalogPage.statusCards.page.errors.archive"),
+      ),
   });
   const restoreMutation = useMutation({
     mutationFn: (id: string) => statusCardsApi.patch(id, { archived: false }),
     onMutate: () => setActionError(null),
     onSuccess: () => invalidateLists(),
-    onError: (err) => setActionError(err instanceof Error ? err.message : "Could not restore the card."),
+    onError: (err) =>
+      setActionError(
+        err instanceof Error ? err.message : t("catalogPage.statusCards.page.errors.restore"),
+      ),
   });
 
   const openDetail = (id: string, tab: string = "summary") => {
@@ -116,41 +128,48 @@ export function StatusCards() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold">Status</h1>
+          <h1 className="text-xl font-bold">{t("nav.status")}</h1>
           <Badge variant="secondary" className="gap-1">
             <FlaskConical className="h-3 w-3" />
-            Experimental
+            {t("settingsNav.experimental")}
           </Badge>
         </div>
         <div className="flex items-center gap-4">
           {showCostMeter ? (
             <span className="text-xs text-muted-foreground">
-              Today: {formatTokens(todayTotals.tokens)} · ~{formatCents(todayTotals.cents)}
+              {t("catalogPage.statusCards.page.today", {
+                tokens: formatTokens(todayTotals.tokens),
+                cost: formatCents(todayTotals.cents),
+              })}
             </span>
           ) : null}
           <Button onClick={() => setCreateOpen(true)} disabled={!selectedCompanyId}>
             <Plus className="h-4 w-4" />
-            New card
+            {t("catalogPage.statusCards.page.newCard")}
           </Button>
         </div>
       </div>
 
-      {actionError ? <InlineBanner tone="warning" title="Heads up">{actionError}</InlineBanner> : null}
+      {actionError ? (
+        <InlineBanner tone="warning" title={t("catalogPage.statusCards.shared.headsUp")}>
+          {actionError}
+        </InlineBanner>
+      ) : null}
 
       {activeQuery.isLoading ? (
         <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading cards…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("catalogPage.statusCards.page.loading")}
         </div>
       ) : activeQuery.isError ? (
-        <InlineBanner tone="danger" title="Could not load status cards">
-          {activeQuery.error instanceof Error ? activeQuery.error.message : "Try again."}
+        <InlineBanner tone="danger" title={t("catalogPage.statusCards.page.loadError")}>
+          {activeQuery.error instanceof Error ? activeQuery.error.message : t("common.tryAgain")}
         </InlineBanner>
       ) : activeCards.length === 0 ? (
         <EmptyState
           icon={FlaskConical}
-          title="No status cards yet"
-          message="Create a card to keep a living summary of the issues you care about."
-          action={selectedCompanyId ? "New card" : undefined}
+          title={t("catalogPage.statusCards.page.emptyTitle")}
+          message={t("catalogPage.statusCards.page.emptyMessage")}
+          action={selectedCompanyId ? t("catalogPage.statusCards.page.newCard") : undefined}
           onAction={() => setCreateOpen(true)}
         />
       ) : (
@@ -180,7 +199,9 @@ export function StatusCards() {
             onClick={() => setShowArchived((prev) => !prev)}
             className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
-            {showArchived ? "Hide archived" : `Show archived (${archivedCards.length})`}
+            {showArchived
+              ? t("catalogPage.statusCards.page.hideArchived")
+              : t("catalogPage.statusCards.page.showArchived", { count: archivedCards.length })}
           </button>
           {showArchived
             ? archivedCards.map((card) => (

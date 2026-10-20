@@ -93,3 +93,6 @@ test-results/
 
 # Opt-in CI timing artifacts
 .ci-profile/
+
+# Generated i18n audit reports (local/CI artifacts)
+artifacts/i18n/

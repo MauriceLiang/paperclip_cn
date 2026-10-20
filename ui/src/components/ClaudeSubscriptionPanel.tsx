@@ -1,6 +1,9 @@
 import { quotaUnavailableMessage } from "@/lib/quota-refresh";
 import type { QuotaWindow } from "@paperclipai/shared";
 import { cn, quotaSourceDisplayName } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
+import type { TFunction } from "i18next";
 
 interface ClaudeSubscriptionPanelProps {
   windows: QuotaWindow[];
@@ -22,17 +25,17 @@ function normalizeLabel(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function detailText(window: QuotaWindow): string | null {
+function detailText(window: QuotaWindow, t: TFunction): string | null {
   if (typeof window.detail === "string" && window.detail.trim().length > 0) return window.detail.trim();
   if (window.resetsAt) {
-    const formatted = new Date(window.resetsAt).toLocaleString(undefined, {
+    const formatted = formatDateTime(window.resetsAt, {
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
       timeZoneName: "short",
     });
-    return `Resets ${formatted}`;
+    return t("operationsPage.costs.providerQuota.resetsAt", { time: formatted });
   }
   return null;
 }
@@ -57,6 +60,7 @@ export function ClaudeSubscriptionPanel({
   source = null,
   error = null,
 }: ClaudeSubscriptionPanelProps) {
+  const { t } = useTranslation();
   const ordered = orderedWindows(windows);
 
   return (
@@ -64,10 +68,10 @@ export function ClaudeSubscriptionPanel({
       <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
         <div className="min-w-0">
           <div className="text-(length:--text-micro) font-semibold uppercase tracking-(--tracking-caps) text-muted-foreground">
-            Anthropic subscription
+            {t("operationsPage.costs.providerQuota.anthropicSubscription")}
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            Quota from the Claude subscription connected to this server.
+            {t("operationsPage.costs.providerQuota.anthropicQuotaDescription")}
           </div>
         </div>
         {source ? (
@@ -86,7 +90,7 @@ export function ClaudeSubscriptionPanel({
       <div className="mt-4 space-y-4">
         {ordered.map((window) => {
           const normalized = normalizeLabel(window.label);
-          const detail = detailText(window);
+          const detail = detailText(window, t);
           if (normalized === "extrausage") {
             return (
               <div
@@ -121,7 +125,7 @@ export function ClaudeSubscriptionPanel({
                 </div>
                 {window.usedPercent != null ? (
                   <div className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                    {window.usedPercent}% used
+                    {t("operationsPage.costs.providerQuota.percentUsed", { percent: window.usedPercent })}
                   </div>
                 ) : null}
               </div>

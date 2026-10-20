@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { t as translate } from "@/i18n";
 import { copyTextToClipboard } from "./clipboard";
 import { useOptionalToastActions } from "../context/ToastContext";
 
@@ -78,7 +79,7 @@ export function useCopyToast() {
   const pushToast = toastActions?.pushToast;
 
   return useCallback(
-    async (text: string, copiedTitle = "Copied") => {
+    async (text: string, copiedTitle = translate("copyAction.copied")) => {
       try {
         await copyTextToClipboard(text);
         pushToast?.({
@@ -89,8 +90,8 @@ export function useCopyToast() {
         return true;
       } catch {
         pushToast?.({
-          title: "Couldn’t copy to clipboard",
-          body: "Select and copy the value manually.",
+          title: translate("copyAction.failed"),
+          body: translate("copyAction.failedBody"),
           tone: "error",
           dedupeKey: "copy-failed",
         });

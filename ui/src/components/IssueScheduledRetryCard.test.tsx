@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { IssueRetryNowOutcome, IssueScheduledRetry } from "@paperclipai/shared";
+import { i18n } from "@/i18n";
 import { IssueScheduledRetryCard } from "./IssueScheduledRetryCard";
 import { ToastProvider } from "../context/ToastContext";
 
@@ -96,7 +97,10 @@ function renderWithProviders(ui: ReactNode) {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await act(async () => {
+    await i18n.changeLanguage("en");
+  });
   dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(SYSTEM_NOW);
   retryNowMock.mockReset();
   container = document.createElement("div");
@@ -104,10 +108,13 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount());
   container.remove();
   dateNowSpy?.mockRestore();
+  await act(async () => {
+    await i18n.changeLanguage("en");
+  });
 });
 
 function getCard() {
@@ -121,6 +128,19 @@ function getRetryNowButton() {
 }
 
 describe("IssueScheduledRetryCard", () => {
+  it("localizes scheduled retry status and actions", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+    renderWithProviders(<IssueScheduledRetryCard issueId="issue-1" scheduledRetry={baseRetry} />);
+
+    const text = getCard()?.textContent ?? "";
+    expect(text).toContain("计划的重试");
+    expect(text).toContain("第 4 次尝试");
+    expect(text).toContain("自动重试将在 15m后到期");
+    expect(getRetryNowButton()?.textContent).toContain("立即重试");
+  });
+
   it("shows workspace contention as an automatic wait without failure or retry controls", () => {
     renderWithProviders(<IssueScheduledRetryCard issueId="issue-1" scheduledRetry={{ ...baseRetry, scheduledRetryReason: "workspace_busy" }} />);
     expect(container.textContent).toContain("Waiting for workspace");
@@ -159,7 +179,7 @@ describe("IssueScheduledRetryCard", () => {
     const card = getCard();
     expect(card).not.toBeNull();
     const text = card!.textContent ?? "";
-    expect(text).toContain("Retry scheduled");
+    expect(text).toContain("Scheduled retry");
     expect(text).toContain("Attempt 4");
     expect(text).toContain("Transient failure");
     expect(text).toContain("Automatic retry in 15m");
@@ -174,7 +194,7 @@ describe("IssueScheduledRetryCard", () => {
       />,
     );
     const text = getCard()?.textContent ?? "";
-    expect(text).toContain("Continuation scheduled");
+    expect(text).toContain("Scheduled continuation");
     expect(text).toContain("Automatic continuation");
     expect(text).toContain("Pulls continuation forward immediately");
   });

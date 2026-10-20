@@ -3,6 +3,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { ImageGalleryModal, type GalleryMediaItem } from "./ImageGalleryModal";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,7 +40,8 @@ describe("ImageGalleryModal", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -50,6 +52,7 @@ describe("ImageGalleryModal", () => {
       root.unmount();
     });
     document.body.innerHTML = "";
+    await setLocale("en");
   });
 
   it("renders video media with a download link in the gallery", async () => {
@@ -130,5 +133,25 @@ describe("ImageGalleryModal", () => {
     });
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders gallery controls in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    await act(async () => {
+      root.render(
+        <ImageGalleryModal
+          items={[makeMediaItem(), makeMediaItem({ id: "media-2", originalFilename: "second.png" })]}
+          initialIndex={0}
+          open
+          onOpenChange={() => undefined}
+        />,
+      );
+    });
+    await flushReact();
+
+    expect(document.body.querySelector('a[aria-label="下载 screenshot.png"]')).not.toBeNull();
+    expect(document.body.querySelector('button[aria-label="关闭"]')).not.toBeNull();
+    expect(document.body.querySelector('button[aria-label="上一个项目"]')).not.toBeNull();
+    expect(document.body.querySelector('button[aria-label="下一个项目"]')).not.toBeNull();
   });
 });

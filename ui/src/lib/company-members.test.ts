@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CompanyMember, CompanyUserDirectoryEntry } from "@/api/access";
+import { i18n } from "@/i18n";
 import {
   buildCompanyUserInlineOptions,
   buildCompanyUserLabelMap,
@@ -51,6 +52,26 @@ describe("company-members helpers", () => {
       label: "Board",
       image: null,
     });
+  });
+
+  it("localizes the local board member even when its API profile says Board", async () => {
+    await i18n.changeLanguage("zh-CN");
+    try {
+      const members = [
+        activeMember({
+          principalId: "local-board",
+          user: { id: "local-board", name: "Board", email: null, image: null },
+        }),
+      ];
+
+      expect(buildCompanyUserLabelMap(members).get("local-board")).toBe("看板");
+      expect(buildCompanyUserProfileMap(members).get("local-board")).toEqual({
+        label: "看板",
+        image: null,
+      });
+    } finally {
+      await i18n.changeLanguage("en");
+    }
   });
 
   it("builds inline options for active users and excludes requested ids", () => {

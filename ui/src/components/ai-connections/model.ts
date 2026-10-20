@@ -1,5 +1,6 @@
 /** Redacted presentation contracts shared with the production API. */
 import type { AiProvider, AiAuthMethod, AiManagedConnectionSummary, AiConnectionBinding } from "@paperclipai/shared";
+import type { TFunction } from "i18next";
 export type { AiProvider, AiAuthMethod, AiConnectionBinding } from "@paperclipai/shared";
 export type AiConnectionStatus = AiManagedConnectionSummary["status"];
 
@@ -41,19 +42,43 @@ export const AI_CONNECTION_STATUS: Record<AiConnectionStatus, string> = {
   revoked: "Revoked",
 };
 
-export function defaultAiConnectionName(ownerName: string | undefined, provider: AiProvider, method: AiAuthMethod) {
+export function defaultAiConnectionName(ownerName: string | undefined, provider: AiProvider, method: AiAuthMethod, t?: TFunction) {
   const owner = ownerName?.trim();
+  if (t) {
+    const providerNameKey: Record<AiProvider, string> = {
+      anthropic: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.anthropic",
+      openai: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.openai",
+      google: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.google",
+      xai: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.xai",
+      openrouter: "agentSetupPage.aiConnections.connectionField.providerDisplayNames.openrouter",
+    };
+    const ownerPrefix = owner && owner !== "You"
+      ? t("agentSetupPage.aiConnections.model.defaultOwnerNamed", { owner })
+      : t("agentSetupPage.aiConnections.model.defaultOwnerPersonal");
+    const providerLabel = method === "subscription"
+      ? aiMethodLabel(provider, method, t)
+      : t("agentSetupPage.aiConnections.model.apiProviderName", { provider: t(providerNameKey[provider]) });
+    return t("agentSetupPage.aiConnections.model.accountName", { owner: ownerPrefix, provider: providerLabel });
+  }
   const prefix = owner && owner !== "You" ? `${owner}'s` : "My";
-  const providerName = method === "subscription"
-    ? AI_PROVIDERS[provider].subscriptionName ?? AI_PROVIDERS[provider].name
-    : `${AI_PROVIDERS[provider].name} API`;
-  return `${prefix} ${providerName} account`;
+  const providerName = AI_PROVIDERS[provider].name;
+  const legacyProviderName = method === "subscription"
+    ? AI_PROVIDERS[provider].subscriptionName ?? providerName
+    : `${providerName} API`;
+  return `${prefix} ${legacyProviderName} account`;
 }
 
-export function aiMethodLabel(provider: AiProvider, method: AiAuthMethod) {
-  return method === "subscription"
-    ? (AI_PROVIDERS[provider].subscriptionName ?? "Subscription unavailable")
-    : "API key";
+export function aiMethodLabel(provider: AiProvider, method: AiAuthMethod, t?: TFunction) {
+  if (method !== "subscription") return t ? t("agentSetupPage.aiConnections.model.apiKey") : "API key";
+  const subscriptionLabels: Partial<Record<AiProvider, string>> = {
+    anthropic: "agentSetupPage.aiConnections.model.subscriptionClaude",
+    openai: "agentSetupPage.aiConnections.model.subscriptionChatgpt",
+    xai: "agentSetupPage.aiConnections.model.subscriptionGrok",
+  };
+  const labelKey = subscriptionLabels[provider];
+  return t
+    ? labelKey ? t(labelKey) : t("agentSetupPage.aiConnections.model.subscriptionUnavailable")
+    : AI_PROVIDERS[provider].subscriptionName ?? "Subscription unavailable";
 }
 
 export function matchesAiRequirement(
@@ -82,14 +107,20 @@ export function personalAiDefault(
   );
 }
 
-export function aiConnectionProblem(connection?: AiConnectionSummary) {
+export function aiConnectionProblem(connection?: AiConnectionSummary, t?: TFunction) {
   if (!connection)
-    return "No connection selected. Connect an account to continue.";
+    return t
+      ? t("agentSetupPage.aiConnections.model.noConnection")
+      : "No connection selected. Connect an account to continue.";
   return (
     connection.unavailableReason ??
     (connection.status === "connected"
       ? null
-      : `${AI_CONNECTION_STATUS[connection.status]}. Reconnect this account to continue.`)
+      : t
+        ? t("agentSetupPage.aiConnections.model.statusReconnect", {
+            status: t(`agentSetupPage.aiConnections.model.status.${connection.status}`),
+          })
+        : `${AI_CONNECTION_STATUS[connection.status]}. Reconnect this account to continue.`)
   );
 }
 
@@ -99,15 +130,19 @@ export function bindingProblem(
   connections: AiConnectionSummary[],
   userId: string,
   _agentId: string,
+  t?: TFunction,
 ) {
   if (
     binding.provider !== requirement.provider ||
     (binding.mode !== "responsible_user" && requirement.method !== undefined && binding.method !== requirement.method)
   )
-    return "Choose a connection compatible with this provider and sign-in method.";
+    return t
+      ? t("agentSetupPage.aiConnections.model.notCompatible")
+      : "Choose a connection compatible with this provider and sign-in method.";
   if (binding.mode === "responsible_user")
     return aiConnectionProblem(
       personalAiDefault(connections, requirement, userId),
+      t,
     );
   const connection = connections.find(
     (item) =>
@@ -117,14 +152,20 @@ export function bindingProblem(
       matchesAiRequirement(item, requirement),
   );
   if (!connection)
-    return "This connection is no longer available for this agent. Choose another connection.";
+    return t
+      ? t("agentSetupPage.aiConnections.model.noLongerAvailable")
+      : "This connection is no longer available for this agent. Choose another connection.";
   if (binding.mode === "shared" && connection.ownership !== "shared")
-    return "Choose a company-shared connection.";
+    return t
+      ? t("agentSetupPage.aiConnections.model.chooseCompanyShared")
+      : "Choose a company-shared connection.";
   if (
     binding.mode === "delegated" &&
     (connection.ownership !== "personal" ||
       connection.ownerUserId !== userId)
   )
-    return "This credential is not shared with you. Choose a connection you can use.";
-  return aiConnectionProblem(connection);
+    return t
+      ? t("agentSetupPage.aiConnections.model.notShared")
+      : "This credential is not shared with you. Choose a connection you can use.";
+  return aiConnectionProblem(connection, t);
 }

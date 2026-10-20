@@ -16,17 +16,63 @@ import {
   protocolActivityIsRunning,
   protocolActivityLabel,
   protocolActivityPresentation,
+  protocolActivityTranslationKey,
 } from "./task-chat-activity-presentation";
 import {
   TaskChatProtocolActivityDetails,
   hasTaskChatProtocolActivityDetails,
 } from "./TaskChatProtocolActivityRow";
 import { TaskChatUsageReadout } from "./TaskChatUsageReadout";
-import { toolActivityPresentation } from "./tool-taxonomy";
+import { toolActivityPresentation, type ToolIcon } from "./tool-taxonomy";
+import { useTranslation } from "@/i18n";
 
 type Activity = TaskChatActivityPhaseItem["items"][number];
 
-function presentation(item: Activity, active: boolean) {
+const SUMMARY_TRANSLATION_KEYS: Record<string, string> = {
+  "Ran commands": "taskChatPage.summary.family.terminal",
+  "Searched files": "taskChatPage.summary.family.search",
+  "Read files": "taskChatPage.summary.family.read",
+  "Edited files": "taskChatPage.summary.family.edit",
+  "Searched the web": "taskChatPage.summary.family.web",
+  "Worked on a plan": "taskChatPage.summary.family.plan",
+  "Requested input": "taskChatPage.summary.family.question",
+  "Worked with agents": "taskChatPage.summary.family.agent",
+  "Reviewed safety": "taskChatPage.summary.family.safety",
+  "Worked with images": "taskChatPage.summary.family.image",
+  Waited: "taskChatPage.summary.family.wait",
+  "Used connected tools": "taskChatPage.summary.family.mcp",
+  "Used tools": "taskChatPage.summary.family.other",
+  "Worked with artifacts": "taskChatPage.summary.provider.artifact",
+  "Managed context": "taskChatPage.summary.provider.context",
+  "Checked memory": "taskChatPage.summary.provider.memory",
+  "Checked model settings": "taskChatPage.summary.provider.modelIdentity",
+  "Worked in review mode": "taskChatPage.summary.provider.review",
+  "Ran hooks": "taskChatPage.summary.provider.hook",
+  "Worked on files": "taskChatPage.summary.provider.workspaceChange",
+  "Referenced files": "taskChatPage.summary.provider.workspaceFile",
+  "Added resources": "taskChatPage.summary.provider.resource",
+  "Received a provider update": "taskChatPage.summary.receivedProviderUpdate",
+  "Provider error reported": "taskChatPage.summary.providerErrorReported",
+  "Provider warning reported": "taskChatPage.summary.providerWarningReported",
+  "Received provider updates": "taskChatPage.summary.receivedProviderUpdates",
+  "Checked files": "taskChatPage.summary.checkedFiles",
+  "Thought through the task": "taskChatPage.summary.thoughtThroughTask",
+  "Activity stopped": "taskChatPage.summary.activityStopped",
+  "Recorded usage": "taskChatPage.summary.recordedUsage",
+};
+
+type ActivityPresentation = {
+  icon: ToolIcon;
+  label: string;
+  labelKey?: string;
+  target?: string;
+  targetKey?: string;
+  targetCount?: number;
+  mono: boolean;
+  running: boolean;
+};
+
+function presentation(item: Activity, active: boolean): ActivityPresentation | null {
   if (item.kind === "tool") {
     const tool = toolActivityPresentation({
       name: item.rawName ?? item.name,
@@ -54,6 +100,9 @@ function presentation(item: Activity, active: boolean) {
     return {
       icon: Brain,
       label: running ? "Thinking" : "Thought",
+      labelKey: running
+        ? "taskChatPage.thinking.thinkingEllipsis"
+        : "taskChatPage.thinking.thought",
       target: item.lines
         .filter((line) => line.trim())
         .at(-1)
@@ -68,7 +117,14 @@ function presentation(item: Activity, active: boolean) {
     return {
       icon: protocol.icon,
       label: protocolActivityLabel(item, protocol),
+      labelKey: protocolActivityTranslationKey(item, protocol),
       target: protocol.detail,
+      targetKey: item.surface === "workspace_change" && protocol.detail
+        ? "taskChatPage.activity.fileCount"
+        : undefined,
+      targetCount: item.surface === "workspace_change"
+        ? item.totals.files || item.files.length
+        : undefined,
       mono: true,
       running: active && protocolActivityIsRunning(item),
     };
@@ -96,7 +152,9 @@ function presentation(item: Activity, active: boolean) {
   return {
     icon: Gauge,
     label: item.label ?? "Token usage",
+    labelKey: item.labelKey ?? (item.label ? undefined : "taskChatPage.runner.tokenUsage"),
     target: usage || item.detail,
+    targetKey: usage ? undefined : item.detailKey,
     mono: false,
     running: false,
   };
@@ -109,6 +167,7 @@ function ActivityContent({
   item: Activity;
   active: boolean;
 }) {
+  const { t } = useTranslation();
   const row = presentation(item, active);
   if (!row) return null;
   const Icon = row.icon;
@@ -137,17 +196,17 @@ function ActivityContent({
             row.running && "text-foreground",
           )}
         >
-          {row.label}
+          {row.labelKey ? t(row.labelKey) : row.label}
         </span>
         {row.target ? (
           <span
-            title={row.target}
+            title={row.targetKey ? t(row.targetKey, { count: row.targetCount }) : row.target}
             className={cn(
               "truncate text-xs text-muted-foreground",
               row.mono && "font-mono",
             )}
           >
-            {row.target}
+            {row.targetKey ? t(row.targetKey, { count: row.targetCount }) : row.target}
           </span>
         ) : null}
       </span>
@@ -312,6 +371,7 @@ export function TaskChatRunnerActivityGroup({
   item: TaskChatActivityPhaseItem;
   defaultExpanded?: boolean;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useTaskChatExpansion(
     item.id,
     defaultExpanded,
@@ -323,7 +383,11 @@ export function TaskChatRunnerActivityGroup({
   const latest = activities.at(-1);
   const summary = completedActivitySummary(activities);
   const SummaryIcon = summary.icon;
-  const countLabel = `${activities.length} ${activities.length === 1 ? "activity" : "activities"}`;
+  const countLabel = t("taskChatPage.runner.activityCount", { count: activities.length });
+  const summaryLabelKey = SUMMARY_TRANSLATION_KEYS[summary.label];
+  const summaryFullLabelKey = SUMMARY_TRANSLATION_KEYS[summary.fullLabel];
+  const summaryLabel = summaryLabelKey ? t(summaryLabelKey) : summary.label;
+  const summaryFullLabel = summaryFullLabelKey ? t(summaryFullLabelKey) : summary.fullLabel;
   return (
     <section
       className="flex min-w-0 flex-col gap-2"
@@ -350,7 +414,10 @@ export function TaskChatRunnerActivityGroup({
             onClick={() => setExpanded(!expanded)}
             aria-expanded={expanded}
             aria-controls={expanded ? historyId : undefined}
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${item.active ? countLabel : `${summary.fullLabel.toLowerCase()} (${countLabel})`}`}
+            aria-label={t(
+              expanded ? "taskChatPage.runner.collapseAria" : "taskChatPage.runner.expandAria",
+              { label: item.active ? countLabel : `${summaryFullLabel} (${countLabel})` },
+            )}
           >
             {!item.active ? (
               <span
@@ -360,8 +427,8 @@ export function TaskChatRunnerActivityGroup({
                 <span className="flex size-5 shrink-0 items-center justify-center">
                   <SummaryIcon className="size-3.5" aria-hidden="true" />
                 </span>
-                <span className="truncate" title={summary.fullLabel}>
-                  {summary.label}
+                <span className="truncate" title={summaryFullLabel}>
+                  {summaryLabel}
                 </span>
               </span>
             ) : expanded ? (
@@ -386,7 +453,7 @@ export function TaskChatRunnerActivityGroup({
             <ol
               id={historyId}
               className="flex min-w-0 flex-col gap-1"
-              aria-label="Activity history"
+              aria-label={t("taskChatPage.runner.activityHistory")}
               data-testid="task-chat-runner-activity-list"
             >
               {activities.map((activity, index) => (

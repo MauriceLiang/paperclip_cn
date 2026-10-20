@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { WorkTimelineResult } from "@paperclipai/shared";
-import { chooseTickStepMs, computeLayout, issueColor, shortLabel, type LayoutOptions } from "./layout";
+import { chooseTickStepMs, computeLayout, formatDuration, issueColor, shortLabel, type LayoutOptions } from "./layout";
 
 const DAY = "2026-07-02";
 const t = (hhmm: string) => `${DAY}T${hhmm}:00.000Z`;
+
+describe("formatDuration", () => {
+  it("preserves English output and localizes compact work durations", () => {
+    expect(formatDuration(0, 120 * 60_000)).toBe("2h 0m");
+    expect(formatDuration(0, 125 * 60_000, "zh-CN")).toBe("2小时 5分");
+    expect(formatDuration(0, 1500 * 60_000, "zh-CN")).toBe("1天 1小时");
+  });
+});
 
 // A trimmed version of the board's locked-design sample (PAP-12422), expressed
 // in the real endpoint contract: actor→actor edges rather than run→run.

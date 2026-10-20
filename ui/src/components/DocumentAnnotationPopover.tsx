@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { DocumentAnnotationTarget } from "@/api/document-annotations";
 import type { CompanyUserProfile } from "@/lib/company-members";
 import { useDocumentAnnotationMutations } from "@/hooks/useDocumentAnnotationMutations";
+import { useTranslation } from "@/i18n";
 import type { AnnotationAnchorRect, PendingAnchor } from "./DocumentAnnotationLayer";
 import { useCopyAnnotationLink, ThreadCard, truncate } from "./DocumentAnnotationPanel";
 
@@ -27,6 +28,7 @@ export interface DocumentAnnotationPopoverProps {
 }
 
 export function DocumentAnnotationPopover(props: DocumentAnnotationPopoverProps) {
+  const { t } = useTranslation();
   const copyAnnotationLink = useCopyAnnotationLink();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
@@ -79,7 +81,9 @@ export function DocumentAnnotationPopover(props: DocumentAnnotationPopoverProps)
     <div
       ref={cardRef}
       role="dialog"
-      aria-label={props.pendingAnchor ? "Add annotation comment" : "Annotation thread"}
+      aria-label={props.pendingAnchor
+        ? t("chatComponents.documentAnnotationPanel.addCommentDialog")
+        : t("chatComponents.documentAnnotationPanel.threadDialog")}
       data-testid="document-annotation-popover"
       className="absolute z-(--z-20) w-80 max-w-full rounded-lg border border-border bg-popover text-popover-foreground shadow-xl"
       style={{ top, left }}
@@ -102,14 +106,16 @@ export function DocumentAnnotationPopover(props: DocumentAnnotationPopoverProps)
                 submitComposer();
               }
             }}
-            placeholder="Write a comment…"
+            placeholder={t("chatComponents.documentAnnotationPanel.composerPlaceholder")}
             disabled={props.newCommentDisabled || createThread.isPending}
             className="resize-y text-sm"
           />
           <div className="mt-2 flex justify-end gap-2">
-            <Button type="button" size="sm" variant="ghost" onClick={props.onClose}>Cancel</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={props.onClose}>{t("common.actions.cancel")}</Button>
             <Button type="button" size="sm" disabled={!composer.trim() || createThread.isPending || props.newCommentDisabled || !props.baseRevisionId} onClick={submitComposer}>
-              {createThread.isPending ? "Posting…" : "Comment"}
+              {createThread.isPending
+                ? t("chatComponents.documentAnnotationPanel.posting")
+                : t("chatComponents.documentAnnotationPanel.comment")}
             </Button>
           </div>
         </div>

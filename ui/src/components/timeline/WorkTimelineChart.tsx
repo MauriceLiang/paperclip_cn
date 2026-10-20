@@ -12,6 +12,8 @@ import { resolveAgentAppearance } from "@paperclipai/shared";
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "@/lib/router";
+import { getLocale, t as translate, useTranslation } from "@/i18n";
+import { statusLabel } from "@/i18n/status";
 import type { WorkTimelineActor, WorkTimelineResult } from "@paperclipai/shared";
 import { applyCompanyPrefix, extractCompanyPrefixFromPath } from "@/lib/company-routes";
 import {
@@ -444,8 +446,8 @@ export function WorkTimelineChart({
     const related = layout.connectors.filter((c) => c.sourceRunId === bar.span.runId || c.targetRunId === bar.span.runId);
     if (related.length === 0) return null;
     return related.some((c) => c.dashed)
-      ? "dashed handoff: retry or changes requested"
-      : "solid handoff: delegation or assignment";
+      ? translate("dashboardPage.timeline.dashedHandoff")
+      : translate("dashboardPage.timeline.solidHandoff");
   };
 
   const showTooltip = (evt: React.MouseEvent, bar: PositionedBar) => {
@@ -736,6 +738,7 @@ function TimeAxisOverlay({
   stepMs: number;
   scrollLeft: number;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       aria-hidden="true"
@@ -779,10 +782,11 @@ function TimeAxisOverlay({
 }
 
 function Tooltip({ tooltip, now }: { tooltip: TooltipState; now: number }) {
+  const { t } = useTranslation();
   const { bar } = tooltip;
   const startMs = new Date(bar.span.start).getTime();
   const endMs = bar.span.end ? new Date(bar.span.end).getTime() : now;
-  const title = bar.span.issueTitle ?? bar.span.issueIdentifier ?? "run";
+  const title = bar.span.issueTitle ?? bar.span.issueIdentifier ?? t("dashboardPage.timeline.runFallback");
   const left = Math.min(tooltip.x + 14, (typeof window !== "undefined" ? window.innerWidth : 1200) - 300);
   return (
     <div
@@ -792,13 +796,13 @@ function Tooltip({ tooltip, now }: { tooltip: TooltipState; now: number }) {
     >
       <div className="text-(length:--text-compact) font-medium text-foreground">{truncate(title)}</div>
       <div className="mt-0.5 text-muted-foreground">
-        {fmtClock(startMs)}–{bar.span.end ? fmtClock(endMs) : "now"} · {formatDuration(startMs, endMs)} ·{" "}
-        <span className="font-medium text-foreground">{bar.span.status}</span>
+        {fmtClock(startMs)}–{bar.span.end ? fmtClock(endMs) : t("dashboardPage.timeline.now")} · {formatDuration(startMs, endMs, getLocale() === "zh-CN" ? "zh-CN" : "en")} ·{" "}
+        <span className="font-medium text-foreground">{statusLabel(bar.span.status, t)}</span>
       </div>
       {bar.kickoff && (
         <div className="text-muted-foreground">
-          kicked off by: {(bar.kickoff as WorkTimelineActor).name}
-          {bar.span.retryOfRunId ? " · retry" : ""}
+          {t("dashboardPage.timeline.kickedOffBy", { name: (bar.kickoff as WorkTimelineActor).name })}
+          {bar.span.retryOfRunId ? ` · ${t("dashboardPage.timeline.retry")}` : ""}
         </div>
       )}
       {tooltip.connectorHint && (
@@ -821,6 +825,7 @@ function MiniMap({
   scrollLeft: number;
   onVisibleRangeChange: (fromMs: number, toMs: number) => void;
 }) {
+  const { t } = useTranslation();
   const documentDragCleanupRef = useRef<(() => void) | null>(null);
   const W = Math.max(320, viewportW || 900);
   const H = 54;
@@ -946,7 +951,7 @@ function MiniMap({
           height={H - 2}
           width={handleW}
           testId="timeline-minimap-left-handle"
-          label="Drag left edge to resize visible range"
+          label={t("dashboardPage.workTimeline.dragLeftEdge")}
           onMouseDown={(e) => startRangeDrag("left", e)}
         />
         <MiniMapHandle
@@ -955,7 +960,7 @@ function MiniMap({
           height={H - 2}
           width={handleW}
           testId="timeline-minimap-right-handle"
-          label="Drag right edge to resize visible range"
+          label={t("dashboardPage.workTimeline.dragRightEdge")}
           onMouseDown={(e) => startRangeDrag("right", e)}
         />
       </svg>

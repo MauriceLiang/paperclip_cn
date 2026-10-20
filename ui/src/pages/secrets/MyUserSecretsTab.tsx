@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CompanySecret } from "@paperclipai/shared";
+import { useTranslation } from "@/i18n";
 import { AlertCircle, KeyRound, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { cn } from "../../lib/utils";
 import { useToastActions } from "../../context/ToastContext";
 import { SetMyUserSecretDialog } from "./SetMyUserSecretDialog";
 import { SecretPathName } from "./SecretPathName";
+import { secretStatusKey } from "./user-secret-presentation";
 import {
   myValueLabel,
   myValueState,
@@ -24,6 +26,7 @@ import {
  * "User secret definitions" tab.
  */
 export function MyUserSecretsTab({ companyId }: { companyId: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToastActions();
   const [dialogFor, setDialogFor] = useState<MyUserSecretEntry | null>(null);
@@ -38,11 +41,11 @@ export function MyUserSecretsTab({ companyId }: { companyId: string }) {
     mutationFn: (secret: CompanySecret) => secretsApi.removeMyUserSecret(companyId, secret.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.secrets.myUserSecrets(companyId) });
-      pushToast({ title: "Value cleared", tone: "info" });
+      pushToast({ title: t("settingsPage.secrets.mySecretsTab.valueCleared"), tone: "info" });
     },
     onError: (err) =>
       pushToast({
-        title: "Could not clear value",
+        title: t("settingsPage.secrets.mySecretsTab.clearValueFailure"),
         body: err instanceof Error ? err.message : undefined,
         tone: "error",
       }),
@@ -57,14 +60,9 @@ export function MyUserSecretsTab({ companyId }: { companyId: string }) {
       <div className="flex items-start gap-2 rounded-md border border-violet-500/30 bg-violet-500/5 px-4 py-3 text-xs text-violet-800 dark:text-violet-200">
         <UserRound className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
-          These are credentials only you provide. Each value is yours alone — used when you are the
-          user responsible for a run — and is never shown back to anyone, including admins.
+          {t("settingsPage.secrets.mySecretsTab.intro")}
           {missingCount > 0 ? (
-            <span className="font-medium">
-              {" "}
-              {missingCount} required secret{missingCount === 1 ? " still needs" : "s still need"} your
-              value.
-            </span>
+            <> {t("settingsPage.secrets.mySecretsTab.required", { count: missingCount })}</>
           ) : null}
         </p>
       </div>
@@ -72,16 +70,16 @@ export function MyUserSecretsTab({ companyId }: { companyId: string }) {
       <div>
         {mySecretsQuery.isError ? (
           <div className="flex items-center gap-2 py-4 text-sm text-destructive">
-            <AlertCircle className="h-4 w-4" /> Failed to load your secrets:{" "}
+            <AlertCircle className="h-4 w-4" /> {t("settingsPage.secrets.mySecretsTab.loadFailure")}{" "}
             {(mySecretsQuery.error as Error).message}
             <Button variant="ghost" size="sm" onClick={() => mySecretsQuery.refetch()}>
-              Retry
+              {t("common.actions.retry")}
             </Button>
           </div>
         ) : entries.length === 0 && !mySecretsQuery.isPending ? (
           <EmptyState
             icon={KeyRound}
-            message="No user secrets are defined for this organization yet. An admin defines which credentials each member supplies."
+            message={t("settingsPage.secrets.mySecretsTab.emptyState")}
           />
         ) : (
           <ul className="space-y-2">
@@ -122,6 +120,7 @@ function MyUserSecretRow({
   onClear: () => void;
   clearing: boolean;
 }) {
+  const { t } = useTranslation();
   const { definition, secret } = entry;
   const state = myValueState(definition, secret);
   const disabledDefinition = definition.status !== "active";
@@ -143,7 +142,7 @@ function MyUserSecretRow({
           </code>
           {disabledDefinition ? (
             <Badge variant="outline" className="text-(length:--text-nano)">
-              {definition.status}
+              {t(secretStatusKey(definition.status))}
             </Badge>
           ) : null}
         </div>
@@ -161,7 +160,9 @@ function MyUserSecretRow({
         </Badge>
         {!disabledDefinition ? (
           <Button size="sm" variant={secret ? "outline" : "default"} onClick={onSet}>
-            {secret ? "Update" : "Set value"}
+            {secret
+              ? t("settingsPage.secrets.actions.updateMyValue")
+              : t("settingsPage.secrets.actions.setMyValue")}
           </Button>
         ) : null}
         {secret ? (
@@ -171,7 +172,8 @@ function MyUserSecretRow({
             className="text-muted-foreground hover:text-destructive"
             onClick={onClear}
             disabled={clearing}
-            title="Clear my value"
+            title={t("settingsPage.secrets.mySecretsTab.clearValueAria")}
+            aria-label={t("settingsPage.secrets.mySecretsTab.clearValueAria")}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>

@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PrimaryAgentProvider } from "./PrimaryAgentProvider";
+import { setLocale } from "@/i18n";
 import { usePrimaryAgentPresentation } from "@/components/primary-agent/PrimaryAgentPresentation";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -55,6 +56,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount()); client.clear(); container.remove(); vi.unstubAllGlobals();
+  await setLocale("en");
 });
 
 describe("primary agent persistence provider", () => {
@@ -72,6 +74,19 @@ describe("primary agent persistence provider", () => {
     await act(async () => state.toast.mock.calls[0][0].action.onClick());
     await waitForOutput("alex");
     expect(state.set).toHaveBeenLastCalledWith("company-a", { primaryAgentId: "alex" });
+  });
+
+  it("localizes the failed primary-agent change toast", async () => {
+    await setLocale("zh-CN");
+    state.set.mockRejectedValueOnce(new Error("Server diagnostic"));
+    await render(); await waitForOutput("maia");
+    await act(async () => container.querySelector("button")!.click());
+    await vi.waitFor(() => expect(state.toast).toHaveBeenCalled());
+
+    expect(state.toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "无法更改你的主要 Agent。",
+      action: expect.objectContaining({ label: "重试" }),
+    }));
   });
 
   it("keeps cached preferences separate across companies and users", async () => {

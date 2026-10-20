@@ -42,6 +42,8 @@ import { MarkdownEditor } from "@/components/MarkdownEditor";
 import { Label } from "@/components/ui/label";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { Link } from "@/lib/router";
+import { Trans } from "react-i18next";
+import { useTranslation } from "@/i18n";
 import {
   Tooltip,
   TooltipContent,
@@ -50,13 +52,13 @@ import {
 
 export const githubSelectClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
-const eventLabels = {
-  opened: "New pull request",
-  synchronize: "Updated commits",
-  reopened: "Reopened",
-  ready_for_review: "Ready for review",
-  mention: "Mention",
-  comment: "Follow-up comment",
+const eventLabelKeys = {
+  opened: "appsPage.githubConfig.eventOpened",
+  synchronize: "appsPage.githubConfig.eventSynchronize",
+  reopened: "appsPage.githubConfig.eventReopened",
+  ready_for_review: "appsPage.githubConfig.eventReadyForReview",
+  mention: "appsPage.githubConfig.eventMention",
+  comment: "appsPage.githubConfig.eventComment",
 };
 function GitHubHelp({
   label,
@@ -65,13 +67,14 @@ function GitHubHelp({
   label: string;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={`About ${label}`}
+          aria-label={t("appsPage.githubConfig.helpAria", { label })}
           className="inline-flex shrink-0 items-center text-muted-foreground hover:text-foreground"
           onClick={() => setOpen(true)}
         >
@@ -172,6 +175,7 @@ function GitHubPassingScore({
   onChange: (value: GitHubReviewPolicy["ratingThreshold"]) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const [localText, setLocalText] = useState(String(value ?? 5));
   const text = controlledText ?? localText;
@@ -182,7 +186,7 @@ function GitHubPassingScore({
   useEffect(() => { onValidityChange?.(valid); }, [valid, onValidityChange]);
   return (
     <div className="space-y-3 py-3">
-      <Label htmlFor={id}>Passing score</Label>
+      <Label htmlFor={id}>{t("appsPage.githubConfig.passingScore")}</Label>
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Input id={id} type="number" min={1} max={5} step={1} required
@@ -195,25 +199,22 @@ function GitHubPassingScore({
               if (next.trim() && Number.isInteger(score) && score >= 1 && score <= 5)
                 onChange(score as 1 | 2 | 3 | 4 | 5);
             }} />
-          <span className="text-sm text-muted-foreground">out of 5</span>
+          <span className="text-sm text-muted-foreground">{t("appsPage.githubConfig.outOfFive")}</span>
         </div>
         <Label className="flex items-center gap-2 text-sm font-normal">
-          <Checkbox aria-label="Report only" checked={value === null}
+          <Checkbox aria-label={t("appsPage.githubConfig.reportOnly")} checked={value === null}
             onCheckedChange={(checked) => { setText("5"); onChange(checked === true ? null : 5); }} />
-          Report only
+          {t("appsPage.githubConfig.reportOnly")}
         </Label>
       </div>
-      {!valid && <p id={`${id}-error`} role="alert" className="text-xs text-destructive">Enter a whole number from 1 to 5.</p>}
+      {!valid && <p id={`${id}-error`} role="alert" className="text-xs text-destructive">{t("appsPage.githubConfig.scoreError")}</p>}
       <p id={`${id}-help`} className="text-xs text-muted-foreground">
         {value === null
-          ? "Publishes a neutral check without a score requirement. GitHub can accept neutral checks for merging."
-          : "Paperclip passes the check when a complete review of the latest commit meets this score. Lower scores fail. This does not approve the PR."}
+          ? t("appsPage.githubConfig.reportOnlyHelp")
+          : t("appsPage.githubConfig.scoreHelp")}
       </p>
       <p className="text-xs text-muted-foreground">
-        To block merging, require the <strong>Paperclip Review</strong> check from this App in your GitHub branch rules.{" "}
-        <a className="underline hover:text-foreground"
-          href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository"
-          target="_blank" rel="noreferrer">Configure on GitHub</a>
+        <Trans i18nKey="appsPage.githubConfig.blockMergeHelp" components={{ strong: <strong />, lnk: <a className="underline hover:text-foreground" href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository" target="_blank" rel="noreferrer" /> }} />
       </p>
     </div>
   );
@@ -238,6 +239,7 @@ export function GitHubPolicyEditor({
   onChange: (policy: GitHubReviewPolicy) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const id = useId();
   const automaticMode = useRef<"linked_authors" | "allowed_authors">(
     "linked_authors",
@@ -283,24 +285,23 @@ export function GitHubPolicyEditor({
           id={`${id}-github-instructions-heading`}
           className="text-base font-semibold"
         >
-          Instructions
+          {t("appsPage.githubConfig.instructions")}
         </h2>
         <MarkdownEditor
           readOnly={readOnly}
-          ariaLabel="Agent instructions"
+          ariaLabel={t("appsPage.githubConfig.agentInstructionsAria")}
           contentClassName="min-h-32"
           value={policy.instructions}
-          placeholder="What should this agent do on GitHub?"
+          placeholder={t("appsPage.githubConfig.instructionsPlaceholder")}
           onChange={(value) => set("instructions", value)}
         />
         <p className="text-xs text-muted-foreground">
-          Included in every GitHub task. Type / to select a skill for the agent
-          to use.
+          {t("appsPage.githubConfig.instructionsHelp")}
         </p>
-        <GitHubSettingsDisclosure title="Event-specific instructions">
+        <GitHubSettingsDisclosure title={t("appsPage.githubConfig.eventInstructions")}>
           <div className="grid gap-3 pt-3">
             <Label htmlFor={`${id}-github-prompt-event`} className="sr-only">
-              Event
+              {t("appsPage.githubConfig.event")}
             </Label>
             <select
               id={`${id}-github-prompt-event`}
@@ -310,15 +311,15 @@ export function GitHubPolicyEditor({
             >
               {GITHUB_REVIEW_EVENTS.map((event) => (
                 <option key={event} value={event}>
-                  {eventLabels[event]}
+                  {t(eventLabelKeys[event])}
                 </option>
               ))}
-              <option value="issue_opened">New issue</option>
+              <option value="issue_opened">{t("appsPage.githubConfig.newIssue")}</option>
             </select>
             <MarkdownEditor
               key={prompt}
               readOnly={readOnly}
-              ariaLabel={`${prompt === "issue_opened" ? "New issue" : eventLabels[prompt]} instructions`}
+              ariaLabel={t("appsPage.githubConfig.eventInstructionsAria", { event: prompt === "issue_opened" ? t("appsPage.githubConfig.newIssue") : t(eventLabelKeys[prompt]) })}
               contentClassName="min-h-32"
               value={
                 prompt === "issue_opened"
@@ -335,7 +336,7 @@ export function GitHubPolicyEditor({
               }
             />
             <p className="text-xs text-muted-foreground">
-              Added to the main instructions for this event. Type / to select a skill for the agent to use.
+              {t("appsPage.githubConfig.eventInstructionsHelp")}
             </p>
           </div>
         </GitHubSettingsDisclosure>
@@ -348,25 +349,25 @@ export function GitHubPolicyEditor({
           id={`${id}-github-triggers-heading`}
           className="text-base font-semibold"
         >
-          When to run
+          {t("appsPage.githubConfig.whenToRun")}
         </h2>
         <div className="flex items-start gap-3 py-2">
           <AtSign className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div className="space-y-1">
-            <p className="text-sm font-medium">When mentioned</p>
+            <p className="text-sm font-medium">{t("appsPage.githubConfig.whenMentioned")}</p>
             <p className="text-xs text-muted-foreground">
-              Authorized people can always @mention this bot.{" "}
+              {t("appsPage.githubConfig.whenMentionedHelp")}{" "}
               {accessHref && (
                 <Link className="underline underline-offset-4" to={accessHref}>
-                  Manage people in Access
+                  {t("appsPage.githubConfig.managePeopleInAccess")}
                 </Link>
               )}
             </p>
           </div>
         </div>
         <GitHubToggle
-          label="Run automatically"
-          description="Start work without a mention when an allowed person creates an issue or updates a pull request."
+          label={t("appsPage.githubConfig.runAutomatically")}
+          description={t("appsPage.githubConfig.runAutomaticallyDescription")}
           checked={policy.invocation !== "mentions_only"}
           onChange={(enabled) =>
             set("invocation", enabled ? (rememberedAutomaticMode ?? automaticMode.current) : "mentions_only")
@@ -376,7 +377,7 @@ export function GitHubPolicyEditor({
           <div className="space-y-4">
             <div
               className="grid gap-x-6 gap-y-3 sm:grid-cols-2"
-              aria-label="Automatic events"
+              aria-label={t("appsPage.githubConfig.automaticEventsAria")}
             >
               {GITHUB_REVIEW_EVENTS.slice(0, 4).map((event) => (
                 <Label
@@ -394,7 +395,7 @@ export function GitHubPolicyEditor({
                       )
                     }
                   />
-                  {eventLabels[event]}
+                  {t(eventLabelKeys[event])}
                 </Label>
               ))}
               <Label className="flex cursor-pointer items-center gap-3 text-sm font-normal">
@@ -404,71 +405,70 @@ export function GitHubPolicyEditor({
                     set("issueOpened", enabled === true)
                   }
                 />
-                New issues
+                {t("appsPage.githubConfig.newIssues")}
               </Label>
             </div>
             <p className="text-xs text-muted-foreground">
-              Runs for authorized authors in Access. Use the author filters below to limit whose issues and PRs start work.
+              {t("appsPage.githubConfig.authorizedAuthorsHelp")}
             </p>
-            <GitHubSettingsDisclosure title="Automatic review filters">
+            <GitHubSettingsDisclosure title={t("appsPage.githubConfig.automaticReviewFilters")}>
               <div>
                 <GitHubToggle
-                  label="Include draft PRs"
+                  label={t("appsPage.githubConfig.includeDraftPrs")}
                   checked={policy.reviewDrafts}
                   onChange={(value) => set("reviewDrafts", value)}
                 />
                 <GitHubToggle
-                  label="Include bot authors"
-                  description="The account also needs a sponsor and external-contributor automatic runs enabled in Access."
+                  label={t("appsPage.githubConfig.includeBotAuthors")}
+                  description={t("appsPage.githubConfig.includeBotAuthorsDescription")}
                   checked={policy.reviewBotAuthors}
                   onChange={(value) => set("reviewBotAuthors", value)}
                 />
               </div>
-              <GitHubSettingsDisclosure title="Authors">
+              <GitHubSettingsDisclosure title={t("appsPage.githubConfig.authors")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {filterField(
                     "includeAuthors",
-                    "Included authors",
-                    "Leave empty for all authorized authors. One username or glob per line.",
+                    t("appsPage.githubConfig.includedAuthors"),
+                    t("appsPage.githubConfig.includedAuthorsHelp"),
                   )}
                   {filterField(
                     "excludeAuthors",
-                    "Excluded authors",
-                    "One username or glob per line.",
+                    t("appsPage.githubConfig.excludedAuthors"),
+                    t("appsPage.githubConfig.excludedAuthorsHelp"),
                   )}
                 </div>
               </GitHubSettingsDisclosure>
-              <GitHubSettingsDisclosure title="Branches">
+              <GitHubSettingsDisclosure title={t("appsPage.githubConfig.branches")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {filterField(
                     "targetBranches",
-                    "Target branches",
-                    "Leave empty for all branches. Supports * and **.",
+                    t("appsPage.githubConfig.targetBranches"),
+                    t("appsPage.githubConfig.targetBranchesHelp"),
                   )}
                   {filterField(
                     "excludedBranches",
-                    "Excluded branches",
-                    "Supports * and **.",
+                    t("appsPage.githubConfig.excludedBranches"),
+                    t("appsPage.githubConfig.excludedBranchesHelp"),
                   )}
                 </div>
               </GitHubSettingsDisclosure>
-              <GitHubSettingsDisclosure title="Labels">
+              <GitHubSettingsDisclosure title={t("appsPage.githubConfig.labels")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {filterField(
                     "requiredLabels",
-                    "Required labels",
-                    "All listed labels must be present.",
+                    t("appsPage.githubConfig.requiredLabels"),
+                    t("appsPage.githubConfig.requiredLabelsHelp"),
                   )}
                   {filterField(
                     "excludedLabels",
-                    "Excluded labels",
-                    "Any listed label prevents automatic review.",
+                    t("appsPage.githubConfig.excludedLabels"),
+                    t("appsPage.githubConfig.excludedLabelsHelp"),
                   )}
                 </div>
               </GitHubSettingsDisclosure>
               <p className="text-xs text-muted-foreground">
-                Reviews requested by @mention bypass these scheduling filters.
-                Repository access and ignored files still apply.
+                {t("appsPage.githubConfig.mentionBypassHelp")}
               </p>
             </GitHubSettingsDisclosure>
           </div>
@@ -482,16 +482,16 @@ export function GitHubPolicyEditor({
           id={`${id}-github-results-heading`}
           className="text-base font-semibold"
         >
-          Review results
+          {t("appsPage.githubConfig.reviewResults")}
         </h2>
         <div className="grid gap-x-8 sm:grid-cols-2">
           <GitHubToggle
-            label="Post a review summary"
+            label={t("appsPage.githubConfig.postSummary")}
             checked={policy.publishSummary}
             onChange={(value) => set("publishSummary", value)}
           />
           <GitHubToggle
-            label="Post inline findings"
+            label={t("appsPage.githubConfig.postInline")}
             checked={policy.publishInline}
             onChange={(value) => set("publishInline", value)}
           />
@@ -500,18 +500,18 @@ export function GitHubPolicyEditor({
           onChange={(value) => set("ratingThreshold", value)} onValidityChange={onValidityChange} />
       </section>
       <div className="divide-y divide-border">
-        <GitHubSettingsDisclosure title="Ignored files">
+        <GitHubSettingsDisclosure title={t("appsPage.githubConfig.ignoredFiles")}>
           {filterField(
             "ignoredPaths",
-            "File patterns",
-            "Excluded from all reviews, including @mentions. One pattern per line; supports * and **.",
+            t("appsPage.githubConfig.filePatterns"),
+            t("appsPage.githubConfig.filePatternsHelp"),
           )}
         </GitHubSettingsDisclosure>
-        <GitHubSettingsDisclosure title="Inline comment options">
+        <GitHubSettingsDisclosure title={t("appsPage.githubConfig.inlineOptions")}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor={`${id}-github-categories`}>
-                Finding categories
+                {t("appsPage.githubConfig.findingCategories")}
               </Label>
               <GitHubListInput
                 id={`${id}-github-categories`}
@@ -522,7 +522,7 @@ export function GitHubPolicyEditor({
             </div>
             <div className="space-y-2">
               <Label htmlFor={`${id}-github-severity`}>
-                Minimum inline severity
+                {t("appsPage.githubConfig.minimumSeverity")}
               </Label>
               <select
                 id={`${id}-github-severity`}
@@ -536,31 +536,30 @@ export function GitHubPolicyEditor({
                   )
                 }
               >
-                <option value="info">Info</option>
-                <option value="warning">Warning</option>
-                <option value="error">Error</option>
+                <option value="info">{t("appsPage.githubConfig.severityInfo")}</option>
+                <option value="warning">{t("appsPage.githubConfig.severityWarning")}</option>
+                <option value="error">{t("appsPage.githubConfig.severityError")}</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                Hidden findings still count in the assessment.
+                {t("appsPage.githubConfig.hiddenFindingsNote")}
               </p>
             </div>
           </div>
         </GitHubSettingsDisclosure>
-        <GitHubSettingsDisclosure title="Approvals and change requests">
+        <GitHubSettingsDisclosure title={t("appsPage.githubConfig.approvals")}>
           <p className="text-xs text-muted-foreground">
-            Optional formal decisions on GitHub. Scores, comments, and checks
-            still work when these are off.
+            {t("appsPage.githubConfig.approvalsDescription")}
           </p>
           <div>
             <GitHubToggle
-              label="Allow approvals"
-              help="Lets the agent submit an Approve review on GitHub after a complete assessment. The agent must explicitly choose it; a 5/5 score or passing check does not approve the PR. Off still allows scores, comments, and checks."
+              label={t("appsPage.githubConfig.allowApprovals")}
+              help={t("appsPage.githubConfig.allowApprovalsHelp")}
               checked={policy.allowApprove}
               onChange={(value) => set("allowApprove", value)}
             />
             <GitHubToggle
-              label="Allow request changes"
-              help="Lets the agent submit a Request changes review on GitHub after a complete assessment. This is a formal review decision and may prevent merging under your repository rules. Off still allows findings, comments, and a failing check."
+              label={t("appsPage.githubConfig.allowRequestChanges")}
+              help={t("appsPage.githubConfig.allowRequestChangesHelp")}
               checked={policy.allowRequestChanges}
               onChange={(value) => set("allowRequestChanges", value)}
             />
@@ -582,6 +581,7 @@ export function GitHubAccessEditor({
   configuration: GitHubChatConfiguration;
   onChange: (configuration: GitHubChatConfiguration) => void;
 }) {
+  const { t } = useTranslation();
   const company = useOptionalCompany()?.companies.find((item) => item.id === companyId);
   const accountLink = useRef<HTMLAnchorElement>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -667,7 +667,7 @@ export function GitHubAccessEditor({
       await links.refetch();
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Could not unlink this account.",
+        e instanceof Error ? e.message : t("appsPage.githubConfig.unlinkFailed"),
       );
     } finally {
       setBusy(false);
@@ -697,32 +697,32 @@ export function GitHubAccessEditor({
               <p className="break-words text-sm font-medium">@{person.login}</p>
               <p className="text-xs text-muted-foreground">
                 {person.kind === "guest"
-                  ? `Sponsored by ${memberName(person.sponsorUserId)}`
-                  : (identity?.paperclipUserLabel ?? "Company member")}
+                  ? t("appsPage.githubConfig.sponsoredBy", { name: memberName(person.sponsorUserId) })
+                  : (identity?.paperclipUserLabel ?? t("appsPage.githubConfig.companyMember"))}
               </p>
               {!linked && (
                 <p className="mt-1 text-xs text-destructive">
-                  GitHub account needs linking.
+                  {t("appsPage.githubConfig.needsLinking")}
                 </p>
               )}
             </div>
             <div className="flex items-center gap-5">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-muted-foreground">Mentions</span>
+                <span className="text-xs text-muted-foreground">{t("appsPage.githubConfig.mentions")}</span>
                 {person.kind === "guest" ||
                 configuration.memberAccess === "all_linked" ? (
                   <span
                     className="flex h-5 items-center gap-1 text-xs"
-                    aria-label={`Mentions ${linked ? "allowed" : "unavailable"} for @${person.login}`}
+                    aria-label={t("appsPage.githubConfig.mentionsAria", { state: linked ? t("appsPage.agentAccess.allowed") : t("appsPage.githubConfig.unlinked"), login: person.login })}
                   >
                     {linked && (
                       <Check className="size-3.5 text-muted-foreground" />
                     )}
-                    {linked ? "Allowed" : "Unlinked"}
+                    {linked ? t("appsPage.agentAccess.allowed") : t("appsPage.githubConfig.unlinked")}
                   </span>
                 ) : (
                   <ToggleSwitch
-                    aria-label={`Allow mentions from @${person.login}`}
+                    aria-label={t("appsPage.githubConfig.allowMentionsAria", { login: person.login })}
                     checked={mentions}
                     disabled={!linked}
                     onCheckedChange={(enabled) =>
@@ -736,7 +736,7 @@ export function GitHubAccessEditor({
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={`Manage @${person.login}`}
+                    aria-label={t("appsPage.githubConfig.managePersonAria", { login: person.login })}
                   >
                     <MoreHorizontal className="size-4" />
                   </Button>
@@ -744,7 +744,7 @@ export function GitHubAccessEditor({
                 <DropdownMenuContent align="end">
                   {removable && (
                     <DropdownMenuItem onClick={() => removePerson(person)}>
-                      Remove access
+                      {t("appsPage.githubConfig.removeAccess")}
                     </DropdownMenuItem>
                   )}
                   {identity && (
@@ -752,7 +752,7 @@ export function GitHubAccessEditor({
                       disabled={busy}
                       onClick={() => void unlink(identity.principalId)}
                     >
-                      Unlink GitHub account
+                      {t("appsPage.githubConfig.unlinkAccount")}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -764,17 +764,16 @@ export function GitHubAccessEditor({
     </div>
   );
   return (
-    <section className="space-y-6" aria-label="People">
+    <section className="space-y-6" aria-label={t("appsPage.githubConfig.people")}>
       <div className="space-y-1">
-        <h2 className="text-base font-semibold">People</h2>
+        <h2 className="text-base font-semibold">{t("appsPage.githubConfig.people")}</h2>
         <p className="text-sm text-muted-foreground">
-          Choose who can mention this bot and whose activity can start work
-          automatically.
+          {t("appsPage.githubConfig.peopleDescription")}
         </p>
       </div>
-      <section className="space-y-2" aria-label="Company members">
+      <section className="space-y-2" aria-label={t("appsPage.githubConfig.companyMembers")}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Company members</h3>
+          <h3 className="text-sm font-semibold">{t("appsPage.githubConfig.companyMembers")}</h3>
           <Button
             variant="outline"
             size="sm"
@@ -785,15 +784,15 @@ export function GitHubAccessEditor({
             }}
           >
             <Plus className="size-4" />
-            Link a member
+            {t("appsPage.githubConfig.linkMember")}
           </Button>
         </div>
         <GitHubToggle
-          label="Allow mentions from all linked members"
+          label={t("appsPage.githubConfig.allowAllLinked")}
           description={
             configuration.memberAccess === "all_linked"
-              ? `Includes members from ${company?.name ?? "this company"} who link their GitHub account later.`
-              : "Only members you enable below can mention this bot."
+              ? t("appsPage.githubConfig.allLinkedDescription", { company: company?.name ?? t("appsPage.githubConfig.thisCompany") })
+              : t("appsPage.githubConfig.selectedDescription")
           }
           checked={configuration.memberAccess === "all_linked"}
           onChange={(enabled) =>
@@ -806,46 +805,34 @@ export function GitHubAccessEditor({
         {peopleRows(memberRows)}
         {links.isPending && (
           <p role="status" className="py-4 text-sm text-muted-foreground">
-            Loading linked accounts…
+            {t("appsPage.githubConfig.loadingLinkedAccounts")}
           </p>
         )}
         {!links.isPending && !links.isError && memberRows.length === 0 && (
           <p className="py-4 text-sm text-muted-foreground">
-            No members linked yet. Link an account to get started.
+            {t("appsPage.githubConfig.noMembersLinked")}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
           {automatic ? (
-            <>
-              Automatic runs use the events and author filters in{" "}
-              <Link
-                className="underline underline-offset-4"
-                to={`/apps/chat/${endpointId}/settings`}
-              >
-                Settings
-              </Link>
-              .
-            </>
+            <Trans
+              i18nKey="appsPage.githubConfig.automaticOnInSettings"
+              components={{ lnk: <Link className="underline underline-offset-4" to={`/apps/chat/${endpointId}/settings`} /> }}
+            />
           ) : (
-            <>
-              Automatic runs are off in{" "}
-              <Link
-                className="underline underline-offset-4"
-                to={`/apps/chat/${endpointId}/settings`}
-              >
-                Settings
-              </Link>
-              . Authorized @mentions still work.
-            </>
+            <Trans
+              i18nKey="appsPage.githubConfig.automaticOffInSettings"
+              components={{ lnk: <Link className="underline underline-offset-4" to={`/apps/chat/${endpointId}/settings`} /> }}
+            />
           )}
         </p>
       </section>
       <section
         className="space-y-2 border-t border-border pt-6"
-        aria-label="External contributors"
+        aria-label={t("appsPage.githubConfig.externalContributors")}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">External contributors</h3>
+          <h3 className="text-sm font-semibold">{t("appsPage.githubConfig.externalContributors")}</h3>
           <Button
             variant="outline"
             size="sm"
@@ -855,22 +842,20 @@ export function GitHubAccessEditor({
             }}
           >
             <Plus className="size-4" />
-            Add external contributor
+            {t("appsPage.githubConfig.addExternalContributor")}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Allow specific GitHub users with a member as their sponsor. They
-          receive restricted access, without company membership or the sponsor’s
-          personal credentials.
+          {t("appsPage.githubConfig.externalContributionDescription")}
         </p>
         {peopleRows(guests)}
         {guests.length > 0 && (
           <GitHubToggle
-            label="Allow automatic runs for external contributors"
+            label={t("appsPage.githubConfig.allowAutomaticGuests")}
             description={
               automatic
-                ? "Authorized contributors can trigger the events and author filters configured in Settings."
-                : "Turn on automatic runs in Settings first. Mentions remain available."
+                ? t("appsPage.githubConfig.allowAutomaticGuestsOn")
+                : t("appsPage.githubConfig.allowAutomaticGuestsOff")
             }
             checked={guestsAutomatic}
             disabled={!automatic}
@@ -886,15 +871,15 @@ export function GitHubAccessEditor({
           />
         )}
       </section>
-      <GitHubSettingsDisclosure title="Automatic task responsibility">
+      <GitHubSettingsDisclosure title={t("appsPage.githubConfig.taskResponsibility")}>
         <div className="space-y-2">
           {activeMembers.length === 1 && responsible ? (
             <p className="text-sm">
-              Responsible member: {memberName(configuration.responsibleUserId)}
+              {t("appsPage.githubConfig.responsibleMemberValue", { name: memberName(configuration.responsibleUserId) })}
             </p>
           ) : (
             <>
-              <Label htmlFor="github-responsible">Responsible member</Label>
+              <Label htmlFor="github-responsible">{t("appsPage.githubConfig.responsibleMember")}</Label>
               <select
                 id="github-responsible"
                 className={githubSelectClass}
@@ -908,7 +893,7 @@ export function GitHubAccessEditor({
               >
                 {!responsible && (
                   <option value={configuration.responsibleUserId}>
-                    {configuration.responsibleUserId || "Select a member"}
+                    {configuration.responsibleUserId || t("appsPage.githubConfig.selectMember")}
                   </option>
                 )}
                 {activeMembers.map((member) => (
@@ -922,9 +907,7 @@ export function GitHubAccessEditor({
             </>
           )}
           <p className="text-xs text-muted-foreground">
-            The member accountable for automatically created Paperclip tasks.
-            GitHub authors remain recorded separately. This grants no access to
-            the member’s personal credentials.
+            {t("appsPage.githubConfig.responsibleMemberDescription")}
           </p>
         </div>
       </GitHubSettingsDisclosure>
@@ -936,7 +919,7 @@ export function GitHubAccessEditor({
       {(members.error || links.error) && (
         <div className="flex flex-wrap items-center gap-2">
           <p role="alert" className="text-sm text-destructive">
-            Could not load members or linked accounts.
+            {t("appsPage.githubConfig.membersLoadFailed")}
           </p>
           <Button
             variant="link"
@@ -946,7 +929,7 @@ export function GitHubAccessEditor({
               void links.refetch();
             }}
           >
-            Try again
+            {t("common.tryAgain")}
           </Button>
         </div>
       )}
@@ -960,40 +943,40 @@ export function GitHubAccessEditor({
           <DialogHeader>
             <DialogTitle>
               {dialog === "member"
-                ? "Link a company member"
-                : "Add external contributor"}
+                ? t("appsPage.githubConfig.linkCompanyMember")
+                : t("appsPage.githubConfig.addExternalContributor")}
             </DialogTitle>
             <DialogDescription>
               {dialog === "member"
-                ? "Each member confirms their own GitHub identity. Share this link with an existing company member, or link your own account."
-                : "Allow a GitHub user to mention this bot. A company member must sponsor their restricted access."}
+                ? t("appsPage.githubConfig.linkCompanyMemberDescription")
+                : t("appsPage.githubConfig.addExternalContributorDescription")}
             </DialogDescription>
           </DialogHeader>
           {dialog === "member" ? (
             <>
               <Button
                 variant="outline"
-                aria-label="Copy account linking URL"
+                aria-label={t("appsPage.githubConfig.copyAccountLinkAria")}
                 onClick={() => {
                   if (accountLink.current)
                     void copyTextToClipboard(accountLink.current.href).then(
                       () => setLinkCopied(true),
                       () =>
                         setError(
-                          "Could not copy the link. Open account linking and copy the address.",
+                          t("appsPage.githubConfig.copyLinkFailed"),
                         ),
                     );
                 }}
               >
                 <Copy className="size-4" />
-                {linkCopied ? "Copied" : "Copy invitation link"}
+                {linkCopied ? t("appsPage.assistant.copied") : t("appsPage.githubConfig.copyInvitationLink")}
               </Button>
               <Link
                 ref={accountLink}
                 to={`/apps/chat/connect?provider=github&resume=${endpointId}&stage=identity`}
                 className="text-sm underline underline-offset-4"
               >
-                Link your account
+                {t("appsPage.githubConfig.linkYourAccount")}
               </Link>
               {error && (
                 <p role="alert" className="text-sm text-destructive">
@@ -1004,7 +987,7 @@ export function GitHubAccessEditor({
           ) : (
             <>
               <div className="space-y-2">
-                <Label htmlFor="github-guest-login">GitHub username</Label>
+                <Label htmlFor="github-guest-login">{t("appsPage.githubConfig.githubUsername")}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="github-guest-login"
@@ -1030,19 +1013,19 @@ export function GitHubAccessEditor({
                         );
                       } catch (e) {
                         setLookupError(
-                          e instanceof Error ? e.message : "Lookup failed",
+                          e instanceof Error ? e.message : t("appsPage.githubConfig.lookupFailed"),
                         );
                       } finally {
                         setBusy(false);
                       }
                     }}
                   >
-                    {busy ? "Looking up…" : "Look up"}
+                    {busy ? t("appsPage.githubConfig.lookingUp") : t("appsPage.githubConfig.lookUp")}
                   </Button>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="github-guest-sponsor">Sponsor</Label>
+                <Label htmlFor="github-guest-sponsor">{t("appsPage.githubConfig.sponsor")}</Label>
                 <select
                   id="github-guest-sponsor"
                   className={githubSelectClass}
@@ -1051,7 +1034,7 @@ export function GitHubAccessEditor({
                 >
                   {!activeMembers.some(
                     (member) => member.principalId === sponsor,
-                  ) && <option value={sponsor}>Select a member</option>}
+                  ) && <option value={sponsor}>{t("appsPage.githubConfig.selectMember")}</option>}
                   {activeMembers.map((member) => (
                     <option key={member.principalId} value={member.principalId}>
                       {member.user?.name ?? member.principalId}
@@ -1067,8 +1050,8 @@ export function GitHubAccessEditor({
                   linkedAccounts.some(
                     (link) => link.githubUserId === candidate.githubUserId,
                   )
-                    ? `@${candidate.login} is already listed in People.`
-                    : `Found @${candidate.login}. They will be able to mention the bot after you save.`}
+                    ? t("appsPage.githubConfig.alreadyListed", { login: candidate.login })
+                    : t("appsPage.githubConfig.foundUser", { login: candidate.login })}
                 </p>
               )}
               {lookupError && (
@@ -1078,7 +1061,7 @@ export function GitHubAccessEditor({
               )}
               <DialogFooter className="flex-row justify-between sm:justify-between">
                 <Button variant="ghost" onClick={() => setDialog(null)}>
-                  Cancel
+                  {t("common.actions.cancel")}
                 </Button>
                 <Button
                   disabled={
@@ -1107,7 +1090,7 @@ export function GitHubAccessEditor({
                     }
                   }}
                 >
-                  Add contributor
+                  {t("appsPage.githubConfig.addContributor")}
                 </Button>
               </DialogFooter>
             </>

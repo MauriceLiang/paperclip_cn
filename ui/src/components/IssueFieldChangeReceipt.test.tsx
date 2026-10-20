@@ -1,8 +1,9 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ActivityEvent } from "@paperclipai/shared";
+import { i18n } from "@/i18n";
 import { IssueFieldChangeReceipt } from "./IssueFieldChangeReceipt";
 
 function event(overrides: Partial<ActivityEvent> = {}) {
@@ -15,6 +16,10 @@ function event(overrides: Partial<ActivityEvent> = {}) {
 }
 
 describe("IssueFieldChangeReceipt", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("shows before and after for each changed field", () => {
     const html = renderToStaticMarkup(
       <IssueFieldChangeReceipt
@@ -33,7 +38,7 @@ describe("IssueFieldChangeReceipt", () => {
     expect(html).toContain("todo");
     expect(html).toContain("in progress");
     expect(html).toContain("Priority");
-    expect(html).toContain("high");
+    expect(html).toContain("High");
     expect(html).toContain('data-testid="issue-change-row-status"');
   });
 
@@ -91,6 +96,31 @@ describe("IssueFieldChangeReceipt", () => {
 
     expect(html).toContain("Description");
     expect(html).toContain("preview");
+  });
+
+  it("localizes receipt annotations and status values", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const html = renderToStaticMarkup(
+      <IssueFieldChangeReceipt
+        event={event({
+          responsibleUserId: "user-1",
+          details: {
+            changes: {
+              status: { from: "todo", to: "in_progress" },
+              description: { from: "old", to: "new", updated: true },
+            },
+            authorizationReason: "allow_visible_issue_write",
+          },
+        })}
+        resolveUserLabel={() => "Dotta"}
+      />,
+    );
+
+    expect(html).toContain("待办");
+    expect(html).toContain("进行中");
+    expect(html).toContain("预览");
+    expect(html).toContain("用户：Dotta");
+    expect(html).toContain("授权依据：对可见任务的默认开放写入");
   });
 
   it("renders a board edit's receipt the same way as an agent's", () => {

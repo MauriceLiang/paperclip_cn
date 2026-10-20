@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { Agent } from "@paperclipai/shared";
 import { IssueAssignedBacklogNotice } from "./IssueAssignedBacklogNotice";
+import { setLocale } from "@/i18n";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -19,17 +20,19 @@ const baseAgent = {
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await setLocale("en");
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => {
     root.unmount();
   });
   container.remove();
+  await setLocale("en");
 });
 
 describe("IssueAssignedBacklogNotice", () => {
@@ -135,5 +138,24 @@ describe("IssueAssignedBacklogNotice", () => {
     expect(button).not.toBeNull();
     expect(button?.disabled).toBe(true);
     expect(button?.textContent).toBe("Resuming…");
+  });
+
+  it("renders the backlog explanation and action in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    act(() => {
+      root.render(
+        <IssueAssignedBacklogNotice
+          issueStatus="backlog"
+          assigneeAgent={baseAgent}
+          assigneeUserId={null}
+          onResume={() => undefined}
+        />,
+      );
+    });
+    const notice = container.querySelector('[data-testid="issue-assigned-backlog-notice"]');
+    expect(notice?.textContent).toContain("已暂缓");
+    expect(notice?.textContent).toContain("状态变为“待办”或“进行中”之前");
+    expect(notice?.textContent).toContain("评论仍会通知负责人");
+    expect(container.querySelector("button")?.textContent).toBe("立即恢复");
   });
 });

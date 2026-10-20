@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { MarkdownBody } from "@/components/MarkdownBody";
 import type { MentionOption } from "@/components/MarkdownEditor";
+import { t as translate, useTranslation } from "@/i18n";
+import { statusLabel as baseStatusLabel } from "@/i18n/status";
 import { WorkspaceFileLink } from "@/components/WorkspaceFileLink";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +49,23 @@ import type {
 import { QuestionForm, QuestionResponseSummary } from "./QuestionForm";
 import { TaskChatComposerTakeoverHeader } from "./TaskChatComposerTakeoverContext";
 import { RichWorkProductCard } from "./RichWorkProductCard";
+
+function protocolDetailLabel(label: string): string {
+  const key = label
+    .replace(/\s*\(([^)]+)\)/g, " $1")
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((word, index) =>
+      index === 0
+        ? word.toLowerCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join("");
+  return translate(`taskChatPage.protocol.detailLabels.${key}`, {
+    defaultValue: label,
+  });
+}
 
 export interface TaskChatProtocolCardProps {
   item: TaskChatProtocolItem;
@@ -76,6 +95,58 @@ const FAMILY_ICON = {
   wait: Clock3,
   provider_notice: AlertTriangle,
 } as const;
+
+function protocolStatusLabel(status: string): string {
+  switch (status) {
+    case "completed":
+    case "resolved":
+      return translate("status.done");
+    case "passed":
+      return translate("status.succeeded");
+    case "denied":
+      return translate("status.rejected");
+    case "interrupted":
+      return translate("status.terminated");
+    case "informational":
+      return translate("taskChatPage.protocol.statusInformational");
+    default:
+      return baseStatusLabel(status, translate);
+  }
+}
+
+function workspaceOperationLabel(operation: string): string {
+  switch (operation) {
+    case "create":
+      return translate("taskChatPage.protocol.operationCreate");
+    case "delete":
+      return translate("taskChatPage.protocol.operationDelete");
+    case "mode_change":
+      return translate("taskChatPage.protocol.operationModeChange");
+    case "modify":
+      return translate("taskChatPage.protocol.operationModify");
+    case "rename":
+      return translate("taskChatPage.protocol.operationRename");
+    default:
+      return operation.replaceAll("_", " ");
+  }
+}
+
+function filePresentationLabel(presentation: string): string {
+  switch (presentation) {
+    case "generic":
+      return translate("taskChatPage.workProduct.file");
+    case "code":
+      return translate("taskChatPage.protocol.presentationCode");
+    case "document":
+      return translate("taskChatPage.protocol.presentationDocument");
+    case "image":
+      return translate("taskChatPage.protocol.presentationImage");
+    case "attachment":
+      return translate("taskChatPage.workProduct.file");
+    default:
+      return titleCaseKey(presentation);
+  }
+}
 
 function statusTone(status: string): string {
   if (
@@ -160,7 +231,7 @@ function CardShell({
           )}
         >
           <StatusIcon status={status} className="h-3.5 w-3.5" />
-          {status.replaceAll("_", " ")}
+          {protocolStatusLabel(status)}
         </span>
       ) : null}
     </div>
@@ -214,7 +285,7 @@ function CardShell({
                 )}
               >
                 <StatusIcon status={status} className="h-3.5 w-3.5" />
-                {status.replaceAll("_", " ")}
+                {protocolStatusLabel(status)}
               </span>
             ) : null}
           </div>
@@ -233,7 +304,7 @@ function CardShell({
 function PlanSteps({ steps }: { steps: TaskChatProtocolStep[] }) {
   if (steps.length === 0) return null;
   return (
-    <ol className="flex flex-col gap-1.5" aria-label="Plan steps">
+    <ol className="flex flex-col gap-1.5" aria-label={translate("taskChatPage.protocol.planSteps")}>
       {steps.map((step) => (
         <li key={step.id} className="flex items-start gap-2 text-sm">
           <StatusIcon status={step.status} className="mt-0.5 shrink-0" />
@@ -273,7 +344,7 @@ function ProviderActivityCard({
     >
       {item.steps.length > 0 ? <PlanSteps steps={item.steps} /> : null}
       {item.children.length > 0 ? (
-        <ul className="flex flex-col gap-2" aria-label="Delegated agents">
+        <ul className="flex flex-col gap-2" aria-label={translate("taskChatPage.protocol.delegatedAgents")}>
           {item.children.map((child) => (
             <li
               key={child.id}
@@ -288,7 +359,7 @@ function ProviderActivityCard({
                     statusTone(child.status),
                   )}
                 >
-                  {child.status}
+                  {protocolStatusLabel(child.status)}
                 </span>
               </div>
               {child.metadata ? (
@@ -306,7 +377,7 @@ function ProviderActivityCard({
         </ul>
       ) : null}
       {item.links.length > 0 ? (
-        <ul className="flex flex-col gap-2" aria-label="Research sources">
+        <ul className="flex flex-col gap-2" aria-label={translate("taskChatPage.protocol.researchSources")}>
           {item.links.map((link) => (
             <li key={link.href}>
               <a
@@ -337,7 +408,7 @@ function ProviderActivityCard({
           )}
         >
           <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground">
-            <ChevronDown aria-hidden className="h-3.5 w-3.5" /> Details
+            <ChevronDown aria-hidden className="h-3.5 w-3.5" /> {translate("taskChatPage.protocol.details")}
           </summary>
           {item.details.length > 0 ? (
             <dl className="mt-2 flex min-w-0 flex-col gap-1.5 text-xs">
@@ -346,7 +417,7 @@ function ProviderActivityCard({
                   key={`${detail.label}:${detail.value}`}
                   className="grid min-w-0 grid-cols-1 gap-0.5 sm:grid-cols-(--gtc-task-chat-details) sm:gap-3"
                 >
-                  <dt className="text-muted-foreground">{detail.label}</dt>
+                  <dt className="text-muted-foreground">{protocolDetailLabel(detail.label)}</dt>
                   <dd
                     className={cn(
                       "min-w-0 break-words text-foreground",
@@ -366,7 +437,7 @@ function ProviderActivityCard({
           ) : null}
           {item.outputTruncated ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Output truncated to 8 KiB.
+              {translate("taskChatPage.protocol.outputTruncated")}
             </p>
           ) : null}
         </details>
@@ -392,19 +463,22 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
     item.files.find((file) => file.path === selectedPath) ?? null;
   const visibleFiles = expanded ? item.files : item.files.slice(0, 3);
   const fileCount = item.totals.files || item.files.length;
-  const fileLabel = `${fileCount} ${fileCount === 1 ? "file" : "files"}`;
+  const fileLabel = translate("taskChatPage.protocol.fileCount", { count: fileCount });
   const stats = [
     item.totals.additions == null ? null : `+${item.totals.additions}`,
     item.totals.deletions == null ? null : `−${item.totals.deletions}`,
   ].filter(Boolean).join(" ");
   const summary = item.complete
-    ? `${fileLabel} changed${stats ? ` · ${stats}` : ""}`
-    : "Workspace changes in progress";
+    ? translate("taskChatPage.protocol.filesChanged", {
+        files: fileLabel,
+        stats: stats ? ` · ${stats}` : "",
+      })
+    : translate("taskChatPage.protocol.workspaceChangesInProgress");
   return (
     <>
       <CardShell
         icon={GitBranch}
-        title="Workspace changes"
+        title={translate("taskChatPage.protocol.workspaceChanges")}
         status={item.complete ? "completed" : "running"}
         summary={summary}
         testId="task-chat-workspace-change"
@@ -424,8 +498,8 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
                     : file.path}
                 </span>
                 <span className="text-xs capitalize text-muted-foreground">
-                  {file.binary ? "binary · " : ""}
-                  {file.operation.replaceAll("_", " ")}
+                  {file.binary ? translate("taskChatPage.protocol.binaryPrefix") : ""}
+                  {workspaceOperationLabel(file.operation)}
                 </span>
               </span>
               {diffStats(file)}
@@ -441,8 +515,8 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
               onClick={() => setExpanded((value) => !value)}
             >
               {expanded
-                ? "Show fewer files"
-                : `Show ${item.files.length - 3} more files`}
+                ? translate("taskChatPage.protocol.showFewerFiles")
+                : translate("taskChatPage.protocol.showMoreFiles", { count: item.files.length - 3 })}
             </Button>
           ) : null}
           {item.files.length > 0 ? (
@@ -452,7 +526,7 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
               variant="outline"
               onClick={() => setSelectedPath(item.files[0].path)}
             >
-              Review diff
+              {translate("taskChatPage.protocol.reviewDiff")}
             </Button>
           ) : null}
         </div>
@@ -466,13 +540,13 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
         <DialogContent className="w-full max-w-(--pct-90) overflow-hidden">
           <DialogHeader>
             <DialogTitle className="font-mono text-sm">
-              {selected?.path ?? "Workspace diff"}
+              {selected?.path ?? translate("taskChatPage.protocol.workspaceDiff")}
             </DialogTitle>
           </DialogHeader>
           {item.files.length > 1 ? (
             <div
               className="flex max-w-full gap-1 overflow-x-auto pb-1"
-              aria-label="Changed files"
+              aria-label={translate("taskChatPage.protocol.changedFiles")}
             >
               {item.files.map((file) => (
                 <Button
@@ -489,7 +563,7 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
           ) : null}
           {selected?.binary ? (
             <p className="rounded-sm bg-muted/50 p-3 text-sm text-muted-foreground">
-              Binary file; text diff is unavailable.
+              {translate("taskChatPage.protocol.binaryFile")}
             </p>
           ) : selected?.diff ? (
             <pre className="max-h-(--sz-70vh) overflow-auto whitespace-pre rounded-sm bg-muted/50 p-3 font-mono text-xs">
@@ -497,7 +571,7 @@ function WorkspaceChangeCard({ item }: { item: TaskChatWorkspaceChangeItem }) {
             </pre>
           ) : (
             <p className="rounded-sm bg-muted/50 p-3 text-sm text-muted-foreground">
-              No inline patch was recorded for this file.
+              {translate("taskChatPage.protocol.noInlinePatch")}
             </p>
           )}
         </DialogContent>
@@ -510,9 +584,8 @@ function WorkspaceFileCard({ item }: { item: TaskChatWorkspaceFileItem }) {
   const [open, setOpen] = useState(false);
   const extension = item.displayName.includes(".")
     ? item.displayName.split(".").at(-1)?.toUpperCase()
-    : "FILE";
-  const label =
-    item.presentation === "generic" ? "File" : titleCaseKey(item.presentation);
+    : translate("taskChatPage.protocol.fileExtensionFallback");
+  const label = filePresentationLabel(item.presentation);
   const workspaceFileRef = useMemo(
     () => ({
       path: item.path,
@@ -531,7 +604,7 @@ function WorkspaceFileCard({ item }: { item: TaskChatWorkspaceFileItem }) {
         status={
           item.source === "runner_verified" ? "completed" : "informational"
         }
-        summary={`${label} · ${extension}${item.line ? ` · line ${item.line}` : ""}`}
+        summary={`${label} · ${extension}${item.line ? ` · ${translate("taskChatPage.protocol.line", { line: item.line })}` : ""}`}
         testId="task-chat-workspace-file"
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -546,7 +619,7 @@ function WorkspaceFileCard({ item }: { item: TaskChatWorkspaceFileItem }) {
             variant="outline"
             onClick={() => setOpen(true)}
           >
-            Preview
+            {translate("taskChatPage.protocol.preview")}
           </Button>
         </div>
       </CardShell>
@@ -558,8 +631,7 @@ function WorkspaceFileCard({ item }: { item: TaskChatWorkspaceFileItem }) {
           <p className="font-mono text-xs text-muted-foreground">{item.path}</p>
           {item.preview == null ? (
             <p className="rounded-sm bg-muted/50 p-3 text-sm text-muted-foreground">
-              Preview unavailable. The verified workspace reference is still
-              available above.
+              {translate("taskChatPage.protocol.previewUnavailableReference")}
             </p>
           ) : item.presentation === "document" ? (
             <div className="max-h-(--sz-70vh) overflow-auto rounded-sm bg-muted/30 p-3">
@@ -580,7 +652,7 @@ function WorkspaceFileCard({ item }: { item: TaskChatWorkspaceFileItem }) {
           )}
           {item.previewTruncated ? (
             <p className="text-xs text-muted-foreground">
-              Preview truncated by the runner.
+              {translate("taskChatPage.protocol.previewTruncated")}
             </p>
           ) : null}
         </DialogContent>
@@ -626,8 +698,10 @@ function RuntimeQuestionHistory({
           ))}
           <p className="text-xs text-muted-foreground">
             {item.status === "resolved"
-              ? "Answer details were not recorded by this older runtime."
-              : `No answers were submitted; this request was ${item.status}.`}
+              ? translate("taskChatPage.protocol.answerDetailsMissing")
+              : translate("taskChatPage.protocol.noAnswersSubmitted", {
+                  status: protocolStatusLabel(item.status),
+                })}
           </p>
         </div>
       )}
@@ -642,12 +716,12 @@ function RuntimeQuestionReceipt({
 }) {
   const label =
     item.status === "resolved"
-      ? "Questions answered"
+      ? translate("taskChatPage.protocol.questionsAnswered")
       : item.status === "cancelled"
-        ? "Questions cancelled"
+        ? translate("taskChatPage.protocol.questionsCancelled")
         : item.status === "expired"
-          ? "Questions expired"
-          : "Questions resolved";
+          ? translate("taskChatPage.protocol.questionsExpired")
+          : translate("taskChatPage.protocol.questionsResolved");
   return (
     <details className="group" data-testid="task-chat-runtime-request">
       <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 rounded-sm px-1 py-1.5 text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -671,7 +745,7 @@ function RuntimeQuestionReceipt({
       <div className="pb-3 pl-7 pr-1">
         <div className="mb-3">
           <p className="text-sm font-medium text-foreground">
-            {item.questionSet?.title ?? "Runtime input"}
+            {item.questionSet?.title ?? translate("taskChatPage.protocol.runtimeInput")}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{item.prompt}</p>
         </div>
@@ -699,12 +773,12 @@ function RuntimeRequestCard({
   const title =
     item.questionSet?.title ??
     (item.requestType === "permission"
-      ? "Runtime permission"
-      : "Runtime input");
+      ? translate("taskChatPage.protocol.runtimePermission")
+      : translate("taskChatPage.protocol.runtimeInput"));
   const fields =
     item.fields.length > 0
       ? item.fields
-      : [{ name: "answer", label: "Response", placeholder: null }];
+      : [{ name: "answer", label: translate("taskChatPage.protocol.response"), placeholder: null }];
   const [values, setValues] = useState<Record<string, string>>(() =>
     draftKey ? loadStructuredDraft(draftKey, {}) : {},
   );
@@ -740,7 +814,7 @@ function RuntimeRequestCard({
       setError(
         cause instanceof Error
           ? cause.message
-          : "The runtime request could not be resolved.",
+          : translate("taskChatPage.protocol.runtimeRequestUnresolved"),
       );
     }
   };
@@ -839,7 +913,9 @@ function RuntimeRequestCard({
               size="sm"
               disabled={!onDecision || submitting || !canSubmitInput}
             >
-              {submitting ? "Submitting…" : "Submit response"}
+              {submitting
+                ? translate("taskChatPage.protocol.submitting")
+                : translate("taskChatPage.protocol.submitResponse")}
             </Button>
             {item.choices.some((choice) => choice.key === "decline") ? (
               <Button
@@ -849,7 +925,7 @@ function RuntimeRequestCard({
                 disabled={!onDecision || submitting}
                 onClick={() => void submit({ action: "decline" })}
               >
-                Deny
+                {translate("taskChatPage.protocol.deny")}
               </Button>
             ) : null}
             {presentation === "timeline" ? (
@@ -860,7 +936,7 @@ function RuntimeRequestCard({
                 disabled={!onDecision || submitting}
                 onClick={() => void submit({ action: "cancel" })}
               >
-                Cancel
+                {translate("issuesPage.composer.cancel")}
               </Button>
             ) : null}
           </div>
@@ -892,14 +968,14 @@ function RuntimeRequestCard({
                   }
                 }}
               >
-                {submitting ? "Submitting…" : choice.label}
+                {submitting ? translate("taskChatPage.protocol.submitting") : choice.label}
               </Button>
             ))}
         </div>
       ) : null}
       {item.status === "pending" && !onDecision ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Resolve this request in the active runtime session.
+          {translate("taskChatPage.protocol.resolveInRuntime")}
         </p>
       ) : null}
       {error ? (
@@ -924,7 +1000,7 @@ function ResultCard({
   return (
     <CardShell
       icon={PackageCheck}
-      title="Run result"
+      title={translate("taskChatPage.protocol.runResult")}
       status={item.disposition}
       summary={item.summary}
       testId="task-chat-run-result"
@@ -933,7 +1009,7 @@ function ResultCard({
         <div className="flex flex-col gap-3 text-sm">
           {item.blocker ? (
             <div className="rounded-sm bg-muted/50 p-2">
-              <strong>Blocked: {item.blocker.reasonCode}</strong>
+              <strong>{translate("taskChatPage.protocol.blockedWithReason", { reason: item.blocker.reasonCode })}</strong>
               <p className="mt-1 text-muted-foreground">
                 {item.blocker.unblockAction}
               </p>
@@ -942,7 +1018,7 @@ function ResultCard({
           {item.verification.length > 0 ? (
             <ul
               className="flex flex-col gap-1"
-              aria-label="Verification results"
+              aria-label={translate("taskChatPage.protocol.verificationResults")}
             >
               {item.verification.map((check, index) => (
                 <li
@@ -972,7 +1048,7 @@ function ResultCard({
               {item.remainingWork.map((work, index) => (
                 <li key={`${work.description}:${index}`}>
                   {work.description}
-                  {work.blocksCompletion ? " · blocks completion" : ""}
+                  {work.blocksCompletion ? translate("taskChatPage.protocol.blocksCompletion") : ""}
                 </li>
               ))}
             </ul>
@@ -1003,9 +1079,9 @@ function TerminalCard({
   return (
     <CardShell
       icon={TerminalSquare}
-      title="Run ended"
+      title={translate("taskChatPage.protocol.runEnded")}
       status={item.runState}
-      summary={[item.disposition.replaceAll("_", " "), item.stopReason]
+      summary={[protocolStatusLabel(item.disposition), item.stopReason]
         .filter(Boolean)
         .join(" · ")}
       testId="task-chat-run-terminal"
@@ -1056,6 +1132,7 @@ export function TaskChatProtocolCard({
   imageUploadHandler,
   mentions,
 }: TaskChatProtocolCardProps) {
+  useTranslation();
   switch (item.surface) {
     case "provider_activity":
       return <ProviderActivityCard item={item} />;

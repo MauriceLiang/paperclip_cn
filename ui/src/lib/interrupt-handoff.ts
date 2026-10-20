@@ -317,6 +317,8 @@ export function classifyAssigneeHandoff(
 // --- Standalone assignee picker interrupt (PAP-10675, design surface 2) -------
 
 export interface ReassignInterruptCopy {
+  /** Running agent display name used by the localized view. */
+  runningAgentName: string;
   /** `role=status` banner shown while a run is live and the picker is open. */
   banner: string;
   /** Heading for the "Interrupt & assign" confirm step. */
@@ -336,6 +338,7 @@ export interface ReassignInterruptCopy {
 export function describeReassignInterrupt(opts: { runningAgentName?: string | null } = {}): ReassignInterruptCopy {
   const who = opts.runningAgentName?.trim() || "An agent";
   return {
+    runningAgentName: who,
     banner: `${who} is running — changing the responsible will interrupt this run.`,
     confirmTitle: "Interrupt the current run?",
     confirmAction: "Interrupt & assign",

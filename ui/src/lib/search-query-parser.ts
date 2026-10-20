@@ -33,20 +33,19 @@ export interface SearchOperatorPill {
 
 export interface SearchOperatorSuggestion {
   token: string;
-  label: string;
-  description: string;
+  copyKey: "todo" | "blocked" | "assignee" | "project" | "label" | "priority" | "updated";
 }
 
 export const SEARCH_OPERATOR_QUICK_FILTERS = ["assignee:me", "is:open", "updated:>7d"] as const;
 
 export const SEARCH_OPERATOR_SUGGESTIONS: SearchOperatorSuggestion[] = [
-  { token: "status:todo", label: "Open todo tasks", description: "Filter by task status" },
-  { token: "status:blocked", label: "Blocked tasks", description: "Find blocked work" },
-  { token: "assignee:me", label: "Assigned to me", description: "Use your current board user" },
-  { token: "project:\"Paperclip App\"", label: "Project name", description: "Quote multi-word project names" },
-  { token: "label:bug", label: "Label", description: "Filter by issue label" },
-  { token: "priority:high", label: "High priority", description: "Filter by priority" },
-  { token: "updated:>7d", label: "Recently updated", description: "Updated in the last 7 days" },
+  { token: "status:todo", copyKey: "todo" },
+  { token: "status:blocked", copyKey: "blocked" },
+  { token: "assignee:me", copyKey: "assignee" },
+  { token: "project:\"Paperclip App\"", copyKey: "project" },
+  { token: "label:bug", copyKey: "label" },
+  { token: "priority:high", copyKey: "priority" },
+  { token: "updated:>7d", copyKey: "updated" },
 ];
 
 export interface SearchQueryParserContext {

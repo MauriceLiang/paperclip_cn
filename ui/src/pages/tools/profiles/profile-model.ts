@@ -30,10 +30,10 @@ export function toolCapability(tool: ToolCatalogEntry): ToolCapability {
   return "read";
 }
 
-export const CAPABILITY_LABEL: Record<ToolCapability, string> = {
-  read: "Read-only",
-  write: "Makes changes",
-  destructive: "Destructive",
+export const CAPABILITY_LABEL_KEY: Record<ToolCapability, string> = {
+  read: "toolsPage.profiles.wizard.capabilityLabels.read",
+  write: "toolsPage.profiles.wizard.capabilityLabels.write",
+  destructive: "toolsPage.profiles.wizard.capabilityLabels.destructive",
 };
 
 // --- App grouping ----------------------------------------------------------
@@ -363,16 +363,14 @@ export type TemplateKey = "read_only" | "everyday" | "full_access" | "scratch" |
 
 export interface TemplateDef {
   key: TemplateKey;
-  title: string;
-  description: string;
 }
 
 export const TEMPLATES: TemplateDef[] = [
-  { key: "read_only", title: "Read-only", description: "See and fetch, but never change anything." },
-  { key: "everyday", title: "Everyday work", description: "Read and make routine changes — no destructive tools." },
-  { key: "full_access", title: "Full access", description: "Everything every connected app offers." },
-  { key: "scratch", title: "Start from scratch", description: "An empty profile you build up tool by tool." },
-  { key: "copy", title: "Copy an existing profile", description: "Start from a profile you already have." },
+  { key: "read_only" },
+  { key: "everyday" },
+  { key: "full_access" },
+  { key: "scratch" },
+  { key: "copy" },
 ];
 
 function capabilityPredicate(key: TemplateKey): (tool: ToolCatalogEntry) => boolean {

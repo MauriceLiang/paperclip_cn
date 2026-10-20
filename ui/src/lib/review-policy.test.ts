@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n";
 
 import {
   formatReviewPolicyValue,
@@ -7,6 +8,10 @@ import {
 } from "./review-policy";
 
 describe("issueReviewPolicyBadge", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   // The default is what every issue already does, so it earns no pixels.
   it("shows nothing for the default, however the column spells it", () => {
     expect(issueReviewPolicyBadge(null)).toBeNull();
@@ -22,6 +27,15 @@ describe("issueReviewPolicyBadge", () => {
   it("spells the rule out in the tooltip so the badge is recoverable", () => {
     expect(issueReviewPolicyBadge("not_creator")?.description).toContain("asked for the review");
     expect(issueReviewPolicyBadge("human_only")?.description).toContain("Agents cannot");
+  });
+
+  it("localizes policy labels and descriptions", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const badge = issueReviewPolicyBadge("human_only");
+    expect(badge?.label).toBe("仅限人工");
+    expect(badge?.description).toContain("Agent");
+    expect(formatReviewPolicyValue(null)).toBe("任何人");
+    expect(formatReviewPolicyValue("not_creator")).toBe("其他人");
   });
 
   it("shows nothing for a policy this build does not know", () => {

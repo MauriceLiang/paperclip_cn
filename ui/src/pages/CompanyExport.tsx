@@ -8,6 +8,7 @@ import type {
   CompanyPortabilityManifest,
   Project,
 } from "@paperclipai/shared";
+import type { ExportFidelityReport } from "@paperclipai/shared/portability-fidelity";
 import { useNavigate, useLocation } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -28,13 +29,13 @@ import { createZipArchive, estimateZipArchiveSize } from "../lib/zip";
 import {
   type ExportCategoryKey,
   type ExportCategorySelection,
-  EXPORT_CATEGORY_LABELS,
   EXPORT_CATEGORY_ORDER,
   buildDefaultExportCategorySelection,
   buildExportCheckedFiles,
   countExportFilesByCategory,
   isAttachmentsCategoryEnabled,
 } from "../lib/company-export-selection";
+import { useTranslation, t as translate } from "@/i18n";
 import { useAgentOrder } from "../hooks/useAgentOrder";
 import { useProjectOrder } from "../hooks/useProjectOrder";
 import { buildPortableSidebarOrder } from "../lib/company-portability-sidebar";
@@ -55,9 +56,27 @@ import {
   countFiles,
   collectAllPaths,
   parseFrontmatter,
-  FRONTMATTER_FIELD_LABELS,
+  frontmatterFieldLabel,
   FileTree,
 } from "../components/FileTree";
+
+const EXPORT_FIDELITY_WARNING_COPY: Record<
+  string,
+  { key: string; countKey: keyof ExportFidelityReport["counts"] }
+> = {
+  approvals_not_exported: {
+    key: "settingsPage.export.fidelityWarnings.approvals",
+    countKey: "approvals",
+  },
+  cost_history_not_exported: {
+    key: "settingsPage.export.fidelityWarnings.costEvents",
+    countKey: "costEvents",
+  },
+  activity_history_not_exported: {
+    key: "settingsPage.export.fidelityWarnings.activityLogEntries",
+    countKey: "activityLogEntries",
+  },
+};
 
 /**
  * Extract the set of agent/project/task slugs that are "checked" based on
@@ -264,6 +283,28 @@ function collectMatchedParentDirs(nodes: FileTreeNode[], query: string): Set<str
 
 const TASKS_PAGE_SIZE = 10;
 
+function exportCategoryLabel(
+  key: ExportCategoryKey,
+  t: (key: string) => string,
+): string {
+  switch (key) {
+    case "agents":
+      return t("settingsPage.export.categories.agents");
+    case "projects":
+      return t("settingsPage.export.categories.projects");
+    case "skills":
+      return t("settingsPage.export.categories.skills");
+    case "routines":
+      return t("settingsPage.export.categories.routines");
+    case "tasks":
+      return t("settingsPage.export.categories.tasks");
+    case "attachments":
+      return t("settingsPage.export.categories.attachments");
+    default:
+      return key;
+  }
+}
+
 /**
  * Paginate children of `tasks/` directories: show up to `limit` entries,
  * but always include children that match the search query or contain the
@@ -371,7 +412,7 @@ function FrontmatterCard({
         {Object.entries(data).map(([key, value]) => (
           <div key={key} className="contents">
             <dt className="text-muted-foreground whitespace-nowrap py-0.5">
-              {FRONTMATTER_FIELD_LABELS[key] ?? key}
+              {frontmatterFieldLabel(key)}
             </dt>
             <dd className="py-0.5">
               {Array.isArray(value) ? (
@@ -407,6 +448,11 @@ const ROLE_LABELS: Record<string, string> = {
   ceo: "CEO", cto: "CTO", cmo: "CMO", cfo: "CFO", coo: "COO",
   vp: "VP", manager: "Manager", engineer: "Engineer", agent: "Agent",
 };
+const ZH_CN_ROLE_LABELS: Record<string, string> = {
+  ceo: "首席执行官（CEO）", cto: "首席技术官（CTO）", cmo: "首席营销官（CMO）",
+  cfo: "首席财务官（CFO）", coo: "首席运营官（COO）", vp: "副总裁",
+  manager: "经理", engineer: "工程师", agent: "智能体",
+};
 
 /**
  * Regenerate README.md content based on the currently checked files.
@@ -417,7 +463,10 @@ function generateReadmeFromSelection(
   checkedFiles: Set<string>,
   companyName: string,
   companyDescription: string | null,
+  readmeLocale: "en" | "zh-CN",
 ): string {
+  const isChinese = readmeLocale === "zh-CN";
+  const roleLabels = isChinese ? ZH_CN_ROLE_LABELS : ROLE_LABELS;
   const slugs = checkedSlugs(checkedFiles);
 
   const agents = manifest.agents.filter((a) => slugs.agents.has(a.slug));
@@ -437,24 +486,26 @@ function generateReadmeFromSelection(
   }
   // Org chart image (generated during export as images/org-chart.png)
   if (agents.length > 0) {
-    lines.push("![Org Chart](images/org-chart.png)");
+    lines.push(`![${isChinese ? "组织架构图" : "Org Chart"}](images/org-chart.png)`);
     lines.push("");
   }
 
-  lines.push("## What's Inside");
+  lines.push(`## ${isChinese ? "内容概览" : "What's Inside"}`);
   lines.push("");
-  lines.push("This is an [Agent Company](https://paperclip.ing) package.");
+  lines.push(isChinese
+    ? "这是一个来自 [Paperclip](https://paperclip.ing) 的智能体公司（[Agent Company](https://agentcompanies.io)）包。"
+    : "This is an [Agent Company](https://paperclip.ing) package.");
   lines.push("");
 
   const counts: Array<[string, number]> = [];
-  if (agents.length > 0) counts.push(["Agents", agents.length]);
-  if (projects.length > 0) counts.push(["Projects", projects.length]);
-  if (skills.length > 0) counts.push(["Skills", skills.length]);
-  if (tasks.length > 0) counts.push(["Tasks", tasks.length]);
+  if (agents.length > 0) counts.push([isChinese ? "智能体" : "Agents", agents.length]);
+  if (projects.length > 0) counts.push([isChinese ? "项目" : "Projects", projects.length]);
+  if (skills.length > 0) counts.push([isChinese ? "技能" : "Skills", skills.length]);
+  if (tasks.length > 0) counts.push([isChinese ? "任务" : "Tasks", tasks.length]);
 
   if (counts.length > 0) {
-    lines.push("| Content | Count |");
-    lines.push("|---------|-------|");
+    lines.push(isChinese ? "| 内容 | 数量 |" : "| Content | Count |");
+    lines.push(isChinese ? "|------|------|" : "|---------|-------|");
     for (const [label, count] of counts) {
       lines.push(`| ${label} | ${count} |`);
     }
@@ -462,12 +513,12 @@ function generateReadmeFromSelection(
   }
 
   if (agents.length > 0) {
-    lines.push("### Agents");
+    lines.push(`### ${isChinese ? "智能体" : "Agents"}`);
     lines.push("");
-    lines.push("| Agent | Role | Reports To |");
-    lines.push("|-------|------|------------|");
+    lines.push(isChinese ? "| 智能体 | 职责 | 汇报对象 |" : "| Agent | Role | Reports To |");
+    lines.push(isChinese ? "|--------|------|----------|" : "|-------|------|------------|");
     for (const agent of agents) {
-      const roleLabel = ROLE_LABELS[agent.role] ?? agent.role;
+      const roleLabel = roleLabels[agent.role] ?? agent.role;
       const reportsTo = agent.reportsToSlug ?? "\u2014";
       lines.push(`| ${agent.name} | ${roleLabel} | ${reportsTo} |`);
     }
@@ -475,7 +526,7 @@ function generateReadmeFromSelection(
   }
 
   if (projects.length > 0) {
-    lines.push("### Projects");
+    lines.push(`### ${isChinese ? "项目" : "Projects"}`);
     lines.push("");
     for (const project of projects) {
       const desc = project.description ? ` \u2014 ${project.description}` : "";
@@ -484,16 +535,20 @@ function generateReadmeFromSelection(
     lines.push("");
   }
 
-  lines.push("## Getting Started");
+  lines.push(`## ${isChinese ? "开始使用" : "Getting Started"}`);
   lines.push("");
   lines.push("```bash");
   lines.push("npx paperclipai company import this-github-url-or-folder");
   lines.push("```");
   lines.push("");
-  lines.push("See [Paperclip](https://paperclip.ing) for more information.");
+  lines.push(isChinese
+    ? "更多信息请访问 [Paperclip](https://paperclip.ing)。"
+    : "See [Paperclip](https://paperclip.ing) for more information.");
   lines.push("");
   lines.push("---");
-  lines.push(`Exported from [Paperclip](https://paperclip.ing) on ${new Date().toISOString().split("T")[0]}`);
+  lines.push(isChinese
+    ? `由 [Paperclip](https://paperclip.ing) 导出，日期：${new Date().toISOString().split("T")[0]}`
+    : `Exported from [Paperclip](https://paperclip.ing) on ${new Date().toISOString().split("T")[0]}`);
   lines.push("");
 
   return lines.join("\n");
@@ -537,9 +592,10 @@ function ExportPreviewPane({
   orgChartPreviewUrl?: string;
   onSkillClick?: (skill: string) => void;
 }) {
+  const { t } = useTranslation();
   if (!selectedFile || content === null) {
     return (
-      <EmptyState icon={Package} message="Select a file to preview its contents." />
+      <EmptyState icon={Package} message={t("settingsPage.export.selectFile")} />
     );
   }
 
@@ -576,7 +632,7 @@ function ExportPreviewPane({
           </pre>
         ) : (
           <div className="rounded-lg border border-border bg-accent/10 px-4 py-3 text-sm text-muted-foreground">
-            Binary asset preview is not available for this file type.
+            {t("settingsPage.export.binaryPreviewUnavailable")}
           </div>
         )}
       </div>
@@ -611,6 +667,7 @@ function expandAncestors(filePath: string): string[] {
 interface ExportPreviewMutationInput {
   includeIssues: boolean;
   includeSkills: boolean;
+  readmeLocale: "en" | "zh-CN";
   requestId: number;
   signal: AbortSignal;
 }
@@ -622,12 +679,14 @@ function isAbortError(error: unknown): boolean {
 }
 
 function previewErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Failed to load export data.";
+  return error instanceof Error ? error.message : translate("settingsPage.export.loadFailed");
 }
 
 export function CompanyExport() {
   const { selectedCompanyId, selectedCompany } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { t, i18n } = useTranslation();
+  const readmeLocale = i18n.resolvedLanguage === "zh-CN" ? "zh-CN" : "en";
   const { pushToast } = useToastActions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -733,17 +792,18 @@ export function CompanyExport() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: selectedCompany?.name ?? "Organization", href: "/dashboard" },
-      { label: "Settings", href: "/company/settings" },
-      { label: "Export" },
+      { label: selectedCompany?.name ?? t("common.organization"), href: "/dashboard" },
+      { label: t("settingsNav.settings"), href: "/company/settings" },
+      { label: t("settingsNav.export") },
     ]);
-  }, [selectedCompany?.name, setBreadcrumbs]);
+  }, [selectedCompany?.name, setBreadcrumbs, t]);
 
   const exportPreviewMutation = useMutation({
-    mutationFn: ({ includeIssues: withIssues, includeSkills, signal }: ExportPreviewMutationInput) =>
+    mutationFn: ({ includeIssues: withIssues, includeSkills, readmeLocale: locale, signal }: ExportPreviewMutationInput) =>
       companiesApi.exportPreview(selectedCompanyId!, {
         include: { company: true, agents: true, projects: true, issues: withIssues, skills: includeSkills },
         sidebarOrder,
+        readmeLocale: locale,
       }, { signal }),
     onSuccess: (result, request) => {
       if (request.requestId !== previewRequestIdRef.current) return;
@@ -776,7 +836,7 @@ export function CompanyExport() {
       if (request.requestId !== previewRequestIdRef.current || isAbortError(err)) return;
       pushToast({
         tone: "error",
-        title: "Export failed",
+        title: t("settingsPage.export.failedTitle"),
         body: previewErrorMessage(err),
       });
     },
@@ -793,6 +853,7 @@ export function CompanyExport() {
     exportPreviewMutation.mutate({
       includeIssues,
       includeSkills: categories.skills,
+      readmeLocale,
       requestId,
       signal: controller.signal,
     });
@@ -804,21 +865,27 @@ export function CompanyExport() {
         include: { company: true, agents: true, projects: true, issues: includeIssues, skills: categories.skills },
         selectedFiles: Array.from(checkedFiles).sort(),
         sidebarOrder,
+        readmeLocale,
       }),
     onSuccess: (result) => {
       const resultCheckedFiles = new Set(Object.keys(result.files));
       downloadZip(result, resultCheckedFiles, result.files);
       pushToast({
         tone: "success",
-        title: "Export downloaded",
-        body: `${resultCheckedFiles.size} file${resultCheckedFiles.size === 1 ? "" : "s"} exported as ${result.rootPath}.zip`,
+        title: t("settingsPage.export.downloadedTitle"),
+        body: t(
+          resultCheckedFiles.size === 1
+            ? "settingsPage.export.downloadedBody_one"
+            : "settingsPage.export.downloadedBody_other",
+          { count: resultCheckedFiles.size, rootPath: result.rootPath },
+        ),
       });
     },
     onError: (err) => {
       pushToast({
         tone: "error",
-        title: "Export failed",
-        body: err instanceof Error ? err.message : "Failed to build export package.",
+        title: t("settingsPage.export.failedTitle"),
+        body: err instanceof Error ? err.message : t("settingsPage.export.buildFailed"),
       });
     },
   });
@@ -922,11 +989,12 @@ export function CompanyExport() {
         checkedFiles,
         companyName,
         companyDescription,
+        readmeLocale,
       );
     }
 
     return filtered;
-  }, [exportData, checkedFiles, selectedCompany?.name]);
+  }, [exportData, checkedFiles, selectedCompany?.name, readmeLocale]);
 
   // The zip is STORE-only, so its size is exactly computable from the filtered
   // file map. Depends only on the selection (not e.g. the tree search), so it
@@ -1024,7 +1092,7 @@ export function CompanyExport() {
   }
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={Package} message="Select an organization to export." />;
+    return <EmptyState icon={Package} message={t("settingsPage.export.selectOrganization")} />;
   }
 
   if (exportPreviewMutation.isPending && !exportData) {
@@ -1035,9 +1103,9 @@ export function CompanyExport() {
     return (
       <EmptyState
         icon={Package}
-        title="Export preview cancelled"
-        message="The preview request was cancelled. Your export settings are unchanged."
-        action="Retry preview"
+        title={t("settingsPage.export.previewCancelledTitle")}
+        message={t("settingsPage.export.previewCancelledMessage")}
+        action={t("settingsPage.export.retryPreview")}
         onAction={startPreviewRequest}
         hideActionIcon
       />
@@ -1048,10 +1116,10 @@ export function CompanyExport() {
     return (
       <EmptyState
         icon={Package}
-        title="Export preview failed"
+        title={t("settingsPage.export.previewFailedTitle")}
         message={previewErrorMessage(exportPreviewMutation.error)}
-        description="Retry the preview. You do not need to reload this page."
-        action="Retry preview"
+        description={t("settingsPage.export.previewFailedDescription")}
+        action={t("settingsPage.export.retryPreview")}
         onAction={startPreviewRequest}
         hideActionIcon
       />
@@ -1062,9 +1130,9 @@ export function CompanyExport() {
     return (
       <EmptyState
         icon={Package}
-        title="Export preview unavailable"
-        message="No export preview is loaded."
-        action="Load preview"
+        title={t("settingsPage.export.previewUnavailableTitle")}
+        message={t("settingsPage.export.previewUnavailableMessage")}
+        action={t("settingsPage.export.loadPreview")}
         onAction={startPreviewRequest}
         hideActionIcon
       />
@@ -1084,15 +1152,22 @@ export function CompanyExport() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <span className="font-medium">
-              {selectedCompany?.name ?? "Organization"} export
+              {t("settingsPage.export.title", { name: selectedCompany?.name ?? t("common.organization") })}
             </span>
             <span className="text-muted-foreground">
-              Exporting {selectedCount.toLocaleString()} of {totalFiles.toLocaleString()} file{totalFiles === 1 ? "" : "s"}
+              {t(totalFiles === 1
+                ? "settingsPage.export.summary_one"
+                : "settingsPage.export.summary_other", {
+                selected: selectedCount.toLocaleString(),
+                total: totalFiles.toLocaleString(),
+              })}
               {selectedCount > 0 && ` (~${formatBytes(estimatedZipBytes)})`}
             </span>
             {warnings.length > 0 && (
               <span className="text-amber-500">
-                {warnings.length} warning{warnings.length === 1 ? "" : "s"}
+                {t(warnings.length === 1
+                  ? "settingsPage.export.warningCount_one"
+                  : "settingsPage.export.warningCount_other", { count: warnings.length })}
               </span>
             )}
           </div>
@@ -1109,8 +1184,10 @@ export function CompanyExport() {
           >
             <Download className="mr-1.5 h-3.5 w-3.5" />
             {downloadMutation.isPending
-              ? "Building export..."
-              : `Export ${selectedCount.toLocaleString()} file${selectedCount === 1 ? "" : "s"}`}
+              ? t("settingsPage.export.building")
+              : t(selectedCount === 1
+                  ? "settingsPage.export.exportButton_one"
+                  : "settingsPage.export.exportButton_other", { count: selectedCount })}
           </Button>
         </div>
       </div>
@@ -1127,18 +1204,23 @@ export function CompanyExport() {
       {/* Export fidelity: data the bundle will not carry */}
       {fidelityReport && fidelityReport.warnings.length > 0 && (
         <div className="mx-5 mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-          <h3 className="mb-1.5 text-xs font-medium">Not included in this export</h3>
-          {fidelityReport.warnings.map((warning) => (
-            <div
-              key={warning.code}
-              className={cn(
-                "text-xs",
-                warning.severity === "blocker" ? "font-medium text-destructive" : "text-amber-500",
-              )}
-            >
-              {warning.message}
-            </div>
-          ))}
+          <h3 className="mb-1.5 text-xs font-medium">{t("settingsPage.export.notIncluded")}</h3>
+          {fidelityReport.warnings.map((warning) => {
+            const copy = EXPORT_FIDELITY_WARNING_COPY[warning.code];
+            return (
+              <div
+                key={warning.code}
+                className={cn(
+                  "text-xs",
+                  warning.severity === "blocker" ? "font-medium text-destructive" : "text-amber-500",
+                )}
+              >
+                {copy
+                  ? t(copy.key, { count: fidelityReport.counts[copy.countKey] })
+                  : warning.message}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1146,11 +1228,11 @@ export function CompanyExport() {
       <div className="grid gap-4 xl:h-(--sz-calc-30) xl:grid-cols-(--gtc-25) xl:gap-0">
         <aside className="flex max-h-(--sz-24rem) flex-col overflow-hidden border-b border-border xl:max-h-none xl:border-b-0 xl:border-r">
           <div className="border-b border-border px-4 py-3 shrink-0">
-            <h2 className="text-base font-semibold">Package files</h2>
+            <h2 className="text-base font-semibold">{t("settingsPage.export.packageFiles")}</h2>
           </div>
           <div className="border-b border-border px-4 py-3 shrink-0">
-            <h3 className="mb-2 text-xs font-medium text-muted-foreground">What to include</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5" role="group" aria-label="What to include">
+            <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t("settingsPage.export.whatToInclude")}</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5" role="group" aria-label={t("settingsPage.export.whatToInclude")}>
               {EXPORT_CATEGORY_ORDER.map((key) => {
                 const isAttachments = key === "attachments";
                 const disabled = isAttachments && !isAttachmentsCategoryEnabled(categories);
@@ -1167,7 +1249,7 @@ export function CompanyExport() {
                     )}
                     title={
                       disabled
-                        ? "Attachments travel with tasks and routines; re-enable one of them to include attachments."
+                        ? t("settingsPage.export.attachmentsTitle")
                         : undefined
                     }
                   >
@@ -1179,7 +1261,7 @@ export function CompanyExport() {
                       className="accent-foreground"
                       data-export-category={key}
                     />
-                    <span className="min-w-0 truncate">{EXPORT_CATEGORY_LABELS[key]}</span>
+                    <span className="min-w-0 truncate">{exportCategoryLabel(key, t)}</span>
                     <span className="text-xs text-muted-foreground">
                       {countLoaded ? count.toLocaleString() : "—"}
                     </span>
@@ -1188,7 +1270,7 @@ export function CompanyExport() {
               })}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              Task and routine history is opt-in because it can be large.
+              {t("settingsPage.export.historyOptIn")}
             </p>
           </div>
           <div className="border-b border-border px-3 py-2 shrink-0">
@@ -1198,7 +1280,7 @@ export function CompanyExport() {
                 type="text"
                 value={treeSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search files..."
+                placeholder={t("settingsPage.export.searchFiles")}
                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 data-page-search-target="true"
               />
@@ -1222,7 +1304,10 @@ export function CompanyExport() {
                   onClick={() => setTaskLimit((prev) => prev + TASKS_PAGE_SIZE)}
                   className="w-full rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/30 hover:text-foreground transition-colors"
                 >
-                  Show more tasks ({visibleTaskChildren} of {totalTaskChildren})
+                  {t("settingsPage.export.showMoreTasks", {
+                    visible: visibleTaskChildren,
+                    total: totalTaskChildren,
+                  })}
                 </button>
               </div>
             )}
@@ -1247,14 +1332,14 @@ export function CompanyExport() {
               <div className="flex max-w-md flex-col items-center gap-3">
                 <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Updating export preview…</p>
+                  <p className="text-sm font-medium">{t("settingsPage.export.updatingPreview")}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Large task histories can take a minute. You can untick Tasks or cancel this update.
+                    {t("settingsPage.export.updatingPreviewDescription")}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={handleCancelPreview}>
                   <X />
-                  Cancel update
+                  {t("settingsPage.export.cancelUpdate")}
                 </Button>
               </div>
             </div>
@@ -1265,14 +1350,14 @@ export function CompanyExport() {
             >
               <div className="flex max-w-md flex-col items-center gap-3">
                 <div>
-                  <p className="text-sm font-medium">Preview update cancelled</p>
+                  <p className="text-sm font-medium">{t("settingsPage.export.previewUpdateCancelledTitle")}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    The previous preview remains available. Retry when you are ready.
+                    {t("settingsPage.export.previewUpdateCancelledDescription")}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={startPreviewRequest}>
                   <RotateCcw />
-                  Retry preview
+                  {t("settingsPage.export.retryPreview")}
                 </Button>
               </div>
             </div>
@@ -1284,14 +1369,14 @@ export function CompanyExport() {
             >
               <div className="flex max-w-md flex-col items-center gap-3">
                 <div>
-                  <p className="text-sm font-medium text-destructive">Export preview failed</p>
+                  <p className="text-sm font-medium text-destructive">{t("settingsPage.export.previewFailedTitle")}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {previewErrorMessage(exportPreviewMutation.error)}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={startPreviewRequest}>
                   <RotateCcw />
-                  Retry preview
+                  {t("settingsPage.export.retryPreview")}
                 </Button>
               </div>
             </div>

@@ -14,6 +14,7 @@ import { formatTaskChatTimestamp } from "./task-chat-adapter";
 import { TaskChatRunnerActivityGroup } from "./TaskChatRunnerActivityGroup";
 import { TaskChatProtocolCard } from "./TaskChatProtocolCard";
 import { TaskChatPlanPreviewCard } from "./TaskChatPlanPreviewCard";
+import { useTranslation } from "@/i18n";
 import {
   buildTurnTimelineRows,
   isTerminalRunStatus,
@@ -74,6 +75,7 @@ function RunnerTurnStatus({
   continuedAfterSteering?: boolean;
   waitingLabel?: string | null;
 }) {
+  const { t } = useTranslation();
   const terminal = isTerminalRunStatus(status);
   useSecondTick(!terminal && startedAtMs != null);
   const elapsedMs =
@@ -86,16 +88,22 @@ function RunnerTurnStatus({
   const elapsed = formatCompactDuration(elapsedMs);
 
   const failed = terminalStatusFailed(status);
-  const label = terminal ? (failed ? "Stopped" : "Worked") : waitingLabel ?? "Working";
   const semanticLabel = terminal
     ? elapsed
-      ? `${label} ${failed ? "after" : "for"} ${elapsed}`
-      : label
+      ? t(
+          failed
+            ? "taskChatPage.runner.stoppedAfter"
+            : "taskChatPage.runner.workedAfter",
+          { elapsed },
+        )
+      : t(failed ? "taskChatPage.turn.stopped" : "taskChatPage.turn.worked")
     : waitingLabel
-      ? `${label}${elapsed ? ` · ${elapsed}` : ""}`
-      : `${label} for ${elapsed ?? "0s"}`;
+      ? elapsed
+        ? t("taskChatPage.runner.waitingWithElapsed", { label: waitingLabel, elapsed })
+        : waitingLabel
+      : t("taskChatPage.runner.workingFor", { elapsed: elapsed ?? "0s" });
   const visibleLabel = continuedAfterSteering
-    ? `Continued after steering · ${semanticLabel}`
+    ? t("taskChatPage.runner.continuedWith", { label: semanticLabel })
     : semanticLabel;
 
   return (
@@ -112,9 +120,10 @@ function RunnerTurnStatus({
 }
 
 function RunnerCurrentActivityTail({ status, waitingLabel }: { status: string; waitingLabel?: string | null }) {
+  const { t } = useTranslation();
   if (isTerminalRunStatus(status)) return null;
   return <div className="mt-2 flex min-h-8 min-w-0 items-center gap-2 px-1 py-1 text-xs text-muted-foreground" data-testid="task-chat-current-activity" data-turn-position="tail">
-    <span className={waitingLabel ? undefined : "shimmer-text shimmer-text-muted"} aria-live="polite" data-testid="task-chat-current-activity-label">{waitingLabel ?? "Thinking"}</span>
+    <span className={waitingLabel ? undefined : "shimmer-text shimmer-text-muted"} aria-live="polite" data-testid="task-chat-current-activity-label">{waitingLabel ?? t("taskChatPage.thinking.thinkingEllipsis")}</span>
   </div>;
 }
 
@@ -153,6 +162,7 @@ export function TaskChatRunnerTurn({
     decision: TaskChatRuntimeRequestDecision,
   ) => void | Promise<void>;
 }) {
+  const { t } = useTranslation();
   const terminal = isTerminalRunStatus(status);
   const waitingLabel = !terminal && execution?.phase === "waiting_for_provider" ? execution.label : null;
   const yielded = items.some(
@@ -237,7 +247,7 @@ export function TaskChatRunnerTurn({
           role="status"
           data-testid="task-chat-activity-unavailable"
         >
-          Live runner activity is temporarily unavailable. Retrying…
+          {t("taskChatPage.runner.activityUnavailable")}
         </div>
       ) : null}
       {timelineRows.length > 0 ? (

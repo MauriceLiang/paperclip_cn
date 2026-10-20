@@ -1,4 +1,5 @@
 import type { ToolOAuthStartResult } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 import { resolveAuthorizationTarget } from "./authorizationUrl";
 
 const CLOUD_HANDOFF_PATH = "/cloud/connections/handoff";
@@ -29,6 +30,18 @@ export class OAuthHandoffError extends Error {
     super(message);
     this.name = "OAuthHandoffError";
   }
+}
+
+export function oauthHandoffErrorMessage(error: unknown): string | null {
+  if (!(error instanceof OAuthHandoffError)) return null;
+  const key = error.code === "expired"
+    ? "appsPage.oauthHandoff.expired"
+    : error.code === "forbidden"
+      ? "appsPage.oauthHandoff.forbidden"
+      : error.code === "invalid_handoff"
+        ? "appsPage.oauthHandoff.invalidHandoff"
+        : "appsPage.oauthHandoff.prepareFailed";
+  return translate(key);
 }
 
 function parseHandoff(value: unknown): { kind: "paperclip_cloud"; session: string } | null {

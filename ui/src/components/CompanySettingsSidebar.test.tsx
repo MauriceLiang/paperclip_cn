@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "@/lib/queryKeys";
 import { CompanySettingsSidebar } from "./CompanySettingsSidebar";
+import { CompanySettingsSidebar as ProductionCompanySettingsSidebar } from "./CompanySettingsSidebar.production";
 import { primarySidebarStyles } from "./primary-sidebar-styles";
+import { setLocale } from "@/i18n";
 
 const sidebarNavItemMock = vi.hoisted(() => vi.fn());
 const mockSidebarBadgesApi = vi.hoisted(() => ({
@@ -65,6 +67,10 @@ vi.mock("./SidebarNavItem", () => ({
     sidebarNavItemMock(props);
     return <div>{props.label}</div>;
   },
+}));
+
+vi.mock("./SidebarNavItem.production", () => ({
+  SidebarNavItem: (props: { to: string; label: string }) => <div data-to={props.to}>{props.label}</div>,
 }));
 
 vi.mock("./SidebarCompanyMenu", () => ({
@@ -262,6 +268,30 @@ describe("CompanySettingsSidebar", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("localizes production settings navigation in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <ProductionCompanySettingsSidebar />
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+
+    expect(container.querySelector('nav[aria-label="设置"]')).not.toBeNull();
+    for (const label of ["常规", "个人资料", "成员", "邀请", "密钥", "环境", "访问", "心跳", "导出", "导入", "实验功能", "插件", "适配器"]) {
+      expect(container.textContent).toContain(label);
+    }
+
+    await act(async () => root.unmount());
+    queryClient.clear();
+    await setLocale("en");
   });
 
   it("renders company settings pages contributed by ready plugins", async () => {

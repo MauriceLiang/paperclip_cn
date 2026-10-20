@@ -13,6 +13,7 @@ import {
 } from "../lib/issue-execution-policy";
 import { useExecutionPolicy } from "../hooks/useExecutionPolicy";
 import { cn } from "../lib/utils";
+import { useTranslation } from "@/i18n";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { User, Eye, ShieldCheck } from "lucide-react";
 
@@ -33,6 +34,7 @@ export function ExecutionParticipantPicker({
   currentUserId,
   onUpdate,
 }: ExecutionParticipantPickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const policyAvailable = useExecutionPolicy(issue.executionPolicy).success;
@@ -70,7 +72,7 @@ export function ExecutionParticipantPicker({
 
   const participantLabel = (value: string) => {
     if (value.startsWith("agent:")) return agentName(value.slice("agent:".length));
-    if (value.startsWith("user:")) return userLabel(value.slice("user:".length)) ?? "User";
+    if (value.startsWith("user:")) return userLabel(value.slice("user:".length)) ?? t("common.user");
     return value;
   };
 
@@ -92,11 +94,13 @@ export function ExecutionParticipantPicker({
     updatePolicy(next);
   };
 
-  const label = stageType === "review" ? "Reviewers" : "Approvers";
+  const label = t(stageType === "review"
+    ? "issuesPage.properties.execution.reviewers"
+    : "issuesPage.properties.execution.approvers");
   const Icon = stageType === "review" ? Eye : ShieldCheck;
 
   if (!policyAvailable) {
-    return <span role="status" className="text-xs text-muted-foreground">Execution policy unavailable. Refresh to try again.</span>;
+    return <span role="status" className="text-xs text-muted-foreground">{t("issuesPage.properties.execution.policyUnavailable")}</span>;
   }
 
   return (
@@ -123,7 +127,9 @@ export function ExecutionParticipantPicker({
       <PopoverContent className="p-1 w-56" align="start" collisionPadding={16}>
         <input
           className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
-          placeholder={`Search ${label.toLowerCase()}...`}
+          placeholder={t(stageType === "review"
+            ? "issuesPage.properties.participants.searchReviewers"
+            : "issuesPage.properties.participants.searchApprovers")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           autoFocus
@@ -136,7 +142,9 @@ export function ExecutionParticipantPicker({
             )}
             onClick={() => updatePolicy([])}
           >
-            No {label.toLowerCase()}
+            {t(stageType === "review"
+              ? "issuesPage.properties.participants.noReviewers"
+              : "issuesPage.properties.participants.noApprovers")}
           </button>
           {currentUserId && (
             <button
@@ -147,7 +155,7 @@ export function ExecutionParticipantPicker({
               onClick={() => toggle(`user:${currentUserId}`)}
             >
               <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-              Assign to me
+              {t("issuesPage.properties.assignee.assignToMe")}
             </button>
           )}
           {issue.createdByUserId && issue.createdByUserId !== currentUserId && (
@@ -159,7 +167,7 @@ export function ExecutionParticipantPicker({
               onClick={() => toggle(`user:${issue.createdByUserId}`)}
             >
               <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-              {creatorUserLabel ?? "Requester"}
+              {creatorUserLabel ?? t("issuesPage.properties.participants.requester")}
             </button>
           )}
           {otherUserOptions

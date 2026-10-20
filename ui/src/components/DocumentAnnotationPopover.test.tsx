@@ -4,6 +4,7 @@ import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import type { DocumentAnnotationThreadWithComments } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { DocumentAnnotationPopover } from "./DocumentAnnotationPopover";
 
 // Required for `act` to flush passive effects rather than warn.
@@ -71,6 +72,7 @@ describe("DocumentAnnotationPopover", () => {
   afterEach(async () => {
     await vi.waitFor(() => root.unmount());
     host.remove();
+    await i18n.changeLanguage("en");
   });
 
   const render = async (overrides: Partial<React.ComponentProps<typeof DocumentAnnotationPopover>> = {}) => {
@@ -134,6 +136,19 @@ describe("DocumentAnnotationPopover", () => {
     await vi.waitFor(() => expect(first.onClose).toHaveBeenCalledTimes(1));
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     await vi.waitFor(() => expect(first.onClose).toHaveBeenCalledTimes(2));
+  });
+
+  it("localizes the compose dialog and its controls in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    await render();
+
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute("aria-label")).toBe("添加标注评论");
+    expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe("写评论…");
+    expect(Array.from(container.querySelectorAll("button")).map((button) => button.textContent)).toEqual([
+      "取消",
+      "评论",
+    ]);
   });
 
   it("replies to and resolves a focused thread", async () => {

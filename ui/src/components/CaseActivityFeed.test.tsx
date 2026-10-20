@@ -6,6 +6,7 @@ import type { AnchorHTMLAttributes } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CaseActivityFeed } from "./CaseActivityFeed";
 import type { CaseEvent } from "@/api/cases";
+import { setLocale } from "@/i18n";
 
 function act(callback: () => void) {
   flushSync(callback);
@@ -38,12 +39,14 @@ function event(overrides: Partial<CaseEvent>): CaseEvent {
 
 describe("CaseActivityFeed", () => {
   let container: HTMLDivElement;
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
   });
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
+    await setLocale("en");
   });
 
   function render(events: CaseEvent[]) {
@@ -102,7 +105,7 @@ describe("CaseActivityFeed", () => {
       event({ kind: "status_changed", payload: { previousStatus: "draft", status: "in_review" } }),
     ]);
     // The status-transition detail only appears in the status_changed row.
-    expect(container.textContent).toContain("draft → in_review");
+    expect(container.textContent).toContain("draft → in review");
 
     // Open the activity filter dropdown and choose "created"; only created
     // rows remain, so the status-transition detail disappears.
@@ -117,6 +120,17 @@ describe("CaseActivityFeed", () => {
     expect(createdItem).toBeTruthy();
     act(() => createdItem!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(container.textContent).not.toContain("draft → in_review");
+    act(() => root.unmount());
+  });
+
+  it("localizes event labels and status transitions in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    const root = render([
+      event({ kind: "status_changed", payload: { previousStatus: "todo", status: "in_progress" } }),
+    ]);
+
+    expect(container.textContent).toContain("状态已更改");
+    expect(container.textContent).toContain("待办 → 进行中");
     act(() => root.unmount());
   });
 });

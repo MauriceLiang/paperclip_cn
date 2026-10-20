@@ -1,3 +1,4 @@
+import { t as translate } from "@/i18n";
 import {
   AlertCircle,
   AlertOctagon,
@@ -74,34 +75,36 @@ export function externalObjectIconForLiveness(liveness: string): LucideIcon | nu
   return null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  unknown: "Not yet resolved",
-  open: "Open",
-  waiting: "Waiting",
-  running: "Running",
-  succeeded: "Succeeded",
-  failed: "Failed",
-  blocked: "Blocked",
-  closed: "Closed",
-  archived: "Archived",
-  auth_required: "Authorization required",
-  unreachable: "Unreachable",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  unknown: "externalObjects.categories.unknown",
+  open: "externalObjects.categories.open",
+  waiting: "externalObjects.categories.waiting",
+  running: "externalObjects.categories.running",
+  succeeded: "externalObjects.categories.succeeded",
+  failed: "externalObjects.categories.failed",
+  blocked: "externalObjects.categories.blocked",
+  closed: "externalObjects.categories.closed",
+  archived: "externalObjects.categories.archived",
+  auth_required: "externalObjects.categories.authRequired",
+  unreachable: "externalObjects.categories.unreachable",
 };
 
 export function externalObjectCategoryLabel(category: string): string {
-  return CATEGORY_LABELS[category] ?? category.replace(/_/g, " ");
+  const key = CATEGORY_LABEL_KEYS[category];
+  return key ? translate(key) : category.replace(/_/g, " ");
 }
 
-const LIVENESS_LABELS: Record<string, string> = {
-  unknown: "Not yet refreshed",
-  fresh: "Fresh",
-  stale: "Stale",
-  auth_required: "Requires auth",
-  unreachable: "Unreachable",
+const LIVENESS_LABEL_KEYS: Record<string, string> = {
+  unknown: "externalObjects.liveness.unknown",
+  fresh: "externalObjects.liveness.fresh",
+  stale: "externalObjects.liveness.stale",
+  auth_required: "externalObjects.liveness.authRequired",
+  unreachable: "externalObjects.liveness.unreachable",
 };
 
 export function externalObjectLivenessLabel(liveness: string): string {
-  return LIVENESS_LABELS[liveness] ?? liveness.replace(/_/g, " ");
+  const key = LIVENESS_LABEL_KEYS[liveness];
+  return key ? translate(key) : liveness.replace(/_/g, " ");
 }
 
 export function externalObjectDisplayStatusLabel(input: {
@@ -116,7 +119,7 @@ export function externalObjectDisplayStatusLabel(input: {
   const isGenericUrl = input.providerKey === "url" && input.objectType === "link";
   const hasKnownObjectType = Boolean(input.providerKey && input.objectType);
   if (input.statusCategory === "unknown" && hasKnownObjectType && !isGenericUrl) {
-    if (input.liveness === "fresh") return "Status unavailable";
+    if (input.liveness === "fresh") return translate("externalObjects.statusUnavailable");
     return externalObjectLivenessLabel(input.liveness);
   }
   return externalObjectCategoryLabel(input.statusCategory);

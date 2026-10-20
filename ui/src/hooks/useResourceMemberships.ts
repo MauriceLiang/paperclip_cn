@@ -7,6 +7,7 @@ import type {
 import { resourceMembershipsApi } from "../api/resourceMemberships";
 import { useToastActions } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";
+import { t as translate } from "@/i18n";
 
 type MutationVariables = {
   resourceType: JoinableResourceType;
@@ -173,12 +174,12 @@ export function useResourceMembershipMutation(companyId: string | null | undefin
       if (context?.previous) {
         queryClient.setQueryData(queryKey, context.previous);
       }
-      const verb = variables.starred !== undefined
+      const action = variables.starred !== undefined
         ? variables.starred ? "star" : "unstar"
         : variables.state === "left" ? "leave" : "join";
       pushToast({
-        title: `Couldn't ${verb} ${variables.resourceName}.`,
-        body: error instanceof Error ? error.message : "Try again.",
+        title: translate(`resourceMemberships.errors.${action}`, { name: variables.resourceName }),
+        body: error instanceof Error ? error.message : translate("common.tryAgain"),
         tone: "error",
       });
     },

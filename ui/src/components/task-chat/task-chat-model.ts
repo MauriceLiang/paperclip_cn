@@ -278,7 +278,9 @@ export interface TaskChatUsageItem {
   usage: TaskChatTokenUsage;
   /** Present when the measurement is not scoped to the current run. */
   label?: string;
+  labelKey?: string;
   detail?: string;
+  detailKey?: string;
 }
 
 export interface TaskChatActivityPhaseItem {

@@ -1,36 +1,39 @@
 import { useEffect, useState } from "react";
+import type { TFunction } from "i18next";
 import { AlertTriangle, RotateCcw, TimerReset } from "lucide-react";
 import { healthApi, type DevServerHealthStatus } from "../api/health";
 import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/i18n";
 
 const RESTART_PENDING_RESET_MS = 30_000;
 
-function formatRelativeTimestamp(value: string | null): string | null {
+function formatRelativeTimestamp(value: string | null, t: TFunction): string | null {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return null;
 
   const deltaMs = Date.now() - timestamp;
-  if (deltaMs < 60_000) return "just now";
+  if (deltaMs < 60_000) return t("settingsComponents.devRestart.justNow");
   const deltaMinutes = Math.round(deltaMs / 60_000);
-  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+  if (deltaMinutes < 60) return t("settingsComponents.devRestart.minutesAgo", { count: deltaMinutes });
   const deltaHours = Math.round(deltaMinutes / 60);
-  if (deltaHours < 24) return `${deltaHours}h ago`;
+  if (deltaHours < 24) return t("settingsComponents.devRestart.hoursAgo", { count: deltaHours });
   const deltaDays = Math.round(deltaHours / 24);
-  return `${deltaDays}d ago`;
+  return t("settingsComponents.devRestart.daysAgo", { count: deltaDays });
 }
 
-function describeReason(devServer: DevServerHealthStatus): string {
+function describeReason(devServer: DevServerHealthStatus, t: TFunction): string {
   if (devServer.reason === "backend_changes_and_pending_migrations") {
-    return "backend files changed and migrations are pending";
+    return t("settingsComponents.devRestart.reasonBackendAndMigrations");
   }
   if (devServer.reason === "pending_migrations") {
-    return "pending migrations need a fresh boot";
+    return t("settingsComponents.devRestart.reasonMigrations");
   }
-  return "backend files changed since this server booted";
+  return t("settingsComponents.devRestart.reasonBackend");
 }
 
 export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthStatus }) {
+  const { t } = useTranslation();
   const [restartPending, setRestartPending] = useState(false);
   useEffect(() => {
     if (!restartPending) return;
@@ -43,25 +46,25 @@ export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthSta
   if (!devServer?.enabled || !devServer.restartRequired) return null;
 
   const currentDevServer = devServer;
-  const changedAt = formatRelativeTimestamp(devServer.lastChangedAt);
+  const changedAt = formatRelativeTimestamp(devServer.lastChangedAt, t);
   const sample = devServer.changedPathsSample.slice(0, 3);
-  const activeRunLabel = `${devServer.activeRunCount} live run${
-    devServer.activeRunCount === 1 ? "" : "s"
-  }`;
+  const activeRunLabel = t("settingsComponents.devRestart.activeRun", {
+    count: devServer.activeRunCount,
+  });
 
   async function requestRestartNow() {
     const warning =
       currentDevServer.activeRunCount > 0
-        ? `Restart Paperclip now? This may interrupt ${activeRunLabel}.`
-        : "Restart Paperclip now?";
+        ? t("settingsComponents.devRestart.confirmWithRuns", { runs: activeRunLabel })
+        : t("settingsComponents.devRestart.confirmNow");
     if (!window.confirm(warning)) return;
 
     setRestartPending(true);
     try {
       await healthApi.requestDevServerRestart();
-    } catch (error) {
+    } catch {
       setRestartPending(false);
-      window.alert(error instanceof Error ? error.message : "Failed to request restart");
+      window.alert(t("settingsComponents.devRestart.requestFailed"));
     }
   }
 
@@ -71,28 +74,36 @@ export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthSta
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-(--tracking-caps)">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span>Restart Required</span>
+            <span>{t("settingsComponents.devRestart.restartRequired")}</span>
             {devServer.autoRestartEnabled ? (
               <Badge variant="ghost" className="bg-amber-900/10 text-(length:--text-nano) tracking-(--tracking-eyebrow) dark:bg-amber-100/10">
-                Auto-Restart On
+                {t("settingsComponents.devRestart.autoRestartOn")}
               </Badge>
             ) : null}
           </div>
           <p className="mt-1 text-sm">
-            {describeReason(devServer)}
-            {changedAt ? ` · updated ${changedAt}` : ""}
+            {describeReason(devServer, t)}
+            {changedAt ? t("settingsComponents.devRestart.updated", { time: changedAt }) : ""}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-amber-900/80 dark:text-amber-100/75">
             {sample.length > 0 ? (
               <span>
-                Changed: {sample.join(", ")}
-                {devServer.changedPathCount > sample.length ? ` +${devServer.changedPathCount - sample.length} more` : ""}
+                {t("settingsComponents.devRestart.changedPaths", {
+                  paths: sample.join(", "),
+                  more: devServer.changedPathCount > sample.length
+                    ? t("settingsComponents.devRestart.more", { count: devServer.changedPathCount - sample.length })
+                    : "",
+                })}
               </span>
             ) : null}
             {devServer.pendingMigrations.length > 0 ? (
               <span>
-                Pending migrations: {devServer.pendingMigrations.slice(0, 2).join(", ")}
-                {devServer.pendingMigrations.length > 2 ? ` +${devServer.pendingMigrations.length - 2} more` : ""}
+                {t("settingsComponents.devRestart.pendingMigrations", {
+                  items: devServer.pendingMigrations.slice(0, 2).join(", "),
+                  more: devServer.pendingMigrations.length > 2
+                    ? t("settingsComponents.devRestart.more", { count: devServer.pendingMigrations.length - 2 })
+                    : "",
+                })}
               </span>
             ) : null}
           </div>
@@ -102,17 +113,21 @@ export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthSta
           {devServer.waitingForIdle ? (
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-900/10 px-3 py-1.5 dark:bg-amber-100/10">
               <TimerReset className="h-3.5 w-3.5" />
-              <span>Waiting for {activeRunLabel} to finish</span>
+              <span>{t("settingsComponents.devRestart.waitingForRuns", { runs: activeRunLabel })}</span>
             </div>
           ) : devServer.autoRestartEnabled ? (
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-900/10 px-3 py-1.5 dark:bg-amber-100/10">
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>Auto-restart will trigger when the instance is idle</span>
+              <span>{t("settingsComponents.devRestart.autoRestartWhenIdle")}</span>
             </div>
           ) : (
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-900/10 px-3 py-1.5 dark:bg-amber-100/10">
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>Restart <code>pnpm dev:once</code> after the active work is safe to interrupt</span>
+              <span>
+                {t("settingsComponents.devRestart.restartManualBefore")}
+                <code>pnpm dev:once</code>
+                {t("settingsComponents.devRestart.restartManualAfter")}
+              </span>
             </div>
           )}
           <button
@@ -124,7 +139,7 @@ export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthSta
             disabled={restartPending}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>{restartPending ? "Restart requested" : "Restart now"}</span>
+            <span>{t(restartPending ? "settingsComponents.devRestart.requested" : "settingsComponents.devRestart.restartNow")}</span>
           </button>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ToolProfileSummary, ToolProfileWithDetails } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 
 const navigate = vi.hoisted(() => vi.fn());
 const profilesData = vi.hoisted(() => ({
@@ -210,6 +211,20 @@ describe("ProfilesIndex", () => {
     expect(container.textContent).toContain("Read-only");
     expect(container.textContent).toContain("Everyday work");
     expect(container.textContent).toContain("Start from scratch");
+  });
+
+  it("localizes the empty-state template cards in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    try {
+      setData([]);
+      await render();
+      expect(container.textContent).toContain("只读");
+      expect(container.textContent).toContain("日常工作");
+      expect(container.textContent).toContain("从空白开始");
+      expect(container.textContent).toContain("可以查看和获取信息，但不能进行修改。");
+    } finally {
+      await i18n.changeLanguage("en");
+    }
   });
 
   it("navigates to the wizard from New profile", async () => {

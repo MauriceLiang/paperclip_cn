@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { CompanySecret, EnvBinding } from "@paperclipai/shared";
 import { EnvironmentVariablesEditor } from "./index";
 import { SecretPicker } from "./SecretPicker";
+import { i18n } from "@/i18n";
 
 // Radix (DropdownMenu/Popover) relies on Pointer Capture APIs that jsdom omits.
 const OriginalPointerEvent = globalThis.PointerEvent;
@@ -194,6 +195,14 @@ describe("EnvironmentVariablesEditor", () => {
     render(<EnvironmentVariablesEditor value={{}} secrets={secrets} onChange={() => {}} onCreateSecret={async () => secrets[0]} />);
     expect(container.textContent).toContain("No environment variables");
     expect(nameInputs()).toHaveLength(0);
+  });
+
+  it("localizes the empty state and helper copy in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    render(<EnvironmentVariablesEditor value={{}} secrets={secrets} onChange={() => {}} onCreateSecret={async () => secrets[0]} />);
+    expect(container.textContent).toContain("没有环境变量");
+    expect(container.textContent).toContain("将 KEY 设为进程所需的环境变量名");
+    expect(container.textContent).not.toContain("No environment variables");
   });
 
   it("appends a row when + Add variable is clicked", async () => {

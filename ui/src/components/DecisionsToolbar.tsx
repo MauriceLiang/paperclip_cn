@@ -16,12 +16,20 @@ import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { useTranslation } from "@/i18n";
+import { priorityLabel } from "@/i18n/status";
 
-const SEVERITY_LABELS: Record<string, string> = {
-  critical: "Critical",
-  high: "High",
-  medium: "Medium",
-  low: "Low",
+const GROUP_BY_LABEL_KEYS: Record<string, string> = {
+  none: "attention.groupBy.none",
+  date: "attention.groupBy.date",
+  type: "attention.groupBy.type",
+  project: "attention.groupBy.project",
+  severity: "attention.groupBy.severity",
+};
+
+const SORT_LABEL_KEYS: Record<string, string> = {
+  newest: "attention.sort.newest",
+  oldest: "attention.sort.oldest",
 };
 
 interface DecisionsToolbarProps {
@@ -52,12 +60,13 @@ export function DecisionsToolbar({
   sortOrder,
   onSortOrderChange,
 }: DecisionsToolbarProps) {
+  const { t } = useTranslation();
   const activeFilterCount = countActiveAttentionFilters(filters);
   return (
     <div className="flex items-center gap-2">
       {visibleCount > 0 && (
         <span className="text-sm text-muted-foreground">
-          {visibleCount} {visibleCount === 1 ? "decision" : "decisions"}
+          {t("decisions.count", { count: visibleCount })}
         </span>
       )}
       {/* Filter */}
@@ -68,8 +77,8 @@ export function DecisionsToolbar({
             variant="outline"
             size="icon"
             className={cn("h-8 w-8 shrink-0", activeFilterCount > 0 && "bg-accent")}
-            title="Filter"
-            aria-label="Filter"
+            title={t("attention.filter.filter")}
+            aria-label={t("attention.filter.filter")}
           >
             <ListFilter className="h-3.5 w-3.5" />
           </Button>
@@ -86,8 +95,8 @@ export function DecisionsToolbar({
             variant="outline"
             size="icon"
             className={cn("h-8 w-8 shrink-0", groupBy !== "none" && "bg-accent")}
-            title="Group"
-            aria-label="Group"
+            title={t("attention.filter.group")}
+            aria-label={t("attention.filter.group")}
           >
             <Layers className="h-3.5 w-3.5" />
           </Button>
@@ -104,7 +113,7 @@ export function DecisionsToolbar({
                 )}
                 onClick={() => onGroupByChange(value)}
               >
-                <span>{label}</span>
+                <span>{t(GROUP_BY_LABEL_KEYS[value] ?? label)}</span>
                 {groupBy === value ? <Check className="h-3.5 w-3.5" /> : null}
               </button>
             ))}
@@ -119,8 +128,8 @@ export function DecisionsToolbar({
             variant="outline"
             size="icon"
             className="h-8 w-8 shrink-0"
-            title="Sort"
-            aria-label="Sort"
+            title={t("attention.filter.sort")}
+            aria-label={t("attention.filter.sort")}
           >
             <ArrowUpDown className="h-3.5 w-3.5" />
           </Button>
@@ -137,7 +146,7 @@ export function DecisionsToolbar({
                 )}
                 onClick={() => onSortOrderChange(value)}
               >
-                <span>{label}</span>
+                <span>{t(SORT_LABEL_KEYS[value] ?? label)}</span>
                 {sortOrder === value ? <Check className="h-3.5 w-3.5" /> : null}
               </button>
             ))}
@@ -157,6 +166,7 @@ function FilterMenu({
   filters: AttentionFilterState;
   onChange: (next: AttentionFilterState) => void;
 }) {
+  const { t } = useTranslation();
   const toggle = (key: keyof AttentionFilterState, value: string) => {
     const list = filters[key] as string[];
     const nextList = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -167,20 +177,20 @@ function FilterMenu({
   return (
     <div className="max-h-(--sz-70vh) overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Filter</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("attention.filter.filter")}</span>
         {hasActive && (
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground"
             onClick={() => onChange(defaultAttentionFilterState)}
           >
-            Clear
+            {t("attention.filter.clear")}
           </button>
         )}
       </div>
 
       {options.sourceKinds.length > 1 && (
-        <FilterSection title="Type">
+        <FilterSection title={t("attention.filter.type")}>
           {options.sourceKinds.map((kind) => (
             <FilterRow
               key={kind}
@@ -193,11 +203,11 @@ function FilterMenu({
       )}
 
       {options.severities.length > 1 && (
-        <FilterSection title="Severity">
+        <FilterSection title={t("attention.filter.severity")}>
           {options.severities.map((severity) => (
             <FilterRow
               key={severity}
-              label={SEVERITY_LABELS[severity] ?? severity}
+              label={priorityLabel(severity, t)}
               checked={filters.severities.includes(severity)}
               onToggle={() => toggle("severities", severity)}
             />
@@ -206,7 +216,7 @@ function FilterMenu({
       )}
 
       {(options.projects.length > 0 || options.hasNoProject) && (
-        <FilterSection title="Project">
+        <FilterSection title={t("attention.filter.project")}>
           {options.projects.map((project) => (
             <FilterRow
               key={project.id}
@@ -217,7 +227,7 @@ function FilterMenu({
           ))}
           {options.hasNoProject && (
             <FilterRow
-              label="No project"
+              label={t("attention.filter.noProject")}
               checked={filters.projectIds.includes(NO_GROUP_SENTINEL)}
               onToggle={() => toggle("projectIds", NO_GROUP_SENTINEL)}
             />
@@ -226,7 +236,7 @@ function FilterMenu({
       )}
 
       {(options.workspaces.length > 0 || options.hasNoWorkspace) && (
-        <FilterSection title="Workspace">
+        <FilterSection title={t("attention.filter.workspace")}>
           {options.workspaces.map((workspace) => (
             <FilterRow
               key={workspace.id}
@@ -237,7 +247,7 @@ function FilterMenu({
           ))}
           {options.hasNoWorkspace && (
             <FilterRow
-              label="No workspace"
+              label={t("attention.filter.noWorkspace")}
               checked={filters.workspaceIds.includes(NO_GROUP_SENTINEL)}
               onToggle={() => toggle("workspaceIds", NO_GROUP_SENTINEL)}
             />

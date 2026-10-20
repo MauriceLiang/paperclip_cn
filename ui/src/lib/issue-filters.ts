@@ -1,4 +1,6 @@
 import { isAgentCreatedIssue, type ExternalObjectSummary, type Issue } from "@paperclipai/shared";
+import type { TFunction } from "i18next";
+import { priorityLabel, statusLabel } from "@/i18n/status";
 
 export type IssueFilterWorkspaceLookup = {
   mode?: string | null;
@@ -62,31 +64,34 @@ export const externalObjectFilterOrder = [
   "none",
 ];
 
-const EXTERNAL_OBJECT_FILTER_LABELS: Record<string, string> = {
-  failed: "Any failed",
-  waiting: "Any waiting",
-  running: "Any running",
-  auth_required: "Auth required",
-  unreachable: "Unreachable",
-  stale: "Stale",
-  none: "No external objects",
+const EXTERNAL_OBJECT_FILTER_KEYS: Record<string, string> = {
+  failed: "filters.external.anyFailed",
+  waiting: "filters.external.anyWaiting",
+  running: "filters.external.anyRunning",
+  auth_required: "filters.external.authRequired",
+  unreachable: "filters.external.unreachable",
+  stale: "filters.external.stale",
+  none: "filters.external.none",
 };
 
-export function externalObjectFilterLabel(value: string): string {
-  return EXTERNAL_OBJECT_FILTER_LABELS[value] ?? issueFilterLabel(value);
+export function externalObjectFilterLabel(value: string, t: TFunction): string {
+  const key = EXTERNAL_OBJECT_FILTER_KEYS[value];
+  return key ? t(key) : issueFilterLabel(value, t);
 }
 
 export const issueStatusOrder = ["in_progress", "todo", "backlog", "in_review", "blocked", "done", "cancelled"];
 export const issuePriorityOrder = ["critical", "high", "medium", "low"];
 
 export const issueQuickFilterPresets = [
-  { label: "All", statuses: [] as string[] },
-  { label: "Active", statuses: ["todo", "in_progress", "in_review", "blocked"] },
-  { label: "Backlog", statuses: ["backlog"] },
-  { label: "Done", statuses: ["done", "cancelled"] },
+  { labelKey: "filters.quick.all", statuses: [] as string[] },
+  { labelKey: "filters.quick.active", statuses: ["todo", "in_progress", "in_review", "blocked"] },
+  { labelKey: "filters.quick.backlog", statuses: ["backlog"] },
+  { labelKey: "filters.quick.done", statuses: ["done", "cancelled"] },
 ];
 
-export function issueFilterLabel(value: string): string {
+export function issueFilterLabel(value: string, t: TFunction): string {
+  if (issueStatusOrder.includes(value)) return statusLabel(value, t);
+  if (issuePriorityOrder.includes(value)) return priorityLabel(value, t);
   return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 

@@ -4,6 +4,7 @@ import { SIDEBAR_SCROLL_RESET_STATE } from "../lib/navigation-scroll";
 import { cn, SIDEBAR_RAIL_HIDDEN_LABEL } from "../lib/utils";
 import { useSidebar } from "../context/SidebarContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslation } from "@/i18n";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -87,6 +88,7 @@ export function SidebarNavItem({
   trailingLabel,
   liveAccessory,
 }: SidebarNavItemProps) {
+  const { t } = useTranslation();
   const { isMobile, setSidebarOpen, collapsed, peeking } = useSidebar();
   // A contextual takeover forces full labels even when the saved global app
   // sidebar preference is collapsed.
@@ -103,15 +105,18 @@ export function SidebarNavItem({
   // Accessible text equivalent for the collapsed dot indicator. The visible
   // label is `sr-only` in the rail, so the count must be surfaced here.
   const railStatusText = hasLive
-    ? `${liveCount} live`
+    ? t("nav.badges.liveCount", { count: liveCount })
     : hasBadge
-      ? `${badge}${badgeLabel ? ` ${badgeLabel}` : ""}`
+      ? badgeLabel
+        ? t("nav.badges.countWithLabel", { count: badge, label: badgeLabel })
+        : String(badge)
       : alert
-        ? "attention needed"
+        ? t("nav.badges.attentionNeeded")
         : undefined;
-  const railAriaLabel = !rail || (!railStatusText && !trailingLabel)
-    ? undefined
-    : `${label}${railStatusText ? `, ${railStatusText}` : ""}${trailingLabel ? `, ${trailingLabel}` : ""}`;
+  const railAriaExtras = rail ? [railStatusText, trailingLabel].filter(Boolean) as string[] : [];
+  const railAriaLabel = railAriaExtras.length > 0
+    ? t("nav.badges.ariaWithStatus", { label, status: railAriaExtras.join(", ") })
+    : undefined;
 
   const link = (
     <NavLink

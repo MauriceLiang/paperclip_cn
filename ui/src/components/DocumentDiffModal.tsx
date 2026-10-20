@@ -20,15 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-function getRevisionLabel(revision: DocumentRevision) {
-  const actor = revision.createdByUserId
-    ? "board"
-    : revision.createdByAgentId
-      ? "agent"
-      : "system";
-  return `rev ${revision.revisionNumber} — ${relativeTime(revision.createdAt)} • ${actor}`;
-}
+import { useTranslation } from "@/i18n";
 
 export function DocumentDiffModal({
   issueId,
@@ -47,6 +39,7 @@ export function DocumentDiffModal({
   revisionsQueryKey?: QueryKey;
   revisionsQueryFn?: () => Promise<DocumentRevision[]>;
 }) {
+  const { t } = useTranslation();
   const { data: revisions } = useQuery({
     queryKey: revisionsQueryKey ?? queryKeys.issues.documentRevisions(issueId ?? "", documentKey),
     queryFn: () => revisionsQueryFn ? revisionsQueryFn() : issuesApi.listDocumentRevisions(issueId ?? "", documentKey),
@@ -88,6 +81,15 @@ export function DocumentDiffModal({
     removed: "-",
     added: "+",
   };
+  const getRevisionLabel = (revision: DocumentRevision) => t("issueComponents.documents.diffModal.revision", {
+    number: revision.revisionNumber,
+    time: relativeTime(revision.createdAt),
+    actor: revision.createdByUserId
+      ? t("issueComponents.documents.diffModal.actors.board")
+      : revision.createdByAgentId
+        ? t("issueComponents.documents.diffModal.actors.agent")
+        : t("issueComponents.documents.diffModal.actors.system"),
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,19 +97,19 @@ export function DocumentDiffModal({
         <div className="flex items-center justify-between gap-4">
           <DialogHeader className="shrink-0">
             <DialogTitle>
-              Diff — <span className="font-mono text-sm">{documentKey}</span>
+              {t("issueComponents.documents.diffModal.titlePrefix")} <span className="font-mono text-sm">{documentKey}</span>
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-(length:--text-nano) uppercase tracking-wider text-red-400">Old</Badge>
+              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-(length:--text-nano) uppercase tracking-wider text-red-400">{t("issueComponents.documents.diffModal.old")}</Badge>
               <Select
                 value={effectiveLeftId ?? ""}
                 onValueChange={(value) => setLeftRevisionId(value)}
               >
                 <SelectTrigger className="h-7 w-60 text-xs border-border/60">
-                  <SelectValue placeholder="Select revision" />
+                  <SelectValue placeholder={t("issueComponents.documents.diffModal.selectRevision")} />
                 </SelectTrigger>
                 <SelectContent>
                   {sortedRevisions.map((revision) => (
@@ -119,13 +121,13 @@ export function DocumentDiffModal({
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-(length:--text-nano) uppercase tracking-wider text-green-400">New</Badge>
+              <Badge variant="outline" className="border-green-500/30 bg-green-500/10 text-(length:--text-nano) uppercase tracking-wider text-green-400">{t("issueComponents.documents.diffModal.new")}</Badge>
               <Select
                 value={effectiveRightId ?? ""}
                 onValueChange={(value) => setRightRevisionId(value)}
               >
                 <SelectTrigger className="h-7 w-60 text-xs border-border/60">
-                  <SelectValue placeholder="Select revision" />
+                  <SelectValue placeholder={t("issueComponents.documents.diffModal.selectRevision")} />
                 </SelectTrigger>
                 <SelectContent>
                   {sortedRevisions.map((revision) => (
@@ -141,18 +143,18 @@ export function DocumentDiffModal({
 
         <div className="overflow-auto flex-1 rounded-md border border-border text-xs">
           {!revisions ? (
-            <div className="p-6 text-center text-muted-foreground text-sm">Loading revisions...</div>
+            <div className="p-6 text-center text-muted-foreground text-sm">{t("issueComponents.documents.diffModal.loading")}</div>
           ) : !leftRevision || !rightRevision ? (
-            <div className="p-6 text-center text-muted-foreground text-sm">Select two revisions to compare.</div>
+            <div className="p-6 text-center text-muted-foreground text-sm">{t("issueComponents.documents.diffModal.selectTwo")}</div>
           ) : leftRevision.id === rightRevision.id ? (
-            <div className="p-6 text-center text-muted-foreground text-sm">Both sides are the same revision.</div>
+            <div className="p-6 text-center text-muted-foreground text-sm">{t("issueComponents.documents.diffModal.sameRevision")}</div>
           ) : (
             <div className="font-mono text-xs leading-6">
               <div className="grid grid-cols-(--gtc-1) border-b border-border/60 bg-muted/30 px-3 py-2 text-(length:--text-micro) uppercase tracking-wide text-muted-foreground">
-                <span>Old</span>
-                <span>New</span>
+                <span>{t("issueComponents.documents.diffModal.old")}</span>
+                <span>{t("issueComponents.documents.diffModal.new")}</span>
                 <span />
-                <span>Content</span>
+                <span>{t("issueComponents.documents.diffModal.content")}</span>
               </div>
               {diffRows.map((row, index) => (
                 <div

@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sanitizeAssetNamespace } from "@paperclipai/shared";
+import { setLocale } from "@/i18n";
 import { ProfileSettings } from "./ProfileSettings";
 
 const mockAuthApi = vi.hoisted(() => ({
@@ -89,6 +90,7 @@ describe("ProfileSettings", () => {
   });
 
   it("does not render a keyboard shortcuts toggle because shortcuts are always enabled", async () => {
+    await setLocale("zh-CN");
     const root = createRoot(container);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     await act(async () => {
@@ -96,6 +98,7 @@ describe("ProfileSettings", () => {
     });
     await flushReact();
     expect(container.textContent).toContain("Jane Example");
+    expect(container.querySelector<HTMLInputElement>("#profile-name")?.placeholder).toBe("看板");
     expect(container.textContent).not.toContain("Keyboard shortcuts");
     expect(container.querySelector('[aria-label="Toggle keyboard shortcuts"]')).toBeNull();
     await act(async () => root.unmount());

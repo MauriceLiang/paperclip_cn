@@ -1,5 +1,11 @@
-import { checkMcpRemoteHeaderName, checkMcpRemoteHeaderValue, mcpRemoteHeaderRejectionMessage } from "@paperclipai/shared";
+import {
+  checkMcpRemoteHeaderName,
+  checkMcpRemoteHeaderValue,
+  MCP_REMOTE_HEADER_LIMITS,
+  type McpRemoteHeaderRejection,
+} from "@paperclipai/shared";
 import type { GenericMcpAuthMode } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 
 /**
  * Logic behind the guided "Connect your own MCP server" flow (PAP-17087).
@@ -101,68 +107,68 @@ export function genericConnectGuidance(
   code: string | null | undefined,
   message: string | null | undefined,
 ): GenericConnectGuidance {
-  const fallback = message?.trim() || "Paperclip couldn't connect to that address. Check it and try again.";
+  const fallback = message?.trim() || translate("toolsPage.connectFlow.genericGuidance.fallback");
   switch (code) {
     case "mcp_remote_url_missing":
     case "mcp_remote_url_invalid":
       return {
-        title: "That doesn't look like a server address",
-        body: "Paste the full address, starting with https:// — for example https://mcp.example.com/mcp.",
+        title: translate("toolsPage.connectFlow.genericGuidance.invalidUrlTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.invalidUrlBody"),
         focus: "url",
       };
     case "remote_http_private_endpoint":
       return {
-        title: "That address is inside a private network",
-        body: "This Paperclip is reachable from the internet, so it won't call addresses on your local network. Use the server's public address instead.",
+        title: translate("toolsPage.connectFlow.genericGuidance.privateAddressTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.privateAddressBody"),
         focus: "url",
       };
     case "remote_http_dns_failed":
       return {
-        title: "We couldn't find that host",
-        body: "The address didn't resolve. Check the spelling, or confirm the server is published on the internet.",
+        title: translate("toolsPage.connectFlow.genericGuidance.hostNotFoundTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.hostNotFoundBody"),
         focus: "url",
       };
     case "mcp_header_rejected":
       return {
-        title: "Paperclip can't send that header",
-        body: fallback,
+        title: translate("toolsPage.connectFlow.genericGuidance.headerRejectedTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.headerRejectedBody"),
         focus: "credentials",
       };
     case "tool_access_name_conflict":
       return {
-        title: "Paperclip couldn’t name this connection",
-        body: "Try connecting again.",
+        title: translate("toolsPage.connectFlow.genericGuidance.nameConflictTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.nameConflictBody"),
         focus: "none",
       };
     case "oauth_challenge":
       return {
-        title: "This server wants a credential",
-        body: "It asked us to authenticate but didn't offer a sign-in Paperclip can complete on its own. Add the key or headers its docs list under Advanced authentication.",
+        title: translate("toolsPage.connectFlow.genericGuidance.credentialRequiredTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.credentialRequiredBody"),
         focus: "credentials",
       };
     case "oauth_manual_client_required":
     case "oauth_manual_client_rebinding_required":
       return {
-        title: "This server needs sign-in details you create yourself",
-        body: "Register Paperclip in the provider's settings, then add the client ID and secret it gives you under Advanced authentication.",
+        title: translate("toolsPage.connectFlow.genericGuidance.manualClientTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.manualClientBody"),
         focus: "credentials",
       };
     case "oauth_redirect_origin_unsupported":
     case "oauth_redirect_uri_invalid":
       return {
-        title: "This Paperclip needs a public HTTPS address first",
-        body: "Sign-in sends the operator back to Paperclip, so this instance has to be reachable over HTTPS. Ask your Paperclip admin to configure it.",
+        title: translate("toolsPage.connectFlow.genericGuidance.publicHttpsTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.publicHttpsBody"),
         focus: "deployment",
       };
     case "runtime_error":
       return {
-        title: "We couldn't reach that server",
-        body: "Nothing answered at that address. Confirm the server is running and the address is right, then try again.",
+        title: translate("toolsPage.connectFlow.genericGuidance.serverUnreachableTitle"),
+        body: translate("toolsPage.connectFlow.genericGuidance.serverUnreachableBody"),
         focus: "url",
       };
     default:
       return {
-        title: "Paperclip couldn't connect",
+        title: translate("toolsPage.connectFlow.genericGuidance.defaultTitle"),
         body: fallback,
         focus: "none",
       };
@@ -176,16 +182,33 @@ export function genericConnectGuidance(
  */
 export function customHeaderError(rows: CustomHeaderRow[]): string | null {
   const seen = new Set<string>();
+  const headerError = (reason: McpRemoteHeaderRejection, name: string) => {
+    const displayName = name.slice(0, MCP_REMOTE_HEADER_LIMITS.maxNameLength);
+    const keys: Record<McpRemoteHeaderRejection, string> = {
+      empty: "toolsPage.connectFlow.linkStep.headerErrors.emptyName",
+      too_long: "toolsPage.connectFlow.linkStep.headerErrors.nameTooLong",
+      invalid_characters: "toolsPage.connectFlow.linkStep.headerErrors.invalidName",
+      forbidden: "toolsPage.connectFlow.linkStep.headerErrors.forbiddenName",
+      value_too_long: "toolsPage.connectFlow.linkStep.headerErrors.valueTooLong",
+      value_control_characters: "toolsPage.connectFlow.linkStep.headerErrors.valueControlCharacters",
+    };
+    return translate(keys[reason], {
+      name: displayName,
+      maxLength: reason === "too_long"
+        ? MCP_REMOTE_HEADER_LIMITS.maxNameLength
+        : MCP_REMOTE_HEADER_LIMITS.maxValueLength,
+    });
+  };
   for (const row of rows) {
     const name = row.name.trim();
     if (!name && !row.value.trim()) continue;
     const nameCheck = checkMcpRemoteHeaderName(name);
-    if (!nameCheck.ok) return mcpRemoteHeaderRejectionMessage(name, nameCheck.reason!);
+    if (!nameCheck.ok) return headerError(nameCheck.reason!, name);
     const valueCheck = checkMcpRemoteHeaderValue(row.value);
-    if (!valueCheck.ok) return mcpRemoteHeaderRejectionMessage(name, valueCheck.reason!);
-    if (!row.value.trim()) return `Add a value for "${name}", or remove the row.`;
+    if (!valueCheck.ok) return headerError(valueCheck.reason!, name);
+    if (!row.value.trim()) return translate("toolsPage.connectFlow.linkStep.headerErrors.valueMissing", { name });
     const lower = name.toLowerCase();
-    if (seen.has(lower)) return `"${name}" is listed twice.`;
+    if (seen.has(lower)) return translate("toolsPage.connectFlow.linkStep.headerErrors.duplicateName", { name });
     seen.add(lower);
   }
   return null;

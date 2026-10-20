@@ -37,6 +37,15 @@ export const TOOL_TABS = [...ADVANCED_TABS, ...DEVELOPER_TABS] as const;
 
 export type ToolTabKey = (typeof TOOL_TABS)[number]["key"];
 
+export function toolTabLabel(tabKey: ToolTabKey, t: (key: string) => string): string {
+  switch (tabKey) {
+    case "paste-config": return t("toolsPage.sidebar.pasteConfig");
+    case "gateways": return t("toolsPage.sidebar.gateways");
+    case "profiles": return t("toolsPage.sidebar.profiles");
+    case "smoke-lab": return t("toolsPage.sidebar.smokeLab");
+  }
+}
+
 export function isAdvancedSetupTab(tab: ToolTabKey): boolean {
   return ADVANCED_TABS.some((t) => t.key === tab);
 }

@@ -2,6 +2,7 @@
 import {act} from "react";
 import {createRoot} from "react-dom/client";
 import {expect, it, vi} from "vitest";
+import {setLocale} from "@/i18n";
 import {SpekoProviderSetup} from "./SpekoProviderSetup";
 it("recovers interrupted setup with a signing secret, and preserves saved secrets on reconnect", async () => {
   const onConnect = vi.fn(), onChange = vi.fn();
@@ -17,4 +18,27 @@ it("recovers interrupted setup with a signing secret, and preserves saved secret
     await act(async () => (container.querySelector("button:last-child") as HTMLButtonElement).click());
     expect(onConnect).toHaveBeenLastCalledWith(props.credentials);
   } finally { await act(async () => root.unmount()); container.remove(); }
+});
+
+it("renders provider setup copy in Simplified Chinese", async () => {
+  await setLocale("zh-CN");
+  const container = document.createElement("div"), root = createRoot(container);
+  document.body.append(container);
+  try {
+    await act(async () => root.render(<SpekoProviderSetup
+      agentName="Planner"
+      callbackUrl="https://example.invalid/callback"
+      credentials={{}}
+      onChange={() => undefined}
+      onConnect={() => undefined}
+    />));
+    expect(container.textContent).toContain("将 Planner 连接到 Speko");
+    expect(container.textContent).toContain("打开 Speko Agent 列表");
+    expect(container.textContent).toContain("回调地址：https://example.invalid/callback");
+    expect(container.textContent).toContain("连接 Speko");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    await setLocale("en");
+  }
 });

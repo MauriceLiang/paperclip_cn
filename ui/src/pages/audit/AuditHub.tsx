@@ -6,6 +6,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useNavigate, useSearchParams } from "@/lib/router";
+import { useTranslation } from "@/i18n";
 import { Costs } from "@/pages/Costs";
 import { Timeline } from "@/pages/Timeline";
 import { AuditFeed, type AuditFeedMode } from "./AuditFeed";
@@ -18,10 +19,19 @@ import {
   type AuditSection,
 } from "./audit-navigation";
 
+const AUDIT_SECTION_LABEL_KEYS: Record<AuditSection, string> = {
+  activity: "nav.activity",
+  runs: "operationsPage.audit.sections.runs",
+  costs: "nav.costs",
+  budgets: "operationsPage.audit.sections.budgets",
+  timeline: "nav.timeline",
+};
+
 export function AuditHub({ section }: { section: AuditSection }) {
   const navigate = useNavigate();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const scope = auditScopeFromSearchParams(searchParams);
   const mode: AuditFeedMode = scope.mode === "agents" ? "agents" : "all";
@@ -42,10 +52,10 @@ export function AuditHub({ section }: { section: AuditSection }) {
   useEffect(() => {
     const current = AUDIT_SECTIONS.find((candidate) => candidate.value === section);
     setBreadcrumbs([
-      { label: "Audit", href: section === "activity" ? undefined : "/activity" },
-      ...(section === "activity" || !current ? [] : [{ label: current.label }]),
+      { label: t("nav.audit"), href: section === "activity" ? undefined : "/activity" },
+      ...(section === "activity" || !current ? [] : [{ label: t(AUDIT_SECTION_LABEL_KEYS[current.value]) }]),
     ]);
-  }, [section, setBreadcrumbs]);
+  }, [section, setBreadcrumbs, t]);
 
   const handleModeChange = useCallback(
     (next: AuditFeedMode) => {
@@ -78,13 +88,13 @@ export function AuditHub({ section }: { section: AuditSection }) {
   );
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={History} message="Select an organization to view Audit." />;
+    return <EmptyState icon={History} message={t("operationsPage.audit.selectOrgHub")} />;
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Audit</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("nav.audit")}</h1>
       </div>
 
       <Tabs
@@ -94,7 +104,7 @@ export function AuditHub({ section }: { section: AuditSection }) {
           navigate(auditSectionHref(next, scope));
         }}
       >
-        <PageTabBar items={AUDIT_SECTIONS} value={section} align="start" />
+        <PageTabBar items={AUDIT_SECTIONS.map((item) => ({ ...item, label: t(AUDIT_SECTION_LABEL_KEYS[item.value]) }))} value={section} align="start" />
       </Tabs>
 
       {section === "activity" && routineId ? (

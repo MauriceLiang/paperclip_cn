@@ -53,27 +53,33 @@ import {
 } from "../lib/search-filters";
 import type { ReactNode } from "react";
 import type { Agent, IssueLabel, Project } from "@paperclipai/shared";
+import { t as translate, useTranslation } from "@/i18n";
+import { Trans } from "react-i18next";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const IDENTIFIER_PATTERN = /^[A-Z]+-\d+$/;
 
-const SCOPE_LABELS: Record<CompanySearchScope, string> = {
-  all: "All",
-  issues: "Tasks",
-  comments: "Comments",
-  documents: "Documents",
-  artifacts: "Artifacts",
-  agents: "Agents",
-  projects: "Projects",
+const SCOPE_LABEL_KEYS: Record<CompanySearchScope, string> = {
+  all: "dashboardPage.search.scopes.all",
+  issues: "dashboardPage.search.scopes.issues",
+  comments: "dashboardPage.search.scopes.comments",
+  documents: "dashboardPage.search.scopes.documents",
+  artifacts: "dashboardPage.search.scopes.artifacts",
+  agents: "dashboardPage.search.scopes.agents",
+  projects: "dashboardPage.search.scopes.projects",
 };
 
 function isCompanySearchScope(value: string | null): value is CompanySearchScope {
   return Boolean(value) && (COMPANY_SEARCH_SCOPES as readonly string[]).includes(value as string);
 }
 
+function scopeLabel(scope: CompanySearchScope) {
+  return translate(SCOPE_LABEL_KEYS[scope]);
+}
+
 function describeScope(scope: CompanySearchScope) {
-  if (scope === "all") return "All scopes";
-  return SCOPE_LABELS[scope];
+  if (scope === "all") return translate("dashboardPage.search.allScopes");
+  return scopeLabel(scope);
 }
 
 function totalMatchCount(counts: Partial<Record<CompanySearchCountType, number>>): number {
@@ -122,7 +128,7 @@ export function buildSearchUrl(
 }
 
 function shapeError(error: unknown): { message: string; status?: number } {
-  if (!error) return { message: "Unknown error" };
+  if (!error) return { message: translate("dashboardPage.search.unknownError") };
   if (error instanceof Error) {
     const status = (error as Error & { status?: number }).status;
     return { message: error.message, status: typeof status === "number" ? status : undefined };
@@ -131,6 +137,7 @@ function shapeError(error: unknown): { message: string; status?: number } {
 }
 
 export function Search() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { openNewIssue } = useDialogActions();
@@ -156,8 +163,8 @@ export function Search() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Search" }]);
-  }, [setBreadcrumbs]);
+    setBreadcrumbs([{ label: t("nav.search") }]);
+  }, [setBreadcrumbs, t]);
 
   useEffect(() => {
     if (!selectedCompanyId) return;
@@ -481,7 +488,7 @@ export function Search() {
         value,
         label: (
           <span className="flex items-center">
-            {SCOPE_LABELS[value as CompanySearchScope]}
+            {scopeLabel(value)}
             {dashOut ? (
               <span className="ml-1.5 text-(length:--text-nano) text-muted-foreground">—</span>
             ) : count !== null ? (
@@ -545,7 +552,7 @@ export function Search() {
   return (
     <div className="flex h-full min-h-0 flex-col" data-page="search">
       <div className="border-b border-border px-4 py-3 sm:px-6">
-        <h1 className="sr-only">Search</h1>
+        <h1 className="sr-only">{t("nav.search")}</h1>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -565,15 +572,15 @@ export function Search() {
                 }
               }
             }}
-            placeholder="Search tasks, comments, documents, artifacts, agents, projects…"
-            aria-label="Search query"
+            placeholder={t("dashboardPage.search.placeholder")}
+            aria-label={t("dashboardPage.search.queryAria")}
             className="h-10 pl-9 pr-20 text-sm"
           />
           {draftQuery.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
-              aria-label="Clear search"
+              aria-label={t("dashboardPage.search.clearAria")}
               className="absolute right-12 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent/50"
             >
               <X className="h-3.5 w-3.5" />
@@ -602,7 +609,7 @@ export function Search() {
                 <button
                   key={suggestion.token}
                   type="button"
-                  aria-label={`Insert operator ${suggestion.token}`}
+                  aria-label={t("dashboardPage.search.insertOperatorAria", { token: suggestion.token })}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
                     setDraftQuery(applySearchOperatorSuggestion(draftQuery, suggestion.token));
@@ -611,15 +618,19 @@ export function Search() {
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 hover:bg-accent/60"
                 >
                   <span className="font-mono text-(length:--text-micro)">{suggestion.token}</span>
-                  <span className="hidden text-(length:--text-micro) sm:inline">{suggestion.description}</span>
+                  <span className="hidden text-(length:--text-micro) sm:inline">
+                    {t(`dashboardPage.search.operatorSuggestions.${suggestion.copyKey}`)}
+                  </span>
                 </button>
               ))}
             </div>
           ) : (
             <span className="truncate">
-              Try <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)">status:todo</code>,{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)">assignee:me</code>,{" "}
-              or <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)">updated:&gt;7d</code>.
+              <Trans
+                i18nKey="dashboardPage.search.tryOperators"
+                values={{ status: "status:todo", assignee: "assignee:me", updated: "updated:>7d" }}
+                components={{ code: <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)" /> }}
+              />
             </span>
           )}
         </div>
@@ -683,7 +694,7 @@ export function Search() {
                 totalResults={totalResults}
                 allMatchTotal={allMatchTotal}
                 activeFilterCount={activeFilterCount}
-                sortLabel={SORT_LABELS[sort]}
+                sortLabel={t(SORT_LABELS[sort])}
                 zeroResultsSlot={zeroResultsSlot}
                 isFetching={isFetching && !!data}
                 agentsById={agentsById}
@@ -759,19 +770,20 @@ function SearchTabContent({
   isFetching,
   agentsById,
 }: SearchTabContentProps) {
+  const { t } = useTranslation();
   if (showInitialState) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-10 sm:px-6">
         <div>
-          <h2 className="text-lg font-semibold">Type to search organization memory.</h2>
+          <h2 className="text-lg font-semibold">{t("dashboardPage.search.introTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tasks, comments, plan documents, artifacts, agents, projects — same surface, ranked by relevance.
+            {t("dashboardPage.search.introDescription")}
           </p>
         </div>
         {recentSearches.length > 0 ? (
           <div>
             <div className="mb-2 text-(length:--text-micro) font-semibold uppercase tracking-wide text-muted-foreground">
-              Recent searches
+              {t("dashboardPage.search.recentSearches")}
             </div>
             <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
               {recentSearches.map((entry) => (
@@ -791,16 +803,26 @@ function SearchTabContent({
         ) : null}
         <ul className="space-y-1 text-xs text-muted-foreground">
           <li>
-            <span className="font-medium text-foreground">Identifier lookup:</span> type{" "}
-            <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)">PAP-123</code> to jump straight to a task.
+            <Trans
+              i18nKey="dashboardPage.search.tips.identifierLookup"
+              values={{ identifier: "PAP-123" }}
+              components={{
+                strong: <span className="font-medium text-foreground" />,
+                code: <code className="rounded bg-muted px-1 py-0.5 text-(length:--text-micro)" />,
+              }}
+            />
           </li>
           <li>
-            <span className="font-medium text-foreground">Quoted phrases:</span> wrap a phrase in quotes to match the
-            exact sequence.
+            <Trans
+              i18nKey="dashboardPage.search.tips.quotedPhrases"
+              components={{ strong: <span className="font-medium text-foreground" /> }}
+            />
           </li>
           <li>
-            <span className="font-medium text-foreground">⌘K:</span> reopens the command palette pre-seeded with your
-            current query.
+            <Trans
+              i18nKey="dashboardPage.search.tips.commandPalette"
+              components={{ strong: <span className="font-medium text-foreground" /> }}
+            />
           </li>
         </ul>
       </div>
@@ -812,17 +834,19 @@ function SearchTabContent({
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center gap-3 px-4 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-destructive" aria-hidden />
-        <div className="text-base font-semibold">Couldn’t run that search</div>
+        <div className="text-base font-semibold">{t("dashboardPage.search.error.title")}</div>
         <p className="text-sm text-muted-foreground">
-          {status ? `The server returned ${status}.` : "The request failed."} Your input and filters are still here, so
-          you can retry or fall back to the Tasks filter.
+          {status
+            ? t("dashboardPage.search.error.serverReturned", { status })
+            : t("dashboardPage.search.error.requestFailed")}{" "}
+          {t("dashboardPage.search.error.retryHint")}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button onClick={refetch} variant="default" size="sm">
-            Retry
+            {t("common.actions.retry")}
           </Button>
           <Button onClick={navigateIssuesFallback} variant="outline" size="sm">
-            Open Tasks filter view
+            {t("dashboardPage.search.openTasksFilter")}
           </Button>
         </div>
       </div>
@@ -833,7 +857,7 @@ function SearchTabContent({
     return (
       <div className="flex flex-col gap-2 px-2 py-3 sm:px-4">
         <div className="px-3 text-xs text-muted-foreground" data-testid="search-loading">
-          Searching for &ldquo;{trimmedQuery}&rdquo;…
+          {t("dashboardPage.search.loading", { query: trimmedQuery })}
         </div>
         <div className="flex flex-col">
           <div className="px-3 py-2">
@@ -860,31 +884,36 @@ function SearchTabContent({
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col items-center justify-center gap-3 px-4 py-12 text-center">
         <FileQuestion className="h-10 w-10 text-muted-foreground" aria-hidden />
-        <div className="text-base font-semibold">No results for &ldquo;{trimmedQuery}&rdquo;</div>
+        <div className="text-base font-semibold">
+          {t("dashboardPage.search.empty.title", { query: trimmedQuery })}
+        </div>
         <p className="text-sm text-muted-foreground">
-          We couldn’t find a match in {describeScope(scope).toLowerCase()}. Try widening the scope or rephrasing your
-          query.
+          {t("dashboardPage.search.empty.description", { scope: describeScope(scope).toLowerCase() })}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {scope !== "all" ? (
             <Button onClick={showAllScope} size="sm" variant="outline">
-              Search all scopes
+              {t("dashboardPage.search.empty.searchAllScopes")}
             </Button>
           ) : null}
           <Button onClick={openNewIssue} size="sm" variant="default">
             <Plus className="mr-1.5 h-4 w-4" />
-            Create task from this query
+            {t("dashboardPage.search.empty.createTask")}
           </Button>
           <Button onClick={navigateIssuesFallback} size="sm" variant="ghost">
-            Open Tasks filter view
+            {t("dashboardPage.search.openTasksFilter")}
           </Button>
         </div>
         <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-          <li>Try fewer tokens or a single distinctive term.</li>
+          <li>{t("dashboardPage.search.tips.fewerTokens")}</li>
           <li>
-            Use an identifier shortcut like <code className="rounded bg-muted px-1 py-0.5">PAP-123</code>.
+            <Trans
+              i18nKey="dashboardPage.search.tips.identifierShortcut"
+              values={{ identifier: "PAP-123" }}
+              components={{ code: <code className="rounded bg-muted px-1 py-0.5" /> }}
+            />
           </li>
-          <li>Wrap multi-word phrases in quotes.</li>
+          <li>{t("dashboardPage.search.tips.wrapQuotes")}</li>
         </ul>
       </div>
     );
@@ -897,16 +926,16 @@ function SearchTabContent({
       <div className="flex items-center justify-between py-2 text-(length:--text-micro) uppercase tracking-wide text-muted-foreground">
         <span>
           {allMatchTotal > totalResults
-            ? `${totalResults} of ${allMatchTotal} results`
-            : totalResults === 1
-              ? "1 result"
-              : `${totalResults} results`}
-          {` · sorted by ${sortLabel}`}
+            ? t("dashboardPage.search.results.range", { shown: totalResults, total: allMatchTotal })
+            : t("dashboardPage.search.results.count", { count: totalResults })}
+          {t("dashboardPage.search.results.sortedBy", { sort: sortLabel })}
           {activeFilterCount > 0
-            ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? "filter" : "filters"} active`
+            ? t("dashboardPage.search.results.filtersActive", { count: activeFilterCount })
             : ""}
         </span>
-        {isFetching ? <span aria-live="polite" className="normal-case tracking-normal">Updating…</span> : null}
+        {isFetching
+          ? <span aria-live="polite" className="normal-case tracking-normal">{t("dashboardPage.search.results.updating")}</span>
+          : null}
       </div>
       <div className="flex flex-col gap-y-1 pb-10">
         {results.map((result) => (

@@ -5,8 +5,9 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { api } from "../api/client";
-import { McpConnectPage, McpDevicePage } from "./McpConnect";
+import { AssistantConnectionsPage, McpConnectPage, McpDevicePage } from "./McpConnect";
 
 const route = vi.hoisted(() => ({ id: "request-one", companyId: null as string | null, unavailable: false, canWrite: true, requestedWrite: true, requestedConfigure: false, agentConnection: false, requiresSignIn: false, clientName: "Assistant", clientOrigin: null as string | null, setupUrl: "https://my.paperclip.app/orgs/new", reverseCompanies: false, hideFirst: false }));
 vi.mock("@/lib/router", () => ({
@@ -33,12 +34,12 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-function setup(device = false, agentPairingOnly = false) {
+function setup(device = false, agentPairingOnly = false, assistantConnections = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  const render = () => flushSync(() => root.render(<QueryClientProvider client={client}>{device ? <McpDevicePage initialCode="MIST-YPED" /> : <McpConnectPage agentPairingOnly={agentPairingOnly} />}</QueryClientProvider>));
+  const render = () => flushSync(() => root.render(<QueryClientProvider client={client}>{assistantConnections ? <AssistantConnectionsPage /> : device ? <McpDevicePage initialCode="MIST-YPED" /> : <McpConnectPage agentPairingOnly={agentPairingOnly} />}</QueryClientProvider>));
   render();
   return {
     client, container, render,
@@ -47,6 +48,16 @@ function setup(device = false, agentPairingOnly = false) {
     cleanup: () => { flushSync(() => root.unmount()); container.remove(); client.clear(); },
   };
 }
+
+it("localizes the generic not-found response for assistant connections", async () => {
+  await setLocale("zh-CN");
+  vi.mocked(api.get).mockRejectedValueOnce(new Error("API route not found"));
+  const page = setup(false, false, true);
+  try {
+    await vi.waitFor(() => expect(page.container.textContent).toContain("助手连接接口暂不可用。"));
+    expect(page.container.textContent).not.toContain("API route not found");
+  } finally { page.cleanup(); }
+});
 
 it("lets a person correct an invalid device code without reloading", async () => {
   vi.mocked(api.get).mockRejectedValueOnce(new Error("Invalid code"));

@@ -8,6 +8,7 @@ import { Browse } from "./Browse";
 import { aiConnectionRouterAppDefinition, getAppStoreDefinition } from "@paperclipai/shared";
 import { queryKeys } from "@/lib/queryKeys";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { i18n } from "@/i18n";
 import type { AggregatorAppCatalogEntry } from "@paperclipai/shared/aggregator-app-catalog";
 
 const aggregatorCatalogMock = vi.hoisted(() => [] as AggregatorAppCatalogEntry[]);
@@ -224,8 +225,9 @@ describe("Connectors landing page", () => {
     document.body.appendChild(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     act(() => root?.unmount());
+    await act(async () => { await i18n.changeLanguage("en"); });
     container.remove();
     document.body.innerHTML = "";
     window.history.replaceState({}, "", "/");
@@ -250,6 +252,17 @@ describe("Connectors landing page", () => {
     }
     return client;
   }
+
+  it("localizes bundled connector descriptions and action names", async () => {
+    await act(async () => { await i18n.changeLanguage("zh-CN"); });
+    listGalleryMock.mockResolvedValue({ apps: [getAppStoreDefinition("airtable")] });
+
+    await renderBrowse(false);
+
+    const airtable = container.querySelector<HTMLElement>('[data-app-slug="airtable"]');
+    expect(airtable?.textContent).toContain("在 Paperclip 中使用 Airtable 工具。");
+    expect(airtable?.querySelector("button")?.getAttribute("aria-label")).toBe("连接：Airtable");
+  });
 
   it("shows provider catalog rows and splits legacy gateway accounts by API format", async () => {
     const slugs = ["notion", "openrouter", "bedrock", "google", "responses-api", "messages-api", "chat-completions-api", "local"];

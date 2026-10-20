@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "../i18n";
 import { queryKeys } from "../lib/queryKeys";
 import { PluginSettings } from "./PluginSettings";
 
@@ -147,7 +148,10 @@ async function renderSettings(
 describe("PluginSettings", () => {
   let container: HTMLDivElement;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -163,10 +167,29 @@ describe("PluginSettings", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+  });
+
+  it("localizes the plugin status badge", async () => {
+    mockPluginsApi.get.mockResolvedValue(basePlugin({ status: "ready" }));
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+
+    const root = await renderSettings(container);
+
+    expect(container.textContent).toContain("就绪");
+    expect(container.textContent).not.toContain("ready");
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it("routes environment-provider plugins to instance environments when they have no instance config", async () => {

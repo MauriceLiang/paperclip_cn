@@ -6,6 +6,8 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useSmokeLabEnabled } from "@/hooks/useSmokeLabEnabled";
 import { advancedTabHref } from "@/pages/tools/tool-tabs";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
 import { failingPaths, runHealth, type SmokeHealth } from "@/pages/tools/smoke-lab-matrix";
 
 const HEALTH_DOT: Record<SmokeHealth, string> = {
@@ -15,19 +17,12 @@ const HEALTH_DOT: Record<SmokeHealth, string> = {
   unknown: "bg-muted-foreground/40",
 };
 
-const HEALTH_LABEL: Record<SmokeHealth, string> = {
-  green: "All paths passing",
-  amber: "Needs a run",
-  red: "Failing paths",
-  unknown: "No runs yet",
+const HEALTH_LABEL_KEY: Record<SmokeHealth, string> = {
+  green: "dashboardPage.smokeLabCard.health.allPassing",
+  amber: "dashboardPage.smokeLabCard.health.needsRun",
+  red: "dashboardPage.smokeLabCard.health.failingPaths",
+  unknown: "dashboardPage.smokeLabCard.health.noRuns",
 };
-
-function formatTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  const date = new Date(value as string | Date);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
-}
 
 /**
  * Compact "Integration smoke" dashboard card (PAP-13347 / S2, plan §D3).
@@ -37,6 +32,7 @@ function formatTime(value: string | Date | null | undefined): string {
  * the Developer › Smoke Lab tab.
  */
 export function SmokeLabDashboardCard({ companyId }: { companyId: string }) {
+  const { t } = useTranslation();
   const { enabled, loaded } = useSmokeLabEnabled();
 
   const runsQuery = useQuery({
@@ -72,14 +68,14 @@ export function SmokeLabDashboardCard({ companyId }: { companyId: string }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", HEALTH_DOT[health])} />
-            <p className="truncate text-sm font-semibold text-foreground">Integration smoke</p>
+            <p className="truncate text-sm font-semibold text-foreground">{t("dashboardPage.smokeLabCard.title")}</p>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {HEALTH_LABEL[health]}
+            {t(HEALTH_LABEL_KEY[health])}
             {failing.length > 0 && `: ${failing.join(", ")}`}
           </p>
           <p className="mt-0.5 truncate text-(length:--text-micro) text-muted-foreground/80">
-            {latestRun ? `Last run ${formatTime(latestRun.startedAt)}` : "Run one from the Smoke Lab tab"}
+            {latestRun ? t("dashboardPage.smokeLabCard.lastRun", { time: formatDateTime(latestRun.startedAt) }) : t("dashboardPage.smokeLabCard.runOne")}
           </p>
         </div>
       </div>

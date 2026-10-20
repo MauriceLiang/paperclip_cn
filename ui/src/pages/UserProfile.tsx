@@ -6,6 +6,7 @@ import {
   type UserProfileDailyPoint,
   type UserProfileWindowStats,
 } from "@paperclipai/shared";
+import { useTranslation } from "@/i18n";
 import { Link, useParams } from "@/lib/router";
 import { authApi } from "../api/auth";
 import { userProfilesApi } from "../api/userProfiles";
@@ -17,6 +18,7 @@ import { IssueStatusBadge } from "../components/StatusBadge";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useCompany } from "../context/CompanyContext";
 import { useHiddenSettings } from "../hooks/useHiddenSettings";
+import { formatActivityVerb } from "../lib/activity-format";
 import { queryKeys } from "../lib/queryKeys";
 import {
   formatCents,
@@ -31,9 +33,27 @@ import {
 
 const NO_COMPANY = "__none__";
 const PROFILE_SETTINGS_PATH = "/company/settings/instance/profile";
+const PROFILE_WINDOW_LABEL_KEYS: Record<UserProfileWindowStats["key"], string> = {
+  last7: "usersPage.profile.window.last7",
+  last30: "usersPage.profile.window.last30",
+  all: "usersPage.profile.window.all",
+};
+const PROFILE_ROLE_LABEL_KEYS: Record<string, string> = {
+  owner: "usersPage.profile.roles.owner",
+  admin: "usersPage.profile.roles.admin",
+  operator: "usersPage.profile.roles.operator",
+  viewer: "usersPage.profile.roles.viewer",
+  member: "usersPage.profile.roles.member",
+};
+const PROFILE_STATUS_LABEL_KEYS: Record<string, string> = {
+  active: "usersPage.profile.statuses.active",
+  pending: "usersPage.profile.statuses.pending",
+  suspended: "usersPage.profile.statuses.suspended",
+  archived: "usersPage.profile.statuses.archived",
+};
 
-function initials(name: string | null | undefined) {
-  const value = name?.trim() || "User";
+function initials(name: string | null | undefined, fallbackName: string) {
+  const value = name?.trim() || fallbackName;
   const parts = value.split(/\s+/).filter(Boolean);
   if (parts.length > 1) return `${parts[0]?.[0] ?? ""}${parts[parts.length - 1]?.[0] ?? ""}`.toUpperCase();
   return value.slice(0, 2).toUpperCase();
@@ -59,29 +79,34 @@ function HeroStat({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 function WindowColumn({ stats }: { stats: UserProfileWindowStats }) {
+  const { t } = useTranslation();
   const tokens = totalTokens(stats);
   return (
     <div className="flex min-w-0 flex-col gap-4 border-l border-border pl-5 first:border-l-0 first:pl-0">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-(length:--text-micro) font-medium uppercase tracking-wide text-muted-foreground">{stats.label}</h2>
-        <span className="text-(length:--text-micro) text-muted-foreground tabular-nums">{completionRate(stats)} done</span>
+        <h2 className="text-(length:--text-micro) font-medium uppercase tracking-wide text-muted-foreground">
+          {t(PROFILE_WINDOW_LABEL_KEYS[stats.key])}
+        </h2>
+        <span className="text-(length:--text-micro) text-muted-foreground tabular-nums">
+          {t("usersPage.profile.done", { rate: completionRate(stats) })}
+        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-x-5 gap-y-3">
-        <Metric value={formatNumber(stats.touchedIssues)} label="Touched" />
-        <Metric value={formatNumber(stats.completedIssues)} label="Completed" />
-        <Metric value={formatNumber(stats.commentCount)} label="Comments" />
-        <Metric value={formatNumber(stats.activityCount)} label="Actions" />
+        <Metric value={formatNumber(stats.touchedIssues)} label={t("usersPage.profile.metrics.touched")} />
+        <Metric value={formatNumber(stats.completedIssues)} label={t("usersPage.profile.metrics.completed")} />
+        <Metric value={formatNumber(stats.commentCount)} label={t("usersPage.profile.metrics.comments")} />
+        <Metric value={formatNumber(stats.activityCount)} label={t("usersPage.profile.metrics.actions")} />
       </div>
 
       <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 pt-3 text-xs tabular-nums text-muted-foreground">
-        <span>Tokens</span>
+        <span>{t("usersPage.profile.metrics.tokens")}</span>
         <span className="text-right text-foreground">{formatTokens(tokens)}</span>
-        <span>Spend</span>
+        <span>{t("usersPage.profile.metrics.spend")}</span>
         <span className="text-right text-foreground">{formatCents(stats.costCents)}</span>
-        <span>Created</span>
+        <span>{t("usersPage.profile.metrics.created")}</span>
         <span className="text-right text-foreground">{formatNumber(stats.createdIssues)}</span>
-        <span>Open</span>
+        <span>{t("usersPage.profile.metrics.open")}</span>
         <span className="text-right text-foreground">{formatNumber(stats.assignedOpenIssues)}</span>
       </div>
     </div>
@@ -98,6 +123,7 @@ function Metric({ value, label }: { value: string; label: string }) {
 }
 
 function UsageChart({ points }: { points: UserProfileDailyPoint[] }) {
+  const { t } = useTranslation();
   const totals = points.map((point) => totalTokens(point));
   const maxTokens = Math.max(1, ...totals);
   const maxCompleted = Math.max(1, ...points.map((point) => point.completedIssues));
@@ -106,10 +132,10 @@ function UsageChart({ points }: { points: UserProfileDailyPoint[] }) {
   return (
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
-        <h2 className="text-sm font-semibold">Last 14 days</h2>
+        <h2 className="text-sm font-semibold">{t("usersPage.profile.chart.title")}</h2>
         <div className="flex items-baseline gap-4 text-xs text-muted-foreground">
           <span className="tabular-nums text-foreground">{formatTokens(totalTokensSum)}</span>
-          <span>tokens total</span>
+          <span>{t("usersPage.profile.chart.tokensTotal")}</span>
         </div>
       </div>
       <div className="mt-6 grid grid-cols-(--gtc-57) items-end gap-1.5 sm:gap-2">
@@ -124,7 +150,11 @@ function UsageChart({ points }: { points: UserProfileDailyPoint[] }) {
               <div
                 className="w-full bg-foreground/80 transition-opacity group-hover:bg-foreground"
                 style={{ height: `${heightPct}%`, minHeight: tokens === 0 ? 1 : undefined }}
-                title={`${formatShortDate(point.date)}: ${formatTokens(tokens)} tokens, ${point.completedIssues} completed`}
+                title={t("usersPage.profile.chart.pointTitle", {
+                  date: formatShortDate(point.date),
+                  tokens: formatTokens(tokens),
+                  completed: formatNumber(point.completedIssues),
+                })}
               />
               {completedPct > 0 ? (
                 <div
@@ -145,10 +175,10 @@ function UsageChart({ points }: { points: UserProfileDailyPoint[] }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-4 text-(length:--text-nano) uppercase tracking-wide text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 bg-foreground/80" /> tokens / day
+          <span className="h-2 w-2 bg-foreground/80" /> {t("usersPage.profile.chart.tokensPerDay")}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-(--sz-3px) w-4 rounded-full bg-emerald-500/80" /> completions
+          <span className="h-(--sz-3px) w-4 rounded-full bg-emerald-500/80" /> {t("usersPage.profile.chart.completions")}
         </span>
       </div>
     </section>
@@ -203,6 +233,7 @@ function UsageList({
 }
 
 export function UserProfile() {
+  const { t } = useTranslation();
   const { userSlug = "" } = useParams<{ userSlug: string }>();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
@@ -227,25 +258,26 @@ export function UserProfile() {
     !hidesInstancePage(hiddenSettings, "instance.profile");
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Users" }, { label: data?.user.name ?? userSlug }]);
-  }, [data?.user.name, setBreadcrumbs, userSlug]);
+    setBreadcrumbs([{ label: t("usersPage.profile.breadcrumb") }, { label: data?.user.name ?? userSlug }]);
+  }, [data?.user.name, setBreadcrumbs, t, userSlug]);
 
   const allTime = data?.stats.find((entry) => entry.key === "all");
   const last7 = data?.stats.find((entry) => entry.key === "last7");
-  const displayName = data?.user.name?.trim() || data?.user.email?.split("@")[0] || "User";
+  const displayName =
+    data?.user.name?.trim() || data?.user.email?.split("@")[0] || t("usersPage.profile.fallbackUser");
 
   const agentUsageRows = useMemo<UsageRow[]>(
     () =>
       (data?.topAgents ?? []).map((row) => ({
         key: row.agentId ?? "unknown",
-        label: row.agentName ?? (row.agentId ? row.agentId.slice(0, 8) : "Paperclip services"),
-        sublabel: "Task-linked usage",
+        label: row.agentName ?? (row.agentId ? row.agentId.slice(0, 8) : t("usersPage.profile.paperclipServices")),
+        sublabel: t("usersPage.profile.taskLinkedUsage"),
         costCents: row.costCents,
         inputTokens: row.inputTokens,
         cachedInputTokens: row.cachedInputTokens,
         outputTokens: row.outputTokens,
       })),
-    [data?.topAgents],
+    [data?.topAgents, t],
   );
 
   const providerUsageRows = useMemo<UsageRow[]>(
@@ -253,17 +285,17 @@ export function UserProfile() {
       (data?.topProviders ?? []).map((row) => ({
         key: `${row.provider}:${row.biller}:${row.model}`,
         label: `${providerDisplayName(row.provider)} / ${row.model}`,
-        sublabel: `Billed through ${providerDisplayName(row.biller)}`,
+        sublabel: t("usersPage.profile.billedThrough", { provider: providerDisplayName(row.biller) }),
         costCents: row.costCents,
         inputTokens: row.inputTokens,
         cachedInputTokens: row.cachedInputTokens,
         outputTokens: row.outputTokens,
       })),
-    [data?.topProviders],
+    [data?.topProviders, t],
   );
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={UserRound} message="Select an organization to view user profiles." />;
+    return <EmptyState icon={UserRound} message={t("usersPage.profile.selectOrganization")} />;
   }
 
   if (isLoading) {
@@ -271,14 +303,16 @@ export function UserProfile() {
   }
 
   if (error || !data) {
-    return <EmptyState icon={AlertCircle} message="User profile not found for this organization." />;
+    return <EmptyState icon={AlertCircle} message={t("usersPage.profile.notFound")} />;
   }
 
   const allTimeTokens = allTime ? totalTokens(allTime) : 0;
+  const role = data.user.membershipRole ?? "member";
+  const status = data.user.membershipStatus;
   const metaParts = [
-    data.user.membershipRole ?? "member",
-    data.user.membershipStatus,
-    `joined ${formatDate(data.user.joinedAt)}`,
+    PROFILE_ROLE_LABEL_KEYS[role] ? t(PROFILE_ROLE_LABEL_KEYS[role]!) : role,
+    PROFILE_STATUS_LABEL_KEYS[status] ? t(PROFILE_STATUS_LABEL_KEYS[status]!) : status,
+    t("usersPage.profile.joined", { date: formatDate(data.user.joinedAt) }),
   ];
 
   return (
@@ -287,7 +321,9 @@ export function UserProfile() {
         <div className="flex flex-wrap items-center gap-5">
           <Avatar className="size-16 border border-border" size="lg">
             {data.user.image ? <AvatarImage src={data.user.image} alt={displayName} /> : null}
-            <AvatarFallback className="text-lg font-semibold">{initials(displayName)}</AvatarFallback>
+          <AvatarFallback className="text-lg font-semibold">
+            {initials(displayName, t("usersPage.profile.fallbackUser"))}
+          </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -304,17 +340,33 @@ export function UserProfile() {
             <Button asChild variant="outline" size="sm">
               <Link to={PROFILE_SETTINGS_PATH}>
                 <UserRoundPen />
-                Edit profile
+                {t("usersPage.profile.editProfile")}
               </Link>
             </Button>
           ) : null}
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <HeroStat label="All-time tokens" value={formatTokens(allTimeTokens)} hint={formatCents(allTime?.costCents ?? 0) + " spent"} />
-          <HeroStat label="Completed" value={formatNumber(allTime?.completedIssues ?? 0)} hint={allTime ? `${completionRate(allTime)} rate` : undefined} />
-          <HeroStat label="Open assigned" value={formatNumber(allTime?.assignedOpenIssues ?? 0)} hint={`${formatNumber(allTime?.createdIssues ?? 0)} created`} />
-          <HeroStat label="7-day actions" value={formatNumber(last7?.activityCount ?? 0)} hint={`${formatNumber(last7?.commentCount ?? 0)} comments`} />
+          <HeroStat
+            label={t("usersPage.profile.metrics.tokens")}
+            value={formatTokens(allTimeTokens)}
+            hint={t("usersPage.profile.hints.spent", { amount: formatCents(allTime?.costCents ?? 0) })}
+          />
+          <HeroStat
+            label={t("usersPage.profile.metrics.completed")}
+            value={formatNumber(allTime?.completedIssues ?? 0)}
+            hint={allTime ? t("usersPage.profile.hints.completionRate", { rate: completionRate(allTime) }) : undefined}
+          />
+          <HeroStat
+            label={t("usersPage.profile.metrics.open")}
+            value={formatNumber(allTime?.assignedOpenIssues ?? 0)}
+            hint={t("usersPage.profile.hints.createdCount", { count: formatNumber(allTime?.createdIssues ?? 0) })}
+          />
+          <HeroStat
+            label={t("usersPage.profile.metrics.actions")}
+            value={formatNumber(last7?.activityCount ?? 0)}
+            hint={t("usersPage.profile.hints.commentsCount", { count: formatNumber(last7?.commentCount ?? 0) })}
+          />
         </div>
       </section>
 
@@ -327,11 +379,11 @@ export function UserProfile() {
       <div className="grid gap-10 pt-2 xl:grid-cols-2">
         <section>
           <div className="flex items-baseline justify-between gap-3 border-b border-border pb-3">
-            <h2 className="text-sm font-semibold">Recent tasks</h2>
+            <h2 className="text-sm font-semibold">{t("usersPage.profile.recentTasks")}</h2>
             <span className="text-xs text-muted-foreground tabular-nums">{data.recentIssues.length}</span>
           </div>
           {data.recentIssues.length === 0 ? (
-            <div className="pt-4 text-sm text-muted-foreground">No touched tasks yet.</div>
+            <div className="pt-4 text-sm text-muted-foreground">{t("usersPage.profile.noTouchedTasks")}</div>
           ) : (
             <ul className="divide-y divide-border">
               {data.recentIssues.map((issue) => (
@@ -355,17 +407,17 @@ export function UserProfile() {
 
         <section>
           <div className="flex items-baseline justify-between gap-3 border-b border-border pb-3">
-            <h2 className="text-sm font-semibold">Recent activity</h2>
+            <h2 className="text-sm font-semibold">{t("usersPage.profile.recentActivity")}</h2>
             <span className="text-xs text-muted-foreground tabular-nums">{data.recentActivity.length}</span>
           </div>
           {data.recentActivity.length === 0 ? (
-            <div className="pt-4 text-sm text-muted-foreground">No direct user actions recorded yet.</div>
+            <div className="pt-4 text-sm text-muted-foreground">{t("usersPage.profile.noDirectActivity")}</div>
           ) : (
             <ul className="divide-y divide-border">
               {data.recentActivity.map((event) => (
                 <li key={event.id} className="grid gap-2 py-2.5 sm:grid-cols-(--gtc-17) sm:items-center">
                   <div className="min-w-0">
-                    <div className="truncate text-sm">{event.action.replaceAll("_", " ")}</div>
+                    <div className="truncate text-sm">{formatActivityVerb(event.action, event.details)}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       {event.entityType} · {event.entityId.slice(0, 12)}
                     </div>
@@ -379,8 +431,16 @@ export function UserProfile() {
       </div>
 
       <div className="grid gap-10 xl:grid-cols-2">
-        <UsageList title="Agent attribution" empty="No issue-linked token usage yet." rows={agentUsageRows} />
-        <UsageList title="Provider mix" empty="No provider usage attributed yet." rows={providerUsageRows} />
+        <UsageList
+          title={t("usersPage.profile.agentAttribution")}
+          empty={t("usersPage.profile.noIssueLinkedUsage")}
+          rows={agentUsageRows}
+        />
+        <UsageList
+          title={t("usersPage.profile.providerMix")}
+          empty={t("usersPage.profile.noProviderUsage")}
+          rows={providerUsageRows}
+        />
       </div>
     </div>
   );

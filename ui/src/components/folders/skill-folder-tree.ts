@@ -144,15 +144,32 @@ export function folderBreadcrumbTrail(
   return trail;
 }
 
+export interface ReservedRootLabels {
+  mySkills: string;
+  projects: string;
+  bundled: string;
+  organization?: string;
+}
+
+const DEFAULT_RESERVED_ROOT_LABELS: ReservedRootLabels = {
+  mySkills: "My Skills",
+  projects: "Projects",
+  bundled: "Bundled",
+  organization: "Organization",
+};
+
 /** Human label for a reserved root, used when composing breadcrumb prefixes. */
-export function reservedRootLabel(folder: Pick<FolderListItem, "systemKey" | "name">): string {
+export function reservedRootLabel(
+  folder: Pick<FolderListItem, "systemKey" | "name">,
+  labels: ReservedRootLabels = DEFAULT_RESERVED_ROOT_LABELS,
+): string {
   switch (folder.systemKey) {
     case "my":
-      return "My Skills";
+      return labels.mySkills;
     case "projects":
-      return "Projects";
+      return labels.projects;
     case "bundled":
-      return "Bundled";
+      return labels.bundled;
     default:
       return folder.name;
   }
@@ -162,13 +179,14 @@ export function reservedRootLabel(folder: Pick<FolderListItem, "systemKey" | "na
 export function skillFolderDisplayPath(
   model: SkillFolderTreeModel,
   folderId: string | null | undefined,
+  labels: ReservedRootLabels = DEFAULT_RESERVED_ROOT_LABELS,
 ): string | null {
   if (!folderId) return null;
   const trail = folderBreadcrumbTrail(model, folderId);
   if (trail.length === 0) return null;
-  const labels = trail.map((folder) => reservedRootLabel(folder));
-  if (!trail[0]?.systemKey) labels.unshift("Organization");
-  return labels.join(" / ");
+  const pathLabels = trail.map((folder) => reservedRootLabel(folder, labels));
+  if (!trail[0]?.systemKey) pathLabels.unshift(labels.organization ?? DEFAULT_RESERVED_ROOT_LABELS.organization!);
+  return pathLabels.join(" / ");
 }
 
 function humanizeFolderPathSegment(segment: string): string {
@@ -177,7 +195,10 @@ function humanizeFolderPathSegment(segment: string): string {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export function skillFolderPathDisplayFallback(folderPath: string | null | undefined): string | null {
+export function skillFolderPathDisplayFallback(
+  folderPath: string | null | undefined,
+  labels: ReservedRootLabels = DEFAULT_RESERVED_ROOT_LABELS,
+): string | null {
   if (!folderPath) return null;
   if (folderPath.includes(" / ")) return folderPath;
 
@@ -185,12 +206,12 @@ export function skillFolderPathDisplayFallback(folderPath: string | null | undef
   if (segments.length === 0) return null;
 
   const root = segments[0]?.toLowerCase();
-  const labels = segments.map(humanizeFolderPathSegment);
-  if (root === "my") labels[0] = "My Skills";
-  else if (root === "projects") labels[0] = "Projects";
-  else if (root === "bundled") labels[0] = "Bundled";
-  else labels.unshift("Organization");
-  return labels.join(" / ");
+  const displayLabels = segments.map(humanizeFolderPathSegment);
+  if (root === "my") displayLabels[0] = labels.mySkills;
+  else if (root === "projects") displayLabels[0] = labels.projects;
+  else if (root === "bundled") displayLabels[0] = labels.bundled;
+  else displayLabels.unshift(labels.organization ?? DEFAULT_RESERVED_ROOT_LABELS.organization!);
+  return displayLabels.join(" / ");
 }
 
 export function emptySkillFolderTree(): SkillFolderTreeModel {

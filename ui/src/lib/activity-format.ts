@@ -1,3 +1,5 @@
+import { t as translate } from "@/i18n";
+import { priorityLabel, statusLabel } from "@/i18n/status";
 import type { Agent } from "@paperclipai/shared";
 import type { CompanyUserProfile } from "./company-members";
 import { formatReviewPolicyValue } from "./review-policy";
@@ -20,6 +22,162 @@ interface ActivityFormatOptions {
   agentMap?: Map<string, Agent>;
   userProfileMap?: Map<string, CompanyUserProfile>;
   currentUserId?: string | null;
+}
+
+const ACTIVITY_TEXT_KEYS: Record<string, string> = {
+  "created": "activityText.p000",
+  "updated": "activityText.p001",
+  "read": "activityText.p002",
+  "marked unread": "activityText.p003",
+  "checked out": "activityText.p004",
+  "released": "activityText.p005",
+  "commented on": "activityText.p006",
+  "cancelled a queued comment on": "activityText.p007",
+  "edited a queued comment on": "activityText.p008",
+  "reordered queued comments on": "activityText.p009",
+  "discarded a queued comment on": "activityText.p010",
+  "deleted a comment on": "activityText.p011",
+  "attached file to": "activityText.p012",
+  "removed attachment from": "activityText.p013",
+  "created document for": "activityText.p014",
+  "updated document on": "activityText.p015",
+  "locked document on": "activityText.p016",
+  "unlocked document on": "activityText.p017",
+  "deleted document from": "activityText.p018",
+  "scheduled monitor on": "activityText.p019",
+  "triggered monitor for": "activityText.p020",
+  "cleared monitor on": "activityText.p021",
+  "skipped monitor for": "activityText.p022",
+  "exhausted monitor on": "activityText.p023",
+  "queued monitor recovery for": "activityText.p024",
+  "created monitor recovery for": "activityText.p025",
+  "escalated monitor for": "activityText.p026",
+  "deleted": "activityText.p027",
+  "flagged missing next step on": "activityText.p028",
+  "recorded next step chosen on": "activityText.p029",
+  "escalated missing next step on": "activityText.p030",
+  "updated accepted-plan decomposition on": "activityText.p031",
+  "opened a recovery action on": "activityText.p032",
+  "resolved the recovery action on": "activityText.p033",
+  "escalated the recovery action on": "activityText.p034",
+  "paused": "activityText.p035",
+  "resumed": "activityText.p036",
+  "cleared error on": "activityText.p037",
+  "terminated": "activityText.p038",
+  "created API key for": "activityText.p039",
+  "updated budget for": "activityText.p040",
+  "reset session for": "activityText.p041",
+  "invoked heartbeat for": "activityText.p042",
+  "cancelled heartbeat for": "activityText.p043",
+  "system-folded stale run on": "activityText.p044",
+  "refused recovery-on-recovery for": "activityText.p045",
+  "requested approval": "activityText.p046",
+  "approved": "activityText.p047",
+  "rejected": "activityText.p048",
+  "asked for a decision on": "activityText.p049",
+  "accepted the request on": "activityText.p050",
+  "rejected the request on": "activityText.p051",
+  "answered the request on": "activityText.p052",
+  "withdrew the request on": "activityText.p053",
+  "cancelled the request on": "activityText.p054",
+  "skipped the request on": "activityText.p055",
+  "expired the request on": "activityText.p056",
+  "submitted verdicts on": "activityText.p057",
+  "recorded a review verdict on": "activityText.p058",
+  "reported cost for": "activityText.p059",
+  "recorded cost for": "activityText.p060",
+  "created organization": "activityText.p061",
+  "updated organization": "activityText.p062",
+  "archived": "activityText.p063",
+  "reactivated": "activityText.p064",
+  "exported the agent audit log for": "activityText.p065",
+  "connected": "activityText.p066",
+  "connected credentials for": "activityText.p067",
+  "failed to connect credentials for": "activityText.p068",
+  "finished credential access for": "activityText.p069",
+  "finished setup for": "activityText.p070",
+  "reconnected": "activityText.p071",
+  "removed": "activityText.p072",
+  "refreshed actions for": "activityText.p073",
+  "changed agent installs for": "activityText.p074",
+  "extended agent access for": "activityText.p075",
+  "changed human access for": "activityText.p076",
+  "added credentials to": "activityText.p077",
+  "revoked credentials from": "activityText.p078",
+  "delegated credentials for": "activityText.p079",
+  "revoked credential delegation for": "activityText.p080",
+  "created the issue": "activityText.p081",
+  "updated the issue": "activityText.p082",
+  "checked out the issue": "activityText.p083",
+  "released the issue": "activityText.p084",
+  "added a comment": "activityText.p085",
+  "cancelled a queued comment": "activityText.p086",
+  "edited a queued comment": "activityText.p087",
+  "reordered queued comments": "activityText.p088",
+  "discarded a queued comment": "activityText.p089",
+  "deleted a comment": "activityText.p090",
+  "saved feedback on an AI output": "activityText.p091",
+  "added an attachment": "activityText.p092",
+  "removed an attachment": "activityText.p093",
+  "created a document": "activityText.p094",
+  "updated a document": "activityText.p095",
+  "locked a document": "activityText.p096",
+  "unlocked a document": "activityText.p097",
+  "deleted a document": "activityText.p098",
+  "scheduled a monitor": "activityText.p099",
+  "triggered a monitor": "activityText.p100",
+  "cleared a monitor": "activityText.p101",
+  "skipped a monitor": "activityText.p102",
+  "exhausted a monitor": "activityText.p103",
+  "queued a monitor recovery wake": "activityText.p104",
+  "created a monitor recovery issue": "activityText.p105",
+  "escalated a monitor to the board": "activityText.p106",
+  "deleted the issue": "activityText.p107",
+  "Run finished without a clear next step": "activityText.p108",
+  "Next step chosen": "activityText.p109",
+  "Run finished without a next step - recovery escalated": "activityText.p110",
+  "hit the per-run cross-task write cap": "activityText.p111",
+  "made a cross-task write": "activityText.p112",
+  "tried to choose its own responsible user": "activityText.p113",
+  "Opened a source-scoped recovery action": "activityText.p114",
+  "Resolved the recovery action": "activityText.p115",
+  "Escalated the recovery action": "activityText.p116",
+  "updated the accepted-plan decomposition": "activityText.p117",
+  "created an agent": "activityText.p118",
+  "updated the agent": "activityText.p119",
+  "paused the agent": "activityText.p120",
+  "resumed the agent": "activityText.p121",
+  "cleared the agent error": "activityText.p122",
+  "terminated the agent": "activityText.p123",
+  "invoked a heartbeat": "activityText.p124",
+  "cancelled a heartbeat": "activityText.p125",
+  "System folded a stale run": "activityText.p126",
+  "Refused recovery-on-recovery escalation": "activityText.p127",
+  "asked for a decision": "activityText.p128",
+  "accepted the request": "activityText.p129",
+  "rejected the request": "activityText.p130",
+  "answered the request": "activityText.p131",
+  "withdrew the request": "activityText.p132",
+  "cancelled the request": "activityText.p133",
+  "skipped the request": "activityText.p134",
+  "expired the request": "activityText.p135",
+  "submitted verdicts on the request": "activityText.p136",
+  "recorded a review verdict": "activityText.p137",
+  "started local AI sign-in": "activityText.p138",
+  "cancelled local AI sign-in": "activityText.p139",
+  "submitted a local AI sign-in code": "activityText.p140",
+  "changed the default AI connection": "activityText.p141",
+  "refreshed AI connection credentials": "activityText.p142",
+  "failed AI connection authentication": "activityText.p143",
+  "saved the AI connection pool": "activityText.p144",
+  "deleted the AI connection pool": "activityText.p145",
+  "selected an AI connection pool member": "activityText.p146",
+};
+
+function translateActivityPhrase(value: string | undefined): string | undefined {
+  if (!value) return value;
+  const key = ACTIVITY_TEXT_KEYS[value];
+  return key ? translate(key) : value;
 }
 
 const ACTIVITY_ROW_VERBS: Record<string, string> = {
@@ -109,6 +267,17 @@ const ACTIVITY_ROW_VERBS: Record<string, string> = {
   "tool_app.oauth_access_finalized": "finished credential access for",
   "tool_app.finished": "finished setup for",
   "tool_app.reconnected": "reconnected",
+  "ai_connection.local_login_started": "started local AI sign-in",
+  "ai_connection.local_login_cancelled": "cancelled local AI sign-in",
+  "ai_connection.local_login_code_submitted": "submitted a local AI sign-in code",
+  "ai_connection.default_changed": "changed the default AI connection",
+  "ai_connection.connected": "connected",
+  "ai_connection.reconnected": "reconnected",
+  "ai_connection.credential_refreshed": "refreshed AI connection credentials",
+  "ai_connection.authentication_failed": "failed AI connection authentication",
+  "ai_connection.pool_saved": "saved the AI connection pool",
+  "ai_connection.pool_deleted": "deleted the AI connection pool",
+  "ai_connection.pool_selected": "selected an AI connection pool member",
   "tool_connection.created": "created",
   "tool_connection.updated": "updated",
   "tool_connection.archived": "removed",
@@ -237,11 +406,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function humanizeValue(value: unknown): string {
-  if (typeof value !== "string") return String(value ?? "none");
-  return value.replace(/_/g, " ");
-}
-
 function isActivityParticipant(value: unknown): value is ActivityParticipant {
   const record = asRecord(value);
   if (!record) return false;
@@ -265,7 +429,7 @@ function readIssueReferences(details: ActivityDetails, key: string): ActivityIss
 }
 
 function formatUserLabel(userId: string | null | undefined, options: ActivityFormatOptions = {}): string {
-  if (!userId || userId === "local-board") return "Board";
+  if (!userId || userId === "local-board") return translate("shell.account.board");
   if (options.currentUserId && userId === options.currentUserId) return "You";
   const profile = options.userProfileMap?.get(userId);
   if (profile) return profile.label;
@@ -330,16 +494,20 @@ function formatIssueUpdatedVerb(details: ActivityDetails): string | null {
   const previous = asRecord(details._previous) ?? {};
   if (details.status !== undefined) {
     const from = previous.status;
-    const to = humanizeValue(details.status === "in_review" && details.externalConversationState === "waiting" ? "idle" : details.status);
+    const status = details.status === "in_review" && details.externalConversationState === "waiting" ? "idle" : details.status;
+    const to = statusLabel(String(status), translate);
     return from
-      ? `changed status from ${humanizeValue(from)} to ${to} on`
-      : `changed status to ${to} on`;
+      ? translate("activityText.issueChanges.statusVerbFromTo", { from: statusLabel(String(from), translate), to })
+      : translate("activityText.issueChanges.statusVerbTo", { to });
   }
   if (details.priority !== undefined) {
     const from = previous.priority;
     return from
-      ? `changed priority from ${humanizeValue(from)} to ${humanizeValue(details.priority)} on`
-      : `changed priority to ${humanizeValue(details.priority)} on`;
+      ? translate("activityText.issueChanges.priorityVerbFromTo", {
+          from: priorityLabel(String(from), translate),
+          to: priorityLabel(String(details.priority), translate),
+        })
+      : translate("activityText.issueChanges.priorityVerbTo", { to: priorityLabel(String(details.priority), translate) });
   }
   return null;
 }
@@ -349,7 +517,7 @@ function formatAssigneeName(details: ActivityDetails, options: ActivityFormatOpt
   const agentId = details.assigneeAgentId;
   const userId = details.assigneeUserId;
   if (typeof agentId === "string" && agentId) {
-    return options.agentMap?.get(agentId)?.name ?? "agent";
+    return options.agentMap?.get(agentId)?.name ?? translate("common.agent");
   }
   if (typeof userId === "string" && userId) {
     return formatUserLabel(userId, options);
@@ -364,32 +532,40 @@ function formatIssueUpdatedAction(details: ActivityDetails, options: ActivityFor
 
   if (details.status !== undefined) {
     const from = previous.status;
-    const to = humanizeValue(details.status === "in_review" && details.externalConversationState === "waiting" ? "idle" : details.status);
+    const status = details.status === "in_review" && details.externalConversationState === "waiting" ? "idle" : details.status;
+    const to = statusLabel(String(status), translate);
     parts.push(
       from
-        ? `changed the status from ${humanizeValue(from)} to ${to}`
-        : `changed the status to ${to}`,
+        ? translate("activityText.issueChanges.statusActionFromTo", { from: statusLabel(String(from), translate), to })
+        : translate("activityText.issueChanges.statusActionTo", { to }),
     );
   }
   if (details.priority !== undefined) {
     const from = previous.priority;
     parts.push(
       from
-        ? `changed the priority from ${humanizeValue(from)} to ${humanizeValue(details.priority)}`
-        : `changed the priority to ${humanizeValue(details.priority)}`,
+        ? translate("activityText.issueChanges.priorityActionFromTo", {
+            from: priorityLabel(String(from), translate),
+            to: priorityLabel(String(details.priority), translate),
+          })
+        : translate("activityText.issueChanges.priorityActionTo", { to: priorityLabel(String(details.priority), translate) }),
     );
   }
   if (details.assigneeAgentId !== undefined || details.assigneeUserId !== undefined) {
     const assigneeName = formatAssigneeName(details, options);
-    parts.push(assigneeName ? `made ${assigneeName} responsible for the task` : "cleared the responsible");
+    parts.push(assigneeName
+      ? translate("activityText.issueChanges.assigneeSet", { name: assigneeName })
+      : translate("activityText.issueChanges.assigneeCleared"));
   }
   if (details.reviewPolicy !== undefined) {
     // `null` is the default ("anyone can approve"), so it must not read as
     // "changed the review policy to none" (PAP-16506).
-    parts.push(`changed who can approve to ${formatReviewPolicyValue(details.reviewPolicy)}`);
+    parts.push(translate("activityText.issueChanges.reviewPolicy", {
+      value: formatReviewPolicyValue(details.reviewPolicy),
+    }));
   }
-  if (details.title !== undefined) parts.push("updated the title");
-  if (details.description !== undefined) parts.push("updated the description");
+  if (details.title !== undefined) parts.push(translate("activityText.issueChanges.title"));
+  if (details.description !== undefined) parts.push(translate("activityText.issueChanges.description"));
 
   return parts.length > 0 ? parts.join(", ") : null;
 }
@@ -480,7 +656,7 @@ export function formatActivityVerb(
   });
   if (structuredChange) return structuredChange;
 
-  return ACTIVITY_ROW_VERBS[action] ?? action.replace(/[._]/g, " ");
+  return translateActivityPhrase(ACTIVITY_ROW_VERBS[action]) ?? action.replace(/[._]/g, " ");
 }
 
 export function formatIssueActivityAction(
@@ -519,7 +695,7 @@ export function formatIssueActivityAction(
     const serviceName = typeof details.serviceName === "string" && details.serviceName.trim()
       ? details.serviceName.trim()
       : null;
-    const base = ISSUE_ACTIVITY_LABELS[action] ?? action.replace(/[._]/g, " ");
+    const base = translateActivityPhrase(ISSUE_ACTIVITY_LABELS[action]) ?? action.replace(/[._]/g, " ");
     return serviceName ? `${base} for ${serviceName}` : base;
   }
 
@@ -535,8 +711,8 @@ export function formatIssueActivityAction(
   ) {
     const key = typeof details.key === "string" ? details.key : "document";
     const title = typeof details.title === "string" && details.title ? ` (${details.title})` : "";
-    return `${ISSUE_ACTIVITY_LABELS[action] ?? action} ${key}${title}`;
+    return `${translateActivityPhrase(ISSUE_ACTIVITY_LABELS[action]) ?? action} ${key}${title}`;
   }
 
-  return ISSUE_ACTIVITY_LABELS[action] ?? action.replace(/[._]/g, " ");
+  return translateActivityPhrase(ISSUE_ACTIVITY_LABELS[action]) ?? action.replace(/[._]/g, " ");
 }

@@ -1,6 +1,7 @@
 import type { McpConnection, ToolConnection } from "@paperclipai/shared";
 import { humanizeConnectionDisplayName } from "@paperclipai/shared";
 import { Identity } from "@/components/Identity";
+import { useTranslation, t as translate } from "@/i18n";
 import type { CompanyUserProfile } from "@/lib/company-members";
 
 export type ConnectionOwnerProfile = CompanyUserProfile;
@@ -11,20 +12,22 @@ export function connectionOwnerProfile(
 ): ConnectionOwnerProfile | null {
   if (!connection.createdByUserId) return null;
   return profiles.get(connection.createdByUserId) ?? {
-    label: connection.createdByUserId === "local-board" ? "Board" : "Board member",
+    label: connection.createdByUserId === "local-board" ? translate("appsPage.connectionOwner.board") : translate("appsPage.connectionOwner.boardMember"),
     image: null,
   };
 }
 
 function ownerGivenName(label: string): string {
   const trimmed = label.trim();
-  if (!trimmed) return "Board";
+  if (!trimmed) return translate("appsPage.connectionOwner.board");
   const first = trimmed.split(/\s+/)[0] ?? trimmed;
-  return first.includes("@") ? first.split("@")[0] || "Board" : first;
+  return first.includes("@") ? first.split("@")[0] || translate("appsPage.connectionOwner.board") : first;
 }
 
 function possessive(label: string): string {
-  return label.toLowerCase().endsWith("s") ? `${label}’` : `${label}’s`;
+  return label.toLowerCase().endsWith("s")
+    ? translate("appsPage.connectionOwner.possessiveS", { name: label })
+    : translate("appsPage.connectionOwner.possessive", { name: label });
 }
 
 /**
@@ -49,18 +52,19 @@ export function connectionDisplayNameForOwner(
   if (connectionName.trim().toLocaleLowerCase() !== applicationName.trim().toLocaleLowerCase()) {
     return connectionName;
   }
-  return `${possessive(ownerGivenName(owner.label))} ${applicationName}`;
+  return `${possessive(ownerGivenName(owner.label))}${applicationName}`;
 }
 
 /** Use the same owner naming as outbound connections, without changing OAuth client identity. */
 export function assistantConnectionDisplayName(connection: McpConnection): string {
   const clientName = connection.clientName.trim();
-  const owner = connection.user ? `${possessive(ownerGivenName(connection.user.name))} ` : "";
-  return `${owner}${clientName} connection`;
+  const owner = connection.user ? possessive(ownerGivenName(connection.user.name)) : "";
+  return translate("appsPage.connectionOwner.assistantConnectionName", { owner, client: clientName });
 }
 
 export function ConnectionOwnerIdentity({ owner }: { owner: ConnectionOwnerProfile | null }) {
-  if (!owner) return <span className="text-xs text-muted-foreground">Unknown</span>;
+  const { t } = useTranslation();
+  if (!owner) return <span className="text-xs text-muted-foreground">{t("appsPage.connectionOwner.unknown")}</span>;
   return (
     <Identity
       name={owner.label}

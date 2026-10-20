@@ -4,6 +4,7 @@ import { useSearchParams } from "@/lib/router";
 import { useCompany } from "../../context/CompanyContext";
 import { useBreadcrumbs } from "../../context/BreadcrumbContext";
 import { useStreamlinedUiEnabled } from "../../hooks/useStreamlinedUiEnabled";
+import { useTranslation } from "@/i18n";
 import { EmptyState } from "../../components/EmptyState";
 import { AuditFeed, type AuditFeedMode } from "./AuditFeed";
 import { AuditHub } from "./AuditHub";
@@ -19,6 +20,7 @@ export function CompanyActivity() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useTranslation();
   const mode: AuditFeedMode = searchParams.get("mode") === "agents" ? "agents" : "all";
   const actionParam = searchParams.get("action");
   const actionDomain = [
@@ -34,8 +36,8 @@ export function CompanyActivity() {
   ].includes(actionParam ?? "") ? actionParam! : "__all";
 
   useEffect(() => {
-    if (!streamlinedUiEnabled) setBreadcrumbs([{ label: "Activity" }]);
-  }, [setBreadcrumbs, streamlinedUiEnabled]);
+    if (!streamlinedUiEnabled) setBreadcrumbs([{ label: t("nav.activity") }]);
+  }, [setBreadcrumbs, streamlinedUiEnabled, t]);
 
   const handleModeChange = useCallback(
     (next: AuditFeedMode) => {
@@ -67,7 +69,7 @@ export function CompanyActivity() {
   if (streamlinedUiEnabled) return <AuditHub section="activity" />;
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={History} message="Select an organization to view activity." />;
+    return <EmptyState icon={History} message={t("operationsPage.audit.selectOrgActivity")} />;
   }
 
   return (

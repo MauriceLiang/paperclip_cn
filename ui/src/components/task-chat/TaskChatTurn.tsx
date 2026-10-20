@@ -9,6 +9,7 @@ import type {
 } from "./task-chat-model";
 import { TaskChatStatusPill } from "./TaskChatStatusPill";
 import { TaskChatAgentIdentity } from "./TaskChatBubble";
+import { useTranslation } from "@/i18n";
 
 interface TaskChatTurnProps {
   item: TaskChatTurnItem;
@@ -75,8 +76,32 @@ export function TaskChatTurn({
   timestampPrefix,
   leading,
 }: TaskChatTurnProps) {
+  const { t } = useTranslation();
   const streamlined = useStreamlinedTaskChatPresentation();
   const parentRow = !item.settled && item.liveStatus != null;
+  const summaryStatus = item.summary.durationLabel
+    ? t(
+        item.summary.failed
+          ? "taskChatPage.turn.stoppedFor"
+          : "taskChatPage.turn.workedFor",
+        { duration: item.summary.durationLabel },
+      )
+    : t(item.summary.failed ? "taskChatPage.turn.stopped" : "taskChatPage.turn.worked");
+  const summaryMetrics: string[] = [];
+  if (item.summary.durationLabel) summaryMetrics.push(item.summary.durationLabel);
+  if (item.summary.toolCount > 0) {
+    summaryMetrics.push(
+      t("taskChatPage.turn.toolCount", { count: item.summary.toolCount }),
+    );
+  }
+  if (item.summary.added > 0 || item.summary.removed > 0) {
+    summaryMetrics.push(`+${item.summary.added} −${item.summary.removed}`);
+  }
+  if (item.summary.tokensLabel) summaryMetrics.push(item.summary.tokensLabel);
+  const summaryMetricsLabel = summaryMetrics.join(" · ");
+  const fullSummaryLabel = summaryMetricsLabel
+    ? `${summaryStatus} · ${summaryMetricsLabel}`
+    : summaryStatus;
   // The new Paperclip Runner task surface owns one durable chronological
   // timeline. The Worked/Stopped row is its stable header, so it stays directly
   // below the preceding human bubble and above commentary, activity phases,
@@ -100,12 +125,9 @@ export function TaskChatTurn({
             />
           ) : null}
           {!item.historical ? <span className="min-w-0 truncate">
-            {item.continuedAfterSteering ? "Continued after steering · " : ""}
-            {item.summary.durationLabel
-              ? `${item.summary.failed ? "Stopped" : "Worked"} for ${item.summary.durationLabel}`
-              : item.summary.failed
-                ? "Stopped"
-                : "Worked"}
+            {item.continuedAfterSteering
+              ? t("taskChatPage.runner.continuedWith", { label: summaryStatus })
+              : summaryStatus}
           </span> : null}
         </div> : null}
         {item.items.length > 0 ? (
@@ -206,13 +228,9 @@ export function TaskChatTurn({
         <SummaryIcon className="h-3.5 w-3.5 shrink-0" />
       ) : null}
       <span>
-        {item.historical ? "Activity" : item.standaloneHeader && item.summary.durationLabel
-          ? `${item.summary.failed ? "Stopped" : "Worked"} for ${item.summary.durationLabel}`
-          : item.summary.failed
-            ? "Stopped"
-            : "Worked"}
+        {item.historical ? t("taskChatPage.turn.activity") : summaryStatus}
       </span>
-      {!item.standaloneHeader && turnSummaryMetrics(item.summary) ? (
+      {!item.standaloneHeader && summaryMetricsLabel ? (
         // Time/tools/tokens is demoted, not deleted (PAP-502): it stays in the
         // DOM (and the accessible tree) but fades in only on hover/focus so the
         // settled line reads as "2:34 PM · ✓ Worked" at rest. Revealed too when
@@ -220,9 +238,10 @@ export function TaskChatTurn({
         <span
           className="tc-turn-metrics"
           data-visible={open ? "true" : "false"}
+          title={fullSummaryLabel}
         >
           <span className="min-w-0 overflow-hidden whitespace-nowrap font-mono text-(length:--text-micro)">
-            {turnSummaryMetrics(item.summary)}
+            {summaryMetricsLabel}
           </span>
         </span>
       ) : null}

@@ -20,6 +20,7 @@ import {
   computePauseAffectsSummary,
   describeReassignInterrupt,
 } from "../../lib/interrupt-handoff";
+import { i18n } from "@/i18n";
 
 const resolvers: HandoffChipResolvers = {
   agentMap: new Map([
@@ -97,6 +98,15 @@ describe("HandoffWakeRow", () => {
     expect(row.dataset.kind).toBe("agent_wake");
     expect(row.textContent).toContain("queued for QA");
     expect(row.textContent).toContain("interrupted run attached");
+  });
+
+  it("renders wake state in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const host = mount(
+      <HandoffWakeRow to={{ agentId: "agent-qa", userId: null }} resolvers={resolvers} interruptedRunAttached />,
+    );
+    expect(host.textContent).toContain("唤醒");
+    expect(host.textContent).toContain("已排队，等待 QA（附带已中断的运行）");
   });
 
   it("B. user destination = no wake", () => {

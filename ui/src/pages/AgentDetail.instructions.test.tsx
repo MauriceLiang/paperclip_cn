@@ -295,7 +295,7 @@ describe("PromptsTab instruction editor", () => {
 
   async function selectInstructionMode(mode: "Read" | "Edit" | "Raw") {
     await act(async () => {
-      buttonByText(container, mode.toLowerCase()).click();
+      buttonByText(container, mode).click();
     });
     await flushReact();
   }

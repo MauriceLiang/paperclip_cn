@@ -6,6 +6,7 @@ import { AgentAvatar, type AvatarAgent } from "../AgentAvatar";
 import { Identity } from "../Identity";
 import { paperclipHumanAvatarUrl } from "@/lib/issue-chat-human-author";
 import { useCallback, useContext, useState, type ReactNode } from "react";
+import { useTranslation } from "@/i18n";
 import { useEmailComment } from "@/components/EmailMessageCard";
 import type { IssueAttachment } from "@paperclipai/shared";
 import { IssueGalleryContext } from "@/context/IssueGalleryContext";
@@ -26,6 +27,7 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment";
 import {
+  FILE_KIND_TRANSLATION_KEYS,
   extractAttachmentRefs,
   extractImageRefs,
   fileKindForAttachment,
@@ -106,6 +108,7 @@ function galleryItemForMedia(
   src: string,
   name?: string,
   attachment?: ReturnType<typeof hydrateAttachmentRefs>[number],
+  fallbackImageName = "image",
 ): GalleryMediaItem {
   return {
     id: attachment?.id ?? src,
@@ -113,7 +116,7 @@ function galleryItemForMedia(
     openPath: attachment?.openPath,
     downloadPath: attachment?.downloadPath,
     contentType: attachment?.contentType ?? "",
-    originalFilename: name?.trim() ? name : "image",
+    originalFilename: name?.trim() ? name : fallbackImageName,
   };
 }
 
@@ -143,6 +146,7 @@ function TaskChatBubbleContent({
   onTryAgainNoLiveExecutionPath,
   tryAgainNoLiveExecutionPathPending,
 }: TaskChatBubbleProps) {
+  const { t } = useTranslation();
   const streamlined = useStreamlinedTaskChatPresentation();
   const openText = useContext(TextAttachmentContext);
   // Task attachments share the page gallery; standalone images retain the bubble viewer.
@@ -190,7 +194,7 @@ function TaskChatBubbleContent({
     .filter((attachment) => attachment.issueCommentId === item.id)
     .map((attachment) => ({
       id: attachment.id,
-      name: attachment.originalFilename?.trim() || "attachment",
+      name: attachment.originalFilename?.trim() || t("taskChatPage.bubble.attachmentFallback"),
       url: attachment.contentPath,
       contentType: attachment.contentType,
       byteSize: attachment.byteSize,
@@ -211,8 +215,8 @@ function TaskChatBubbleContent({
     lightboxSrc !== null && !mediaRefs.some((ref) => ref.url === lightboxSrc)
       ? // A clicked image the extractor missed (e.g. inline HTML) still gets a
         // single-item lightbox rather than nothing.
-        [galleryItemForMedia(lightboxSrc)]
-      : mediaRefs.map((ref) => galleryItemForMedia(ref.url, ref.name, ref));
+        [galleryItemForMedia(lightboxSrc, undefined, undefined, t("taskChatPage.bubble.imageFallback"))]
+      : mediaRefs.map((ref) => galleryItemForMedia(ref.url, ref.name, ref, t("taskChatPage.bubble.imageFallback")));
   const lightboxIndex =
     lightboxSrc === null
       ? -1
@@ -275,7 +279,7 @@ function TaskChatBubbleContent({
           data-testid="task-chat-bubble-media"
         >
           <span className="text-xs text-muted-foreground">
-            Images · {imageRefs.length}
+            {t("taskChatPage.bubble.imagesCount", { count: imageRefs.length })}
           </span>
           <div className="grid grid-cols-4 gap-2">
             {imageRefs
@@ -285,12 +289,14 @@ function TaskChatBubbleContent({
                   key={ref.url}
                   type="button"
                   className="group aspect-video min-w-0 overflow-hidden rounded-md bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`Open ${ref.name || `image ${index + 1}`}`}
+                  aria-label={t("taskChatPage.bubble.openAria", {
+                    name: ref.name || t("taskChatPage.bubble.imageNumbered", { number: index + 1 }),
+                  })}
                   onClick={() => openImage(ref.url)}
                 >
                   <img
                     src={ref.openPath ?? ref.url}
-                    alt={ref.name}
+                    alt={ref.name || t("taskChatPage.bubble.imageFallback")}
                     loading="lazy"
                     className="h-full w-full object-cover transition-transform group-hover:scale-(--s-1_02)"
                   />
@@ -300,7 +306,7 @@ function TaskChatBubbleContent({
               <button
                 type="button"
                 className="aspect-video min-w-0 rounded-md bg-muted text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Open ${imageRefs.length - 3} more screenshots`}
+                aria-label={t("taskChatPage.bubble.openMoreScreenshots", { count: imageRefs.length - 3 })}
                 onClick={() => openImage(imageRefs[3].url)}
               >
                 +{imageRefs.length - 3}
@@ -308,18 +314,22 @@ function TaskChatBubbleContent({
             ) : null}
           </div>
           <span className="truncate text-xs text-muted-foreground">
-            {imageRefs.map((ref) => ref.name || "image").join(" · ")}
+            {imageRefs.map((ref) => ref.name || t("taskChatPage.bubble.imageFallback")).join(" · ")}
           </span>
         </div>
       ) : null}
       {attachmentRefs.length > 0 ? (
         <div className="flex max-w-(--pct-85) flex-col gap-2">
           <span className="text-xs text-muted-foreground">
-            Files · {attachmentRefs.length}
+            {t("taskChatPage.bubble.filesCount", { count: attachmentRefs.length })}
           </span>
           <AttachmentGroup data-testid="task-chat-bubble-attachments">
             {attachmentRefs.map((ref) => {
               const kind = fileKindForAttachment(ref);
+              const kindTranslationKey = FILE_KIND_TRANSLATION_KEYS[kind.label];
+              const translatedKind = kindTranslationKey
+                ? t(kindTranslationKey)
+                : kind.label;
               const KindIcon = kind.icon;
               const size = formatFileSize(ref.byteSize);
               const video = isVideoLikeOutput(ref.contentType, ref.name);
@@ -330,14 +340,16 @@ function TaskChatBubbleContent({
                   </AttachmentMedia>
                   <AttachmentContent>
                     <AttachmentTitle className="max-w-48">
-                      {ref.name}
+                      {ref.name || t("taskChatPage.bubble.attachmentFallback")}
                     </AttachmentTitle>
                     <AttachmentDescription className="max-w-48">
-                      {size ? `${kind.label} · ${size}` : kind.label}
+                      {size ? `${translatedKind} · ${size}` : translatedKind}
                     </AttachmentDescription>
                   </AttachmentContent>
                   <AttachmentTrigger
-                    aria-label={`Open ${ref.name}`}
+                    aria-label={t("taskChatPage.bubble.openAria", {
+                      name: ref.name || t("taskChatPage.bubble.attachmentFallback"),
+                    })}
                     onClick={video ? () => openImage(ref.url) : undefined}
                     render={video ? <button type="button" /> :
                       <a
@@ -364,7 +376,7 @@ function TaskChatBubbleContent({
           data-testid="task-chat-verification-caveats"
         >
           <p className="font-medium text-amber-800 dark:text-amber-200">
-            Verification caveat
+            {t("taskChatPage.bubble.verificationCaveat")}
           </p>
           <ul className="mt-1 space-y-1 text-muted-foreground">
             {item.verificationCaveats.map((caveat, index) => (
@@ -385,7 +397,9 @@ function TaskChatBubbleContent({
       ) : null}
       {item.optimistic ? (
         <span className="flex items-center gap-1 px-1 text-(length:--text-micro) text-muted-foreground">
-          <span>{item.optimistic === "queued" ? "Queued" : "Sending…"}</span>
+          <span>{item.optimistic === "queued"
+            ? t("taskChatPage.bubble.queued")
+            : t("taskChatPage.bubble.sending")}</span>
           {item.optimistic === "queued" ? queuedAction : null}
         </span>
       ) : attachedTurn ? (
@@ -423,7 +437,7 @@ function TaskChatBubbleContent({
       ) : item.timestamp || sentFromIMessage ? (
         // Timestamps are always visible (round 9) — no longer hover-revealed.
         <span className="px-1 text-(length:--text-micro) text-muted-foreground">
-          {sentFromIMessage ? "Sent from iMessage" : null}
+          {sentFromIMessage ? t("taskChatPage.bubble.sentFromIMessage") : null}
           {sentFromIMessage && item.timestamp ? " · " : null}
           {item.timestamp}
         </span>

@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { queryKeys } from "@/lib/queryKeys";
 import { Companies } from "./Companies";
 
@@ -13,6 +14,7 @@ const mockCompaniesApi = vi.hoisted(() => ({
   remove: vi.fn(),
 }));
 const mockOpenOnboarding = vi.hoisted(() => vi.fn());
+const mockCompanyStatus = vi.hoisted(() => ({ value: "active" }));
 
 vi.mock("../api/companies", () => ({
   companiesApi: mockCompaniesApi,
@@ -25,7 +27,7 @@ vi.mock("../context/CompanyContext", () => ({
         id: "company-1",
         issuePrefix: "PAP",
         name: "Acme Labs",
-        status: "active",
+        status: mockCompanyStatus.value,
         budgetMonthlyCents: 0,
         spentMonthlyCents: 0,
       },
@@ -73,13 +75,15 @@ describe("Companies page", () => {
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
+    mockCompanyStatus.value = "active";
     mockCompaniesApi.stats.mockResolvedValue({});
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    await setLocale("en");
   });
 
   async function renderPage({ cloud }: { cloud?: boolean } = {}) {
@@ -108,6 +112,35 @@ describe("Companies page", () => {
     act(() => {
       root.unmount();
     });
+  });
+
+  it("localizes the company status label without changing its machine value", async () => {
+    await setLocale("zh-CN");
+    const root = await renderPage();
+
+    expect(container.textContent).toContain("活跃");
+    expect(container.textContent).not.toContain("active");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("localizes organization actions for active and archived companies", async () => {
+    await setLocale("zh-CN");
+    mockCompanyStatus.value = "archived";
+    const root = await renderPage();
+
+    const menuTrigger = container.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]');
+    expect(menuTrigger).toBeTruthy();
+    act(() => menuTrigger?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 })));
+    await flushReact();
+
+    expect(document.body.textContent).toContain("重命名");
+    expect(document.body.textContent).toContain("取消归档");
+    expect(document.body.textContent).toContain("删除组织");
+
+    act(() => root.unmount());
   });
 
   it("hides the company wizard on a cloud-managed instance", async () => {

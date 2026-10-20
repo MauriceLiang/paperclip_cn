@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { ThemeProvider } from "../context/ThemeContext";
 import { MarkdownBody } from "./MarkdownBody";
 
@@ -29,7 +30,8 @@ describe("MarkdownBody code block wrapping", () => {
   let root: Root;
   let queryClient: QueryClient;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -42,10 +44,11 @@ describe("MarkdownBody code block wrapping", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     flushSync(() => root.unmount());
     queryClient.clear();
     container.remove();
+    await i18n.changeLanguage("en");
   });
 
   it("toggles fenced code blocks between horizontal scroll and wrapped lines", () => {
@@ -96,5 +99,33 @@ describe("MarkdownBody code block wrapping", () => {
     expect(actions?.getAttribute("data-active")).toBeNull();
     expect(pre?.style.overflowX).toBe("auto");
     expect(pre?.style.whiteSpace).toBe("");
+  });
+
+  it("localizes code block controls and their accessible labels", async () => {
+    await i18n.changeLanguage("zh-CN");
+    flushSync(() => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <MarkdownBody>{"```text\ncopyable snippet\n```"}</MarkdownBody>
+          </ThemeProvider>
+        </QueryClientProvider>,
+      );
+    });
+
+    const wrapButton = container.querySelector<HTMLButtonElement>(
+      ".paperclip-markdown-codeblock-wrap",
+    );
+    const copyButton = container.querySelector<HTMLButtonElement>(
+      ".paperclip-markdown-codeblock-copy",
+    );
+    expect(wrapButton?.getAttribute("aria-label")).toBe("自动换行");
+    expect(copyButton?.getAttribute("aria-label")).toBe("复制代码");
+    expect(copyButton?.textContent).toContain("复制");
+
+    flushSync(() => {
+      wrapButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(wrapButton?.getAttribute("aria-label")).toBe("取消自动换行");
   });
 });

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { InboxAgentPolicy } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InboxAgentPolicyControl } from "./InboxAgentPolicyControl";
+import { i18n } from "@/i18n";
 
 const mockAgentsApi = vi.hoisted(() => ({ list: vi.fn() }));
 const mockInboxAgentPolicyApi = vi.hoisted(() => ({ getMine: vi.fn(), updateMine: vi.fn() }));
@@ -79,7 +80,8 @@ function optionByTitle(container: HTMLElement, title: string) {
 describe("InboxAgentPolicyControl", () => {
   let container: HTMLDivElement;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     mockAgentsApi.list.mockResolvedValue([
@@ -93,9 +95,10 @@ describe("InboxAgentPolicyControl", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    await i18n.changeLanguage("en");
   });
 
   it("surfaces policy load failures instead of staying on loading", async () => {
@@ -122,6 +125,28 @@ describe("InboxAgentPolicyControl", () => {
       expect(optionByTitle(container, "Off")).toBeTruthy();
       expect(optionByTitle(container, "Off")?.getAttribute("aria-checked")).toBe("true");
       expect(optionByTitle(container, "Any of my agents")?.getAttribute("aria-checked")).toBe("false");
+    });
+
+    act(() => root.unmount());
+  });
+
+  it("localizes policy copy and accessible names", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const root = render(container);
+    await flush();
+
+    await waitForAssertion(() => {
+      expect(container.querySelector("section")?.getAttribute("aria-label")).toBe(
+        "让 Agent 整理我的收件箱",
+      );
+      expect(container.textContent).toContain("选择是否允许你管理的 Agent 代你将任务从收件箱中归档。");
+      expect(container.textContent).toContain("我管理的任意 Agent");
+      expect(container.textContent).toContain("仅限指定 Agent");
+      expect(container.textContent).toContain("关闭");
+      expect(container.querySelector('[role="radiogroup"]')?.getAttribute("aria-label")).toBe(
+        "Agent 收件箱归档策略",
+      );
+      expect(container.textContent).toContain("保存");
     });
 
     act(() => root.unmount());

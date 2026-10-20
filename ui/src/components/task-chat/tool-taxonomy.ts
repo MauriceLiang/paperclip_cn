@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { McpIcon } from "./McpIcon";
+import { i18n, t as translate } from "@/i18n";
+import type { TOptions } from "i18next";
 
 /** Lucide icons and hand-rolled SVGs (the MCP logo) share this shape. */
 export type ToolIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -124,9 +126,13 @@ function sentenceCase(words: readonly string[]): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function translatedLabel(key: string, fallback: string, options: TOptions = {}) {
+  return i18n.exists(key) ? translate(key, { ...options, defaultValue: fallback }) : fallback;
+}
+
 export function humanizeToolName(name: string | undefined | null): string {
   const raw = (name ?? "").trim();
-  if (isGenericToolName(raw)) return "Unnamed tool";
+  if (isGenericToolName(raw)) return translatedLabel("taskChatPage.tool.unnamed", "Unnamed tool");
   const mcp = mcpToolIdentity(raw);
   return sentenceCase(identifierWords(mcp?.name ?? raw));
 }
@@ -383,17 +389,36 @@ export function toolActivityPresentation(input: ToolActivityPresentationInput): 
         : isGenericToolName(semanticName)
           ? "unnamed"
           : "fallback";
-  const displayName = isGenericToolName(semanticName) ? "Unnamed tool" : humanizeToolName(semanticName);
+  const displayName = isGenericToolName(semanticName) ? translatedLabel("taskChatPage.tool.unnamed", "Unnamed tool") : humanizeToolName(semanticName);
   const identifierLikeName = /^[A-Za-z][A-Za-z0-9_.:-]*$/.test(semanticName);
   const objectWords = inferred && identifierLikeName && words.length > 1 ? words.slice(1) : [];
   const object = objectWords.length ? sentenceCase(objectWords).replace(/^./, (letter) => letter.toLowerCase()) : undefined;
-  const copy = exact?.running && exact.completed
-    ? { running: exact.running, completed: exact.completed }
-    : action === "other"
-      ? isGenericToolName(semanticName)
-        ? { running: "Running an unnamed tool", completed: "Ran an unnamed tool" }
-        : { running: `Running ${displayName}`, completed: `Ran ${displayName}` }
-      : actionCopy(action, exact ? undefined : object);
+  const exactCopy = exact?.running && exact.completed && i18n.exists(`taskChatPage.tool.exact.${key}.running`)
+    ? {
+        running: translatedLabel(`taskChatPage.tool.exact.${key}.running`, exact.running),
+        completed: translatedLabel(`taskChatPage.tool.exact.${key}.completed`, exact.completed),
+      }
+    : undefined;
+  const copy = exactCopy ?? (action === "other"
+    ? isGenericToolName(semanticName)
+      ? {
+          running: translatedLabel("taskChatPage.tool.unnamedRunning", "Running an unnamed tool"),
+          completed: translatedLabel("taskChatPage.tool.unnamedCompleted", "Ran an unnamed tool"),
+        }
+      : {
+          running: translatedLabel("taskChatPage.tool.namedRunning", `Running ${displayName}`, { name: displayName }),
+          completed: translatedLabel("taskChatPage.tool.namedCompleted", `Ran ${displayName}`, { name: displayName }),
+        }
+    : (() => {
+        const fallback = actionCopy(action, exact ? undefined : object);
+        const prefix = `taskChatPage.tool.action.${action}`;
+        const withObject = Boolean(object) && i18n.exists(`${prefix}.runningObject`);
+        const options = object ? { object } : {};
+        return {
+          running: translatedLabel(`${prefix}.${withObject ? "runningObject" : "running"}`, fallback.running, options),
+          completed: translatedLabel(`${prefix}.${withObject ? "completedObject" : "completed"}`, fallback.completed, options),
+        };
+      })());
   const semanticFamily = exact?.family ?? actionFamily(action);
   const family = transport === "mcp" ? "mcp" : semanticFamily;
   const sourceLabel = namespace
@@ -410,8 +435,8 @@ export function toolActivityPresentation(input: ToolActivityPresentationInput): 
     family,
     runningLabel: copy.running,
     completedLabel: copy.completed,
-    failedLabel: `${copy.completed} · failed`,
-    interruptedLabel: `${copy.running} · stopped`,
+    failedLabel: `${copy.completed}${translatedLabel("taskChatPage.tool.failedSuffix", " · failed")}`,
+    interruptedLabel: `${copy.running}${translatedLabel("taskChatPage.tool.stoppedSuffix", " · stopped")}`,
     displayName,
     sourceLabel,
     technicalName: rawName || undefined,
@@ -433,7 +458,22 @@ export function toolTaxonomy(name: string | undefined | null): ToolTaxonomyEntry
 /** Icons for tool-free informative statuses. */
 export function statusLabelIcon(label: string | undefined | null): ToolIcon | null {
   const raw = (label ?? "").trim().toLowerCase();
-  if (raw === "thinking") return Brain;
-  if (raw === "responding" || raw.startsWith("responding (")) return MessageSquareReply;
+  const thinking = translatedLabel(
+    "taskChatPage.transcript.thinking",
+    "Thinking",
+  ).toLowerCase();
+  if (raw === "thinking" || raw === thinking) return Brain;
+  const responding = translatedLabel(
+    "taskChatPage.transcript.responding",
+    "Responding",
+  ).toLowerCase();
+  if (
+    raw === "responding" ||
+    raw.startsWith("responding (") ||
+    raw === responding ||
+    raw.startsWith(`${responding} (`)
+  ) {
+    return MessageSquareReply;
+  }
   return null;
 }

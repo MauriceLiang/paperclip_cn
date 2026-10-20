@@ -2,6 +2,17 @@ import en from "./locales/en.json";
 
 const MAX_STRING_LENGTH = 2_000;
 
+export type LocaleValidationMode = "strict" | "partial";
+
+export interface LocaleValidationOptions {
+  /**
+   * `strict` requires the candidate to have exactly the same key structure as
+   * English. `partial` allows missing keys (they fall back to English) while
+   * still rejecting unknown keys and validating every provided translation.
+   */
+  mode?: LocaleValidationMode;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -23,7 +34,9 @@ function hasEventHandlerAttribute(value: string) {
 }
 
 function urlsIn(value: string) {
-  return Array.from(value.matchAll(/\bhttps?:\/\/[^\s<>"')]+/gi), (match) => match[0]).sort();
+  return Array.from(value.matchAll(/\bhttps?:\/\/[^\s<>"')，。！？；：、（）【】《》「」『』]+/gi), (match) =>
+    match[0].replace(/[.,;:!，。；：！、]+$/u, ""),
+  ).sort();
 }
 
 function hasBlockedData(value: string, englishValue: string) {
@@ -68,7 +81,13 @@ function validateString(path: string[], candidateValue: string, englishValue: st
   }
 }
 
-function validateNode(path: string[], candidate: unknown, englishReference: unknown, errors: string[]) {
+function validateNode(
+  path: string[],
+  candidate: unknown,
+  englishReference: unknown,
+  errors: string[],
+  mode: LocaleValidationMode,
+) {
   if (typeof englishReference === "string") {
     if (typeof candidate !== "string") {
       errors.push(`${formatPath(path)} must be a string`);
@@ -93,8 +112,10 @@ function validateNode(path: string[], candidate: unknown, englishReference: unkn
   const missingKeys = englishKeys.filter((key) => !candidateKeys.includes(key));
   const extraKeys = candidateKeys.filter((key) => !englishKeys.includes(key));
 
-  for (const key of missingKeys) {
-    errors.push(`${formatPath([...path, key])} is missing`);
+  if (mode === "strict") {
+    for (const key of missingKeys) {
+      errors.push(`${formatPath([...path, key])} is missing`);
+    }
   }
   for (const key of extraKeys) {
     errors.push(`${formatPath([...path, key])} is not defined in English`);
@@ -102,19 +123,27 @@ function validateNode(path: string[], candidate: unknown, englishReference: unkn
 
   for (const key of englishKeys) {
     if (key in candidate) {
-      validateNode([...path, key], candidate[key], englishReference[key], errors);
+      validateNode([...path, key], candidate[key], englishReference[key], errors, mode);
     }
   }
 }
 
-export function validateLocaleMessages(candidate: unknown, englishReference: unknown = en) {
+export function validateLocaleMessages(
+  candidate: unknown,
+  englishReference: unknown = en,
+  options: LocaleValidationOptions = {},
+) {
   const errors: string[] = [];
-  validateNode([], candidate, englishReference, errors);
+  validateNode([], candidate, englishReference, errors, options.mode ?? "strict");
   return errors;
 }
 
-export function assertValidLocaleMessages(candidate: unknown, englishReference: unknown = en) {
-  const errors = validateLocaleMessages(candidate, englishReference);
+export function assertValidLocaleMessages(
+  candidate: unknown,
+  englishReference: unknown = en,
+  options: LocaleValidationOptions = {},
+) {
+  const errors = validateLocaleMessages(candidate, englishReference, options);
   if (errors.length > 0) {
     throw new Error(`Invalid locale messages:\n${errors.join("\n")}`);
   }

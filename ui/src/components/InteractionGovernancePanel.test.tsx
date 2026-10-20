@@ -3,7 +3,7 @@
 import { act as reactAct } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ISSUE_THREAD_INTERACTION_KINDS as INTERACTION_KINDS,
   type InteractionResolverGovernance,
@@ -15,6 +15,7 @@ import {
   toGovernanceSelectValue,
 } from "./InteractionGovernancePanel";
 import { TooltipProvider } from "./ui/tooltip";
+import { i18n } from "@/i18n";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -54,10 +55,13 @@ function triggerText(host: HTMLElement, testId: string): string {
   return (trigger?.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
-afterEach(() => {
-  if (root) {
-    act(() => root?.unmount());
-  }
+beforeEach(async () => {
+  await i18n.changeLanguage("en");
+});
+
+afterEach(async () => {
+  if (root) await act(async () => root?.unmount());
+  await i18n.changeLanguage("en");
   container?.remove();
   root = null;
   container = null;
@@ -84,6 +88,37 @@ describe("InteractionGovernancePanel", () => {
     // Governed tool approvals keep their human-only guarantee.
     expect(copy).toContain("Tool-approval confirmations always stay");
     expect(copy).toContain("Human only");
+  });
+
+  it("localizes the governance panel, select values, option effects, and accessible names", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+      root.render(
+        <TooltipProvider>
+          <InteractionGovernancePanel governance={{}} onChange={vi.fn()} />
+        </TooltipProvider>,
+      );
+    });
+
+    expect(container?.textContent).toContain("交互治理");
+    expect(container?.textContent).toContain("线程交互默认对组织内所有人开放");
+
+    const defaultSelect = container?.querySelector<HTMLElement>(
+      '[data-testid="governance-suggest_tasks-default"]',
+    );
+    expect(defaultSelect?.getAttribute("aria-label")).toBe("建议任务的默认响应受众");
+    expect(defaultSelect?.textContent).toBe("所有人（默认）");
+
+    await act(async () => {
+      defaultSelect?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    const options = document.querySelector('[data-slot="select-content"]')?.textContent ?? "";
+    expect(options).toContain("新卡片默认对所有人开放");
+    expect(options).toContain("除创建者外的所有人");
+    expect(options).toContain("仅由人工处理");
   });
 
   it("shows a stored narrowing override on the matching row", () => {

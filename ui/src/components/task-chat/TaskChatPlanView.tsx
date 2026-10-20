@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Check, Circle, Loader2 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { TaskChatPlan, TaskChatPlanEntryStatus } from "./task-chat-model";
 
 const STATUS_ICON: Record<TaskChatPlanEntryStatus, { Icon: typeof Check; spin: boolean; tone: string }> = {
@@ -14,20 +15,27 @@ const PRIORITY_TONE = {
   low: "text-muted-foreground",
 } as const;
 
+const PRIORITY_LABEL_KEYS = {
+  high: "taskChatPage.plan.priorityHigh",
+  medium: "taskChatPage.plan.priorityMedium",
+  low: "taskChatPage.plan.priorityLow",
+} as const;
+
 /**
  * Structured plan/todo viewer (ACP Plan / PlanEntry). Used both by the harness
  * "plan-todo" state and by the properties-pane Plans tab. Renders a live
  * checklist with per-entry status and a revision label; entries stagger in.
  */
 export function TaskChatPlanView({ plan }: { plan: TaskChatPlan }) {
+  const { t } = useTranslation();
   const done = plan.entries.filter((e) => e.status === "completed").length;
   return (
     <div className="flex flex-col gap-2 py-2">
       <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">Plan</span>
-        <span>· rev {plan.revision}</span>
+        <span className="font-medium text-foreground">{t("taskChatPage.plan.title")}</span>
+        <span>· {t("taskChatPage.plan.revision", { revision: plan.revision })}</span>
         <span className="ml-auto">
-          {done}/{plan.entries.length} done
+          {t("taskChatPage.plan.doneCount", { done, total: plan.entries.length })}
         </span>
       </div>
       <ul className="flex flex-col gap-1">
@@ -44,7 +52,7 @@ export function TaskChatPlanView({ plan }: { plan: TaskChatPlan }) {
                 {entry.content}
               </span>
               <span className={cn("shrink-0 text-(length:--text-nano) uppercase tracking-wide", PRIORITY_TONE[entry.priority])}>
-                {entry.priority}
+                {t(PRIORITY_LABEL_KEYS[entry.priority])}
               </span>
             </li>
           );

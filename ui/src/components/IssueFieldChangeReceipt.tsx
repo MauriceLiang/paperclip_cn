@@ -5,6 +5,7 @@ import {
   readIssueChangeReceipt,
 } from "../lib/issue-change-receipt";
 import { cn } from "../lib/utils";
+import { t as translate } from "@/i18n";
 
 /**
  * Field-level audit receipt under an `issue.updated` row in the activity stream
@@ -66,7 +67,7 @@ export function IssueFieldChangeReceipt({
                     rather than implying the whole value is shown. */}
                 {row.truncated ? (
                   <span className="text-(length:--text-nano) uppercase tracking-(--tracking-eyebrow) text-muted-foreground">
-                    preview
+                    {translate("issuesPage.detail.changeReceipt.preview")}
                   </span>
                 ) : null}
               </dd>
@@ -85,11 +86,11 @@ export function IssueFieldChangeReceipt({
           />
           {responsibleUserName ? (
             <>
-              for <span className="text-foreground">{responsibleUserName}</span>
+              {translate("issuesPage.detail.changeReceipt.forUser", { name: responsibleUserName })}
               {" · "}
             </>
           ) : null}
-          authorized by {reason}
+          {translate("issuesPage.detail.changeReceipt.authorizedBy", { reason })}
         </p>
       ) : null}
     </div>

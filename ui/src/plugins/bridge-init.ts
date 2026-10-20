@@ -60,6 +60,7 @@ import {
 } from "@/lib/recent-assignees";
 import { getRecentProjectIds, trackRecentProject } from "@/lib/recent-projects";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { useTranslation } from "@/i18n";
 
 // ---------------------------------------------------------------------------
 // Global bridge registry
@@ -347,15 +348,20 @@ function PluginSdkAssigneePicker({
   companyId,
   value,
   onChange,
-  placeholder = "Responsible",
-  noneLabel = "No responsible",
-  searchPlaceholder = "Search responsible...",
-  emptyMessage = "No responsible found.",
+  placeholder,
+  noneLabel,
+  searchPlaceholder,
+  emptyMessage,
   includeUsers = true,
   includeTerminatedAgents = false,
   className,
   onConfirm,
 }: PluginAssigneePickerProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("agentSetupPage.routineSections.overview.responsible");
+  const resolvedNoneLabel = noneLabel ?? t("agentSetupPage.routineSections.overview.noResponsible");
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t("agentSetupPage.routineSections.overview.searchResponsible");
+  const resolvedEmptyMessage = emptyMessage ?? t("agentSetupPage.routineSections.overview.noResponsibleFound");
   const hostContext = useHostContext();
   const resolvedCompanyId = companyId ?? hostContext.companyId ?? null;
   const { data: session } = useQuery({
@@ -411,10 +417,10 @@ function PluginSdkAssigneePicker({
     value,
     options,
     recentOptionIds: recentAssigneeSelectionIds,
-    placeholder,
-    noneLabel,
-    searchPlaceholder,
-    emptyMessage,
+    placeholder: resolvedPlaceholder,
+    noneLabel: resolvedNoneLabel,
+    searchPlaceholder: resolvedSearchPlaceholder,
+    emptyMessage: resolvedEmptyMessage,
     className,
     onConfirm,
     onChange: (nextValue: string) => {
@@ -424,7 +430,7 @@ function PluginSdkAssigneePicker({
       onChange(nextValue, selection);
     },
     renderTriggerValue: (option: InlineEntityOption | null) => {
-      if (!option) return createElement("span", { className: "text-muted-foreground" }, placeholder);
+      if (!option) return createElement("span", { className: "text-muted-foreground" }, resolvedPlaceholder);
       if (selectedAgent) {
         return createElement(
           FragmentSafe,
@@ -457,14 +463,19 @@ function PluginSdkProjectPicker({
   companyId,
   value,
   onChange,
-  placeholder = "Project",
-  noneLabel = "No project",
-  searchPlaceholder = "Search projects...",
-  emptyMessage = "No projects found.",
+  placeholder,
+  noneLabel,
+  searchPlaceholder,
+  emptyMessage,
   includeArchived = false,
   className,
   onConfirm,
 }: PluginProjectPickerProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("common.project");
+  const resolvedNoneLabel = noneLabel ?? t("common.noProject");
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t("common.searchProjects");
+  const resolvedEmptyMessage = emptyMessage ?? t("common.noProjectsFound");
   const hostContext = useHostContext();
   const resolvedCompanyId = companyId ?? hostContext.companyId ?? null;
   const { data: session } = useQuery({
@@ -501,10 +512,10 @@ function PluginSdkProjectPicker({
     value,
     options,
     recentOptionIds: recentProjectIds,
-    placeholder,
-    noneLabel,
-    searchPlaceholder,
-    emptyMessage,
+    placeholder: resolvedPlaceholder,
+    noneLabel: resolvedNoneLabel,
+    searchPlaceholder: resolvedSearchPlaceholder,
+    emptyMessage: resolvedEmptyMessage,
     className,
     onConfirm,
     onChange: (nextProjectId: string) => {
@@ -513,7 +524,7 @@ function PluginSdkProjectPicker({
     },
     renderTriggerValue: (option: InlineEntityOption | null) => {
       if (!option || !selectedProject) {
-        return createElement("span", { className: "text-muted-foreground" }, placeholder);
+        return createElement("span", { className: "text-muted-foreground" }, resolvedPlaceholder);
       }
       return createElement(
         FragmentSafe,
@@ -643,11 +654,12 @@ function PluginSdkJsonTree({ data }: { data: unknown }) {
   return createElement("pre", { className: "max-h-80 overflow-auto rounded-md border bg-muted/30 p-2 text-xs" }, JSON.stringify(data, null, 2));
 }
 
-function PluginSdkSpinner({ label = "Loading" }: { size?: "sm" | "md" | "lg"; label?: string }) {
+function PluginSdkSpinner({ label }: { size?: "sm" | "md" | "lg"; label?: string }) {
+  const { t } = useTranslation();
   return createElement("span", {
     className: "inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground align-middle",
     role: "status",
-    "aria-label": label,
+    "aria-label": label ?? t("common.loading"),
   });
 }
 

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarAgents } from "./SidebarAgents";
 import { queryKeys } from "../lib/queryKeys";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { i18n } from "@/i18n";
 
 const mockAgentsApi = vi.hoisted(() => ({
   list: vi.fn(),
@@ -217,7 +218,8 @@ describe("SidebarAgents", () => {
   let queryClient: QueryClient;
   let memberships: ResourceMemberships;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     mockSidebarState.collapsed = false;
     mockSidebarState.peeking = false;
@@ -517,7 +519,7 @@ describe("SidebarAgents", () => {
     expect(sectionMenuTrigger?.textContent).toContain("Agents");
     expect(sectionMenuTrigger?.querySelector("svg")).toBeNull();
 
-    const newAgentButton = container.querySelector('button[aria-label="New agent"]');
+    const newAgentButton = container.querySelector(`button[aria-label="${i18n.t("agentsPage.agents.newAgent")}"]`);
     expect(newAgentButton).toBeTruthy();
     await act(async () => {
       newAgentButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -527,7 +529,7 @@ describe("SidebarAgents", () => {
     await openAgentsSectionMenu();
 
     const newAgentItem = Array.from(document.body.querySelectorAll('[data-slot="dropdown-menu-item"]'))
-      .find((element) => element.textContent?.includes("New agent"));
+      .find((element) => element.textContent?.includes(i18n.t("agentsPage.agents.newAgent")));
     expect(newAgentItem).toBeFalsy();
     const browseLink = Array.from(document.body.querySelectorAll("a"))
       .find((element) => element.textContent?.includes("Browse agents"));

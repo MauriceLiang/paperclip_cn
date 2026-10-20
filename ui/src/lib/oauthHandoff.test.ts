@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import {
   clearPendingCloudHandoff,
   OAuthHandoffError,
+  oauthHandoffErrorMessage,
   prepareOAuthNavigation,
   readPendingCloudHandoff,
   savePendingCloudHandoff,
@@ -11,12 +13,22 @@ import {
 
 const SESSION = "cloud_session_abcdefghijklmnop";
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
   window.sessionStorage.clear();
+  await setLocale("en");
 });
 
 describe("Paperclip Cloud OAuth handoff", () => {
+  it("localizes fixed handoff failures for the active interface language", async () => {
+    await setLocale("zh-CN");
+
+    expect(oauthHandoffErrorMessage(new OAuthHandoffError("English internal message", "expired")))
+      .toContain("此登录已过期");
+    expect(oauthHandoffErrorMessage(new OAuthHandoffError("English internal message", "forbidden")))
+      .toBe("Paperclip Cloud 无法为你的账户授权此连接。");
+  });
+
   it("uses the fixed same-origin endpoint and never navigates to the legacy confirmation URL", async () => {
     const request = vi.fn(async () => Response.json({
       authorizationUrl: "https://provider.example.test/authorize?state=one",
