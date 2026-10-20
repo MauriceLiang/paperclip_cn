@@ -1,3 +1,5 @@
+import { t as translate } from "@/i18n";
+
 type TranscriptDensity = "comfortable" | "compact";
 
 type TranscriptActivity = {
@@ -118,7 +120,7 @@ export function isCommandTool(name: string, input: unknown): boolean {
 }
 
 export function displayToolName(name: string, input: unknown): string {
-  if (isCommandTool(name, input)) return "Executing command";
+  if (isCommandTool(name, input)) return translate("transcript.executingCommand");
   return humanizeLabel(name);
 }
 
@@ -186,7 +188,7 @@ function readToolDetailValue(value: unknown, max = 200): string | null {
 export function describeToolInput(name: string, input: unknown): ToolInputDetail[] {
   if (typeof input === "string") {
     const summary = compactWhitespace(isCommandTool(name, input) ? stripWrappedShell(input) : input);
-    return summary ? [{ label: isCommandTool(name, input) ? "Command" : "Input", value: truncate(summary, 200), tone: "code" }] : [];
+    return summary ? [{ label: isCommandTool(name, input) ? translate("transcript.command") : translate("transcript.input"), value: truncate(summary, 200), tone: "code" }] : [];
   }
 
   const record = asRecord(input);
@@ -203,16 +205,16 @@ export function describeToolInput(name: string, input: unknown): ToolInputDetail
   };
 
   pushDetail(
-    "Intent",
+    translate("transcript.intent"),
     summarizeRecord(record, ["description", "summary", "reason", "goal", "intent", "action", "task"]) ?? null,
   );
-  pushDetail("Path", readToolDetailValue(record.path) ?? readToolDetailValue(record.filePath) ?? readToolDetailValue(record.file_path));
-  pushDetail("Directory", readToolDetailValue(record.cwd));
-  pushDetail("Query", readToolDetailValue(record.query));
-  pushDetail("Target", readToolDetailValue(record.url) ?? readToolDetailValue(record.target));
-  pushDetail("Prompt", readToolDetailValue(record.prompt) ?? readToolDetailValue(record.message));
-  pushDetail("Pattern", readToolDetailValue(record.pattern));
-  pushDetail("Name", readToolDetailValue(record.name) ?? readToolDetailValue(record.title));
+  pushDetail(translate("transcript.path"), readToolDetailValue(record.path) ?? readToolDetailValue(record.filePath) ?? readToolDetailValue(record.file_path));
+  pushDetail(translate("transcript.directory"), readToolDetailValue(record.cwd));
+  pushDetail(translate("transcript.query"), readToolDetailValue(record.query));
+  pushDetail(translate("transcript.target"), readToolDetailValue(record.url) ?? readToolDetailValue(record.target));
+  pushDetail(translate("transcript.prompt"), readToolDetailValue(record.prompt) ?? readToolDetailValue(record.message));
+  pushDetail(translate("transcript.pattern"), readToolDetailValue(record.pattern));
+  pushDetail(translate("transcript.name"), readToolDetailValue(record.name) ?? readToolDetailValue(record.title));
 
   if (Array.isArray(record.paths) && record.paths.length > 0) {
     const paths = record.paths
@@ -221,7 +223,7 @@ export function describeToolInput(name: string, input: unknown): ToolInputDetail
       .join(", ");
     if (paths) {
       const suffix = record.paths.length > 3 ? `, +${record.paths.length - 3} more` : "";
-      pushDetail("Paths", `${paths}${suffix}`);
+      pushDetail(translate("transcript.paths"), `${paths}${suffix}`);
     }
   }
 
@@ -230,8 +232,8 @@ export function describeToolInput(name: string, input: unknown): ToolInputDetail
     : typeof record.cmd === "string"
       ? record.cmd
       : null;
-  if (command && isCommandTool(name, record) && !details.some((detail) => detail.label === "Intent")) {
-    pushDetail("Command", truncate(stripWrappedShell(command), 200), "code");
+  if (command && isCommandTool(name, record) && !details.some((detail) => detail.label === translate("transcript.intent"))) {
+    pushDetail(translate("transcript.command"), truncate(stripWrappedShell(command), 200), "code");
   }
 
   return details;
@@ -242,15 +244,15 @@ export function summarizeToolResult(
   isError: boolean | undefined,
   density: TranscriptDensity = "comfortable",
 ): string {
-  if (!result) return isError ? "Tool failed" : "Waiting for result";
+  if (!result) return isError ? translate("transcript.toolFailed") : translate("transcript.waitingForResult");
   const structured = parseStructuredToolResult(result);
   if (structured) {
     if (structured.body) {
       return truncate(structured.body.split("\n")[0] ?? structured.body, density === "compact" ? 84 : 140);
     }
-    if (structured.status === "completed") return "Completed";
+    if (structured.status === "completed") return translate("transcript.completed");
     if (structured.status === "failed" || structured.status === "error") {
-      return structured.exitCode ? `Failed with exit code ${structured.exitCode}` : "Failed";
+      return structured.exitCode ? translate("transcript.failedWithExitCode", { code: structured.exitCode }) : translate("transcript.failed");
     }
   }
   const lines = result

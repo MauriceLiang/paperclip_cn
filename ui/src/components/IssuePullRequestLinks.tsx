@@ -4,6 +4,7 @@ import { pullRequestHref, pullRequestIdentity, pullRequestLabel, pullRequestNeed
 import type { ExternalObjectPillData } from "./ExternalObjectPill";
 import { ExternalObjectStatusIcon } from "./ExternalObjectStatusIcon";
 import { externalObjectDisplayStatusLabel, externalObjectLivenessLabel } from "@/lib/external-objects";
+import { t as translate } from "@/i18n";
 
 /** Saved PRs remain inspectable even when the provider lookup is unavailable. */
 export function IssuePullRequestLinks({ products, externalObjects = [] }: {
@@ -20,7 +21,10 @@ export function IssuePullRequestLinks({ products, externalObjects = [] }: {
         const provider = identity ? externalObjects.find((entry) => pullRequestIdentity(entry.url) === identity) : undefined;
         const providerStatus = provider ? externalObjectDisplayStatusLabel(provider) : null;
         const providerTerminal = provider?.liveness === "fresh"
-          && (provider.statusIconKey === "git-merge" || ["merged", "closed"].includes(providerStatus?.toLowerCase() ?? ""));
+          && (provider.statusIconKey === "git-merge" || provider.statusCategory === "closed");
+        const stateLabel = translate(`remainingSurfaces.pullRequestLinks.states.${state}`, {
+          defaultValue: state.replaceAll("_", " "),
+        });
         return (
           <li key={product.id} className="flex min-w-0 flex-wrap items-center gap-2">
             {href ? (
@@ -28,7 +32,7 @@ export function IssuePullRequestLinks({ products, externalObjects = [] }: {
                 className="break-words text-sm text-primary underline-offset-2 hover:underline">
                 {label}
               </a>
-            ) : <span className="break-words text-sm">{label} · No PR link provided</span>}
+            ) : <span className="break-words text-sm">{label} · {translate("remainingSurfaces.pullRequestLinks.noLinkProvided")}</span>}
             {provider ? (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"
                 data-external-status={provider.statusCategory} data-external-liveness={provider.liveness}>
@@ -38,10 +42,10 @@ export function IssuePullRequestLinks({ products, externalObjects = [] }: {
               </span>
             ) : null}
             {pullRequestNeedsReview(product) && !providerTerminal ? (
-              <Badge variant="outline">Review requested</Badge>
+              <Badge variant="outline">{translate("remainingSurfaces.pullRequestLinks.reviewRequested")}</Badge>
             ) : ["merged", "closed", "archived", "draft", "changes_requested"].includes(state)
               && providerStatus?.toLowerCase() !== state ? (
-              <span className="text-xs text-muted-foreground">{provider ? "Saved: " : ""}{state.replaceAll("_", " ")}</span>
+              <span className="text-xs text-muted-foreground">{provider ? `${translate("remainingSurfaces.pullRequestLinks.saved")}: ` : ""}{stateLabel}</span>
             ) : null}
           </li>
         );

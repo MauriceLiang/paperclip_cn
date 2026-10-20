@@ -2,6 +2,7 @@ import { TextAttachmentContext } from "@/context/TextAttachmentContext";
 import { isTextAttachment } from "@/lib/issue-attachments";
 import { getAttachmentArtifactWorkProductMetadata } from "@paperclipai/shared";
 import { useContext, useState, type CSSProperties } from "react";
+import { useTranslation } from "@/i18n";
 import { IssueGalleryContext } from "@/context/IssueGalleryContext";
 import { ArtifactPreview } from "@/components/artifacts/ArtifactCard";
 import { MediaArtifactCard } from "@/components/artifacts/MediaArtifactCard";
@@ -31,6 +32,41 @@ type StateChip = {
   tone: "progress" | "failure" | "review" | "success" | "neutral";
   dashed?: boolean;
 };
+
+type TranslationFunction = ReturnType<typeof useTranslation>["t"];
+
+const WORK_PRODUCT_LABEL_KEYS: Record<string, string> = {
+  "Changes requested": "taskChatPage.workProduct.changesRequested",
+  Review: "taskChatPage.workProduct.review",
+  Failed: "taskChatPage.workProduct.failed",
+  Opening: "taskChatPage.workProduct.opening",
+  Pending: "taskChatPage.workProduct.pending",
+  Open: "taskChatPage.workProduct.open",
+  Draft: "taskChatPage.workProduct.draft",
+  Merged: "taskChatPage.workProduct.merged",
+  Closed: "taskChatPage.workProduct.closed",
+  Running: "taskChatPage.workProduct.running",
+  Stopped: "taskChatPage.workProduct.stopped",
+  Down: "taskChatPage.workProduct.down",
+  Unhealthy: "taskChatPage.workProduct.unhealthy",
+  "Open preview": "taskChatPage.workProduct.openPreview",
+  "Open on GitHub": "taskChatPage.workProduct.openOnGitHub",
+  "Open gallery": "taskChatPage.workProduct.openGallery",
+  Download: "taskChatPage.workProduct.download",
+  "Open document": "taskChatPage.workProduct.openDocument",
+  "Open service": "taskChatPage.workProduct.openService",
+  Branch: "taskChatPage.workProduct.branch",
+  "Branch · no remote link": "taskChatPage.workProduct.branchNoRemote",
+  Image: "taskChatPage.workProduct.image",
+  Video: "taskChatPage.workProduct.video",
+  File: "taskChatPage.workProduct.file",
+  Document: "taskChatPage.workProduct.document",
+};
+
+function translatedLabel(value: string, t: TranslationFunction): string {
+  const key = WORK_PRODUCT_LABEL_KEYS[value];
+  return key ? t(key) : value;
+}
 
 /** Resting states stay quiet. A completed work product never gets a chip. */
 export function stateChipFor(
@@ -105,6 +141,7 @@ function urlLabel(url: string | null): string | null {
 }
 
 function Chip({ chip }: { chip: StateChip }) {
+  const { t } = useTranslation();
   const cssVar = chip.tone === "failure"
     ? "--status-task-blocked"
     : chip.tone === "success"
@@ -122,7 +159,7 @@ function Chip({ chip }: { chip: StateChip }) {
       )}
       style={{ "--sc": `var(${cssVar})` } as CSSProperties}
     >
-      {chip.label}
+      {translatedLabel(chip.label, t)}
     </span>
   );
 }
@@ -134,6 +171,7 @@ export interface RichWorkProductCardProps {
 }
 
 export function RichWorkProductCard({ workProduct, href, variant = "card" }: RichWorkProductCardProps) {
+  const { t } = useTranslation();
   const openIssueGallery = useContext(IssueGalleryContext);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -217,11 +255,19 @@ export function RichWorkProductCard({ workProduct, href, variant = "card" }: Ric
         : workProduct.status,
       workProduct.reviewState,
     );
-  const visibleMeta = meta.filter((value): value is string => Boolean(value));
+  const visibleMeta = meta
+    .filter((value): value is string => Boolean(value))
+    .map((value) => {
+      const revision = value.match(/^rev (.+)$/);
+      if (revision) return t("taskChatPage.workProduct.revision", { revision: revision[1] });
+      const port = value.match(/^port (.+)$/);
+      if (port) return t("taskChatPage.workProduct.port", { port: port[1] });
+      return translatedLabel(value, t);
+    });
   const changeCounts = [additions === null ? null : `+${additions}`, deletions === null ? null : `−${deletions}`]
     .filter(Boolean)
     .join(" ");
-  const fileCount = files === null ? null : `${files} ${files === 1 ? "file" : "files"}`;
+  const fileCount = files === null ? null : t("taskChatPage.workProduct.fileCount", { count: files });
   const statsLabel = [changeCounts || null, fileCount].filter(Boolean).join(" · ");
   const compact = variant === "compact";
   const mediaPath = workProduct.type === "artifact" && (isImage || isVideo)
@@ -240,6 +286,15 @@ export function RichWorkProductCard({ workProduct, href, variant = "card" }: Ric
   const openGallery = () => {
     if (mediaPath && !openIssueGallery?.(mediaPath)) setGalleryOpen(true);
   };
+  const actionLabel = translatedLabel(action, t);
+  const statusValue = workProduct.type === "pull_request"
+    ? stringMeta(metadata, "state") ?? workProduct.status
+    : workProduct.status;
+  const detailStatus = chip
+    ? translatedLabel(chip.label, t)
+    : statusValue === "active"
+      ? translatedLabel(workProduct.type === "runtime_service" ? "Running" : "Open", t)
+      : statusValue.replaceAll("_", " ");
 
   if (variant === "gallery" && mediaPath) {
     return (
@@ -283,11 +338,15 @@ export function RichWorkProductCard({ workProduct, href, variant = "card" }: Ric
         {!compact && summary && !linklessBranch ? <p className={cn("mt-1 text-xs text-muted-foreground", detailsOpen ? "whitespace-pre-wrap break-words" : "line-clamp-2")}>{summary}</p> : null}
         {expandable && detailsOpen ? (
           <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
-            {workProduct.type !== "branch" ? <p>No link was provided for this work product.</p> : null}
-            <p>{workProduct.provider} · {workProduct.status.replaceAll("_", " ")} · Updated {formatDateTime(workProduct.updatedAt)}</p>
+            {workProduct.type !== "branch" ? <p>{t("taskChatPage.workProduct.noLink")}</p> : null}
+            <p>{t("taskChatPage.workProduct.updatedMeta", {
+              provider: workProduct.provider,
+              status: detailStatus,
+              date: formatDateTime(workProduct.updatedAt),
+            })}</p>
             {linklessBranch && summary ? (
               <details className="relative z-10 mt-1">
-                <summary className="w-fit cursor-pointer font-medium text-foreground">Saved description</summary>
+                <summary className="w-fit cursor-pointer font-medium text-foreground">{t("taskChatPage.workProduct.savedDescription")}</summary>
                 <p className="mt-1 whitespace-pre-wrap break-words">{summary}</p>
               </details>
             ) : null}
@@ -300,29 +359,29 @@ export function RichWorkProductCard({ workProduct, href, variant = "card" }: Ric
           <button
             type="button"
             onClick={() => openText!(textMetadata!.attachmentId, textMetadata!.originalFilename ?? workProduct.title)}
-            aria-label={`Open in tab: ${workProduct.title}`}
+            aria-label={t("taskChatPage.workProduct.openInTabAria", { title: workProduct.title })}
             className="inline-flex items-center gap-1 text-xs font-medium text-foreground after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
           >
-            {compact ? null : <span className="hidden @sm:inline">Open in tab</span>}<FileText aria-hidden className="h-3 w-3" />
+            {compact ? null : <span className="hidden @sm:inline">{t("taskChatPage.workProduct.openInTab")}</span>}<FileText aria-hidden className="h-3 w-3" />
           </button>
         ) : null}
         {mediaPath ? (
-          <button type="button" onClick={openGallery} aria-label={`${action}: ${workProduct.title}`} className="inline-flex items-center gap-1 text-xs font-medium text-foreground after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring">
-            {compact ? null : <span className="hidden @sm:inline">{action}</span>}<Maximize2 aria-hidden className="h-3 w-3" />
+          <button type="button" onClick={openGallery} aria-label={t("taskChatPage.workProduct.actionAria", { action: actionLabel, title: workProduct.title })} className="inline-flex items-center gap-1 text-xs font-medium text-foreground after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring">
+            {compact ? null : <span className="hidden @sm:inline">{actionLabel}</span>}<Maximize2 aria-hidden className="h-3 w-3" />
           </button>
         ) : actionHref ? (
-          <a href={actionHref} aria-label={`${action}: ${workProduct.title}`} className={cn("inline-flex items-center gap-1 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", canOpenText ? "relative z-10" : "after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring")} target={actionHref.startsWith("http") ? "_blank" : undefined} rel={actionHref.startsWith("http") ? "noreferrer" : undefined}>
-            {compact ? null : <span className="hidden @sm:inline">{action}</span>}<ExternalLink aria-hidden className="h-3 w-3" />
+          <a href={actionHref} aria-label={t("taskChatPage.workProduct.actionAria", { action: actionLabel, title: workProduct.title })} className={cn("inline-flex items-center gap-1 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", canOpenText ? "relative z-10" : "after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring")} target={actionHref.startsWith("http") ? "_blank" : undefined} rel={actionHref.startsWith("http") ? "noreferrer" : undefined}>
+            {compact ? null : <span className="hidden @sm:inline">{actionLabel}</span>}<ExternalLink aria-hidden className="h-3 w-3" />
           </a>
         ) : expandable ? (
           <button
             type="button"
             onClick={() => setDetailsOpen((open) => !open)}
-            aria-label={`${detailsOpen ? "Hide" : "Show"} details: ${workProduct.title}`}
+            aria-label={t(detailsOpen ? "taskChatPage.workProduct.hideDetailsAria" : "taskChatPage.workProduct.showDetailsAria", { title: workProduct.title })}
             aria-expanded={detailsOpen}
             className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-foreground after:absolute after:inset-0 after:rounded-md focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
           >
-            <span>{detailsOpen ? "Hide details" : "Show details"}</span>
+            <span>{t(detailsOpen ? "taskChatPage.workProduct.hideDetails" : "taskChatPage.workProduct.showDetails")}</span>
             <ChevronDown aria-hidden className={cn("h-4 w-4", detailsOpen && "rotate-180")} />
           </button>
         ) : null}

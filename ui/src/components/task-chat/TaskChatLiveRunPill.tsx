@@ -6,6 +6,7 @@ import { useSecondTick } from "@/hooks/useSecondTick";
 import { formatDurationWords } from "@/lib/issue-chat-messages";
 import { isCommandTool } from "@/lib/transcriptPresentation";
 import { isTerminalRunStatus } from "@/components/task-chat/transcript-adapter";
+import { useTranslation } from "@/i18n";
 import { useTaskChatShimmer } from "./TaskChatShimmer";
 
 /**
@@ -16,7 +17,10 @@ import { useTaskChatShimmer } from "./TaskChatShimmer";
  * tool_call as its status progresses, so calls carrying a `toolUseId` are
  * counted once.
  */
-export function toolCountSummaryFromEntries(entries: readonly TranscriptEntry[]): string | null {
+export function toolCountSummaryFromEntries(
+  entries: readonly TranscriptEntry[],
+  translate?: (key: string, values?: Record<string, string | number>) => string,
+): string | null {
   const seen = new Set<string>();
   let commands = 0;
   let other = 0;
@@ -30,9 +34,19 @@ export function toolCountSummaryFromEntries(entries: readonly TranscriptEntry[])
     else other += 1;
   }
   const parts: string[] = [];
-  if (commands > 0) parts.push(`ran ${commands} command${commands === 1 ? "" : "s"}`);
-  if (other > 0) parts.push(`called ${other} tool${other === 1 ? "" : "s"}`);
-  return parts.length > 0 ? parts.join(", ") : null;
+  if (commands > 0) {
+    parts.push(translate
+      ? translate("taskChatPage.liveRun.ranCommands", { count: commands })
+      : `ran ${commands} command${commands === 1 ? "" : "s"}`);
+  }
+  if (other > 0) {
+    parts.push(translate
+      ? translate("taskChatPage.liveRun.calledTools", { count: other })
+      : `called ${other} tool${other === 1 ? "" : "s"}`);
+  }
+  return parts.length > 0
+    ? parts.join(translate ? translate("taskChatPage.liveRun.summarySeparator") : ", ")
+    : null;
 }
 
 /**
@@ -58,6 +72,7 @@ export function TaskChatLiveRunPill({
   finishedAtMs?: number | null;
   toolSummary: string | null;
 }) {
+  const { t } = useTranslation();
   const active = !isTerminalRunStatus(status);
   const shimmer = useTaskChatShimmer("working");
   // One shared page-wide ticker drives the live elapsed readout, matching the
@@ -70,8 +85,12 @@ export function TaskChatLiveRunPill({
     ? formatDurationWords(elapsedMs)
     : null;
   const failed = ["failed", "timed_out", "cancelled", "interrupted"].includes(status);
-  const verb = active ? "Working" : failed ? "Stopped" : "Worked";
-  const suffix = elapsed ? `for ${elapsed}` : null;
+  const verb = t(active
+    ? "taskChatPage.liveRun.working"
+    : failed
+      ? "taskChatPage.liveRun.stopped"
+      : "taskChatPage.liveRun.worked");
+  const suffix = elapsed ? t("taskChatPage.liveRun.forElapsed", { elapsed }) : null;
 
   return (
     <div

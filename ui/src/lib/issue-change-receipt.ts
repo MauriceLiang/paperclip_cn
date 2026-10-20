@@ -1,3 +1,6 @@
+import { t as translate } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
+import { priorityLabel, statusLabel } from "@/i18n/status";
 import type { IssueChangeReceiptEntry } from "@paperclipai/shared";
 import { formatReviewPolicyValue } from "./review-policy";
 
@@ -16,35 +19,35 @@ import { formatReviewPolicyValue } from "./review-policy";
  */
 
 /** Field names whose raw ids carry no meaning in a scannable summary. */
-const FIELD_LABELS: Record<string, string> = {
-  assigneeAgentId: "Assignee",
-  assigneeUserId: "Assignee (user)",
-  responsibleUserId: "Responsible user",
-  blockedByIssueIds: "Blockers",
-  labelIds: "Labels",
-  parentId: "Parent",
-  projectId: "Project",
-  goalId: "Goal",
-  workMode: "Work mode",
-  reviewPolicy: "Who can approve",
-  billingCode: "Billing code",
-  checkoutRunId: "Checkout run",
-  executionRunId: "Execution run",
-  hiddenAt: "Hidden",
-  startedAt: "Started",
-  completedAt: "Completed",
-  cancelledAt: "Cancelled",
-  requestDepth: "Request depth",
-  sourceTrust: "Source trust",
-  executionPolicy: "Execution policy",
-  executionWorkspaceId: "Execution workspace",
-  projectWorkspaceId: "Project workspace",
+const FIELD_LABEL_KEYS: Record<string, string> = {
+  assigneeAgentId: "issueFields.assignee",
+  assigneeUserId: "issueFields.assigneeUser",
+  responsibleUserId: "issueFields.responsibleUser",
+  blockedByIssueIds: "issueFields.blockers",
+  labelIds: "issueFields.labels",
+  parentId: "issueFields.parent",
+  projectId: "issueFields.project",
+  goalId: "issueFields.goal",
+  workMode: "issueFields.workMode",
+  reviewPolicy: "issueFields.reviewPolicy",
+  billingCode: "issueFields.billingCode",
+  checkoutRunId: "issueFields.checkoutRun",
+  executionRunId: "issueFields.executionRun",
+  hiddenAt: "issueFields.hidden",
+  startedAt: "issueFields.started",
+  completedAt: "issueFields.completed",
+  cancelledAt: "issueFields.cancelled",
+  requestDepth: "issueFields.requestDepth",
+  sourceTrust: "issueFields.sourceTrust",
+  executionPolicy: "issueFields.executionPolicy",
+  executionWorkspaceId: "issueFields.executionWorkspace",
+  projectWorkspaceId: "issueFields.projectWorkspace",
 };
 
 /** Human label for a changed field, e.g. `assigneeAgentId` → "Assignee". */
 export function issueChangeFieldLabel(field: string): string {
-  const known = FIELD_LABELS[field];
-  if (known) return known;
+  const known = FIELD_LABEL_KEYS[field];
+  if (known) return translate(known);
   // camelCase / snake_case → "Sentence case".
   const spaced = field
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -69,24 +72,26 @@ export function formatIssueChangeValue(
   // `reviewPolicy` is nullable-by-default: a cleared column means "anyone can
   // approve", not "no value" (PAP-16506), so it resolves before the null branch.
   if (options.field === "reviewPolicy") return formatReviewPolicyValue(value);
-  if (value === null || value === undefined || value === "") return "none";
-  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (options.field === "status" && typeof value === "string") return statusLabel(value, translate);
+  if (options.field === "priority" && typeof value === "string") return priorityLabel(value, translate);
+  if (value === null || value === undefined || value === "") return translate("issueFields.receipt.none");
+  if (typeof value === "boolean") return translate(value ? "issueFields.receipt.yes" : "issueFields.receipt.no");
   if (typeof value === "number") return String(value);
 
   if (Array.isArray(value)) {
-    if (value.length === 0) return "none";
+    if (value.length === 0) return translate("issueFields.receipt.none");
     const strings = value.filter((entry): entry is string => typeof entry === "string");
-    if (strings.length !== value.length) return `${value.length} items`;
+    if (strings.length !== value.length) return translate("issueFields.receipt.itemCount", { count: value.length });
     return strings.length <= 3
       ? strings.map((id) => shortenId(id)).join(", ")
       : `${strings.length} items`;
   }
 
-  if (value instanceof Date) return value.toLocaleString();
+  if (value instanceof Date) return formatDateTime(value);
 
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (!trimmed) return "none";
+    if (!trimmed) return translate("issueFields.receipt.none");
     // Ids resolve to names when the directory is loaded; otherwise they shorten.
     const resolved = options.field?.toLowerCase().includes("agent")
       ? options.resolveAgentLabel?.(trimmed)
@@ -94,7 +99,7 @@ export function formatIssueChangeValue(
         ? options.resolveUserLabel?.(trimmed)
         : null;
     if (resolved) return resolved;
-    if (isIsoTimestamp(trimmed)) return new Date(trimmed).toLocaleString();
+    if (isIsoTimestamp(trimmed)) return formatDateTime(trimmed);
     if (looksLikeId(trimmed)) return shortenId(trimmed);
     const humanized = trimmed.includes(" ") ? trimmed : trimmed.replace(/_/g, " ");
     return truncate(humanized);
@@ -102,7 +107,7 @@ export function formatIssueChangeValue(
 
   // Objects (execution policy, workspace settings) are structural — the receipt
   // records that they moved, and the audit log holds the full value.
-  return "updated";
+  return translate("issueFields.receipt.updated");
 }
 
 function truncate(value: string): string {
@@ -164,18 +169,18 @@ export function readIssueChangeReceipt(
 }
 
 /** Authorization reasons, as recorded by the server's write-policy decision. */
-const AUTHORIZATION_REASON_LABELS: Record<string, string> = {
-  allow_visible_issue_write: "default-open write on a visible task",
-  allow_scoped_agent_write: "scoped agent write",
-  allow_board_actor: "board actor",
-  allow_self: "own task",
-  allow_issue_mention_grant: "mention grant",
-  allow_direct_parent_report: "direct parent report",
-  allow_low_trust_boundary: "low-trust boundary allowance",
-  allow_explicit_grant: "explicit permission grant",
-  allow_instance_admin: "instance admin",
-  allow_local_board: "local board",
-  internal_agent_write: "internal agent write",
+const AUTHORIZATION_REASON_KEYS: Record<string, string> = {
+  allow_visible_issue_write: "authorizationReasons.allowVisibleIssueWrite",
+  allow_scoped_agent_write: "authorizationReasons.allowScopedAgentWrite",
+  allow_board_actor: "authorizationReasons.allowBoardActor",
+  allow_self: "authorizationReasons.allowSelf",
+  allow_issue_mention_grant: "authorizationReasons.allowIssueMentionGrant",
+  allow_direct_parent_report: "authorizationReasons.allowDirectParentReport",
+  allow_low_trust_boundary: "authorizationReasons.allowLowTrustBoundary",
+  allow_explicit_grant: "authorizationReasons.allowExplicitGrant",
+  allow_instance_admin: "authorizationReasons.allowInstanceAdmin",
+  allow_local_board: "authorizationReasons.allowLocalBoard",
+  internal_agent_write: "authorizationReasons.internalAgentWrite",
 };
 
 /**
@@ -186,5 +191,6 @@ const AUTHORIZATION_REASON_LABELS: Record<string, string> = {
 export function issueAuthorizationReasonLabel(reason: string | null | undefined): string | null {
   const trimmed = reason?.trim();
   if (!trimmed) return null;
-  return AUTHORIZATION_REASON_LABELS[trimmed] ?? trimmed.replace(/_/g, " ");
+  const key = AUTHORIZATION_REASON_KEYS[trimmed];
+  return key ? translate(key) : trimmed.replace(/_/g, " ");
 }

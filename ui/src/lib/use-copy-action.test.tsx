@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider, useToastState } from "../context/ToastContext";
+import { setLocale } from "@/i18n";
 import { useCopyAction, useCopyToast } from "./use-copy-action";
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
@@ -62,6 +63,25 @@ function ToastCopy() {
   );
 }
 
+function DefaultToastCopy() {
+  const copyWithToast = useCopyToast();
+  const toasts = useToastState();
+  return (
+    <>
+      <button type="button" onClick={() => void copyWithToast("secret-value")}>
+        Copy
+      </button>
+      <ul>
+        {toasts.map((toast) => (
+          <li key={toast.id} data-tone={toast.tone}>
+            {toast.title} {toast.body}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   writeText.mockReset();
@@ -70,11 +90,12 @@ beforeEach(() => {
   root = createRoot(container);
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root?.unmount());
   root = null;
   container.remove();
   vi.useRealTimers();
+  await setLocale("en");
 });
 
 describe("useCopyAction", () => {
@@ -163,7 +184,19 @@ describe("useCopyToast", () => {
     await clickCopy();
 
     const toast = container.querySelector("li");
-    expect(toast?.textContent).toContain("copy to clipboard");
+    expect(toast?.textContent).toContain("Copy failed");
     expect(toast?.getAttribute("data-tone")).toBe("error");
+  });
+
+  it("localizes the default error toast", async () => {
+    await setLocale("zh-CN");
+    writeText.mockRejectedValue(new Error("Clipboard unavailable"));
+    render(<ToastProvider><DefaultToastCopy /></ToastProvider>);
+
+    await clickCopy();
+
+    const toast = container.querySelector("li");
+    expect(toast?.textContent).toContain("复制失败");
+    expect(toast?.textContent).toContain("请手动选中并复制该值。");
   });
 });

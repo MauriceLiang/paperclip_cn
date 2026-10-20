@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { DevRestartBanner } from "./DevRestartBanner";
 
 const mockHealthApi = vi.hoisted(() => ({
@@ -109,5 +110,24 @@ describe("DevRestartBanner", () => {
 
     expect(button?.disabled).toBe(false);
     expect(node.textContent).toContain("Restart now");
+  });
+
+  it("localizes the restart status and confirmation in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const node = render();
+    const button = [...node.querySelectorAll("button")]
+      .find((entry) => entry.textContent?.includes("立即重启"));
+
+    expect(node.textContent).toContain("需要重启");
+    expect(node.textContent).toContain("正在等待 1 个正在运行的任务完成");
+    expect(node.textContent).not.toContain("Restart Required");
+    expect(button).toBeTruthy();
+
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(window.confirm).toHaveBeenCalledWith("现在重启 Paperclip 吗？这可能会中断1 个正在运行的任务。");
+    expect(mockHealthApi.requestDevServerRestart).toHaveBeenCalledTimes(1);
   });
 });

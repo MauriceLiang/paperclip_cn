@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApprovalPayloadRenderer, approvalLabel } from "./ApprovalPayload";
 import { ThemeProvider } from "../context/ThemeContext";
+import { setLocale } from "@/i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -29,6 +30,33 @@ describe("ApprovalPayloadRenderer", () => {
 
   afterEach(() => {
     container.remove();
+  });
+
+  it("localizes fixed labels while preserving dynamic payload values", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+    try {
+      act(() => {
+        root.render(
+          <ThemeProvider>
+            <ApprovalPayloadRenderer
+              type="hire_agent"
+              payload={{ name: "Researcher", role: "Research", adapterType: "codex-local" }}
+            />
+          </ThemeProvider>,
+        );
+      });
+
+      expect(container.textContent).toContain("名称");
+      expect(container.textContent).toContain("角色");
+      expect(container.textContent).toContain("适配器");
+      expect(container.textContent).toContain("Researcher");
+      expect(container.textContent).toContain("codex-local");
+      expect(container.textContent).not.toContain("Name");
+    } finally {
+      act(() => root.unmount());
+      await setLocale("en");
+    }
   });
 
   it("renders request_board_approval payload fields without falling back to raw JSON", () => {

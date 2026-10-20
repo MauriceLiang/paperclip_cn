@@ -1,6 +1,9 @@
 import { quotaUnavailableMessage } from "@/lib/quota-refresh";
 import type { QuotaWindow } from "@paperclipai/shared";
 import { cn, quotaSourceDisplayName } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
+import type { TFunction } from "i18next";
 
 interface CodexSubscriptionPanelProps {
   windows: QuotaWindow[];
@@ -28,17 +31,17 @@ function orderedWindows(windows: QuotaWindow[]): QuotaWindow[] {
   });
 }
 
-function detailText(window: QuotaWindow): string | null {
+function detailText(window: QuotaWindow, t: TFunction): string | null {
   if (typeof window.detail === "string" && window.detail.trim().length > 0) return window.detail.trim();
   if (!window.resetsAt) return null;
-  const formatted = new Date(window.resetsAt).toLocaleString(undefined, {
+  const formatted = formatDateTime(window.resetsAt, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
   });
-  return `Resets ${formatted}`;
+  return t("operationsPage.costs.providerQuota.resetsAt", { time: formatted });
 }
 
 function fillClass(usedPercent: number | null): string {
@@ -58,6 +61,7 @@ export function CodexSubscriptionPanel({
   source = null,
   error = null,
 }: CodexSubscriptionPanelProps) {
+  const { t } = useTranslation();
   const ordered = orderedWindows(windows);
   const accountWindows = ordered.filter((window) => !isModelSpecific(window.label));
   const modelWindows = ordered.filter((window) => isModelSpecific(window.label));
@@ -67,10 +71,10 @@ export function CodexSubscriptionPanel({
       <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
         <div className="min-w-0">
           <div className="text-(length:--text-micro) font-semibold uppercase tracking-(--tracking-caps) text-muted-foreground">
-            Codex subscription
+            {t("operationsPage.costs.providerQuota.codexSubscription")}
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
-            Quota from the Codex subscription connected to this server.
+            {t("operationsPage.costs.providerQuota.codexQuotaDescription")}
           </div>
         </div>
         {source ? (
@@ -89,11 +93,11 @@ export function CodexSubscriptionPanel({
       <div className="mt-4 space-y-5">
         <div className="space-y-3">
           <div className="text-(length:--text-micro) font-semibold uppercase tracking-(--tracking-caps) text-muted-foreground">
-            Account windows
+            {t("operationsPage.costs.providerQuota.accountWindows")}
           </div>
           <div className="space-y-3">
             {accountWindows.map((window) => (
-              <QuotaWindowRow key={window.label} window={window} />
+              <QuotaWindowRow key={window.label} window={window} t={t} />
             ))}
           </div>
         </div>
@@ -101,11 +105,11 @@ export function CodexSubscriptionPanel({
         {modelWindows.length > 0 ? (
           <div className="space-y-3">
             <div className="text-(length:--text-micro) font-semibold uppercase tracking-(--tracking-caps) text-muted-foreground">
-              Model windows
+              {t("operationsPage.costs.providerQuota.modelWindows")}
             </div>
             <div className="space-y-3">
               {modelWindows.map((window) => (
-                <QuotaWindowRow key={window.label} window={window} />
+                <QuotaWindowRow key={window.label} window={window} t={t} />
               ))}
             </div>
           </div>
@@ -115,8 +119,8 @@ export function CodexSubscriptionPanel({
   );
 }
 
-function QuotaWindowRow({ window }: { window: QuotaWindow }) {
-  const detail = detailText(window);
+function QuotaWindowRow({ window, t }: { window: QuotaWindow; t: TFunction }) {
+  const detail = detailText(window, t);
   if (window.usedPercent == null) {
     return (
       <div className="border border-border px-3.5 py-3">
@@ -143,7 +147,7 @@ function QuotaWindowRow({ window }: { window: QuotaWindow }) {
           ) : null}
         </div>
         <div className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-          {window.usedPercent}% used
+          {t("operationsPage.costs.providerQuota.percentUsed", { percent: window.usedPercent })}
         </div>
       </div>
 

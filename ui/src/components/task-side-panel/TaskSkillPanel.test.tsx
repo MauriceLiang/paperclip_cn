@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
 import { companySkillsApi } from "@/api/companySkills";
+import { i18n } from "@/i18n";
 import { TaskSkillPanel } from "./TaskSkillPanel";
 
 const navigate = vi.fn();
@@ -41,6 +42,13 @@ describe("TaskSkillPanel", () => {
     renderPanel();
     await vi.waitFor(() => expect(container.textContent).toContain("Skill no longer available"));
     expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("renders the missing state in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    vi.mocked(companySkillsApi.detail).mockRejectedValue(new ApiError("missing", 404, null));
+    renderPanel();
+    await vi.waitFor(() => expect(container.textContent).toBe("技能已不可用。"));
   });
 
   it("offers retry for transient errors", async () => {

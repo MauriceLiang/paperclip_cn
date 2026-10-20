@@ -97,6 +97,26 @@ describe("task side-panel persistence", () => {
     expect(restored?.state.activeTabId).toBe("subtasks");
   });
 
+  it("re-localizes persisted standard tab labels when restoring them", () => {
+    writeTaskSidePanelState("user-1", "company-1", "task-1", {
+      state: { tabs: [taskPanelPropertiesTab(), taskPanelSubtasksTab(), taskPanelFilesTab()], activeTabId: "properties" },
+      launcherOpen: false,
+      userInteracted: true,
+      autoPlanHandled: false,
+      updatedAt: 1,
+    });
+
+    const storageKey = "paperclip:task-side-panel:v1:user-1:company-1";
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
+    stored.tasks["task-1"].state.tabs.forEach((tab: { label: string }) => {
+      tab.label = "Stale label";
+    });
+    window.localStorage.setItem(storageKey, JSON.stringify(stored));
+
+    const restored = readTaskSidePanelState("user-1", "company-1", "task-1", true);
+    expect(restored?.state.tabs.map((tab) => tab.label)).toEqual(["Properties", "Subtasks", "Files"]);
+  });
+
   it("retains only the 50 most recently written tasks", () => {
     for (let index = 0; index < 52; index += 1) {
       writeTaskSidePanelState("user-1", "company-1", `task-${index}`, {

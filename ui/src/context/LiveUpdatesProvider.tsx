@@ -51,6 +51,8 @@ import { useLocation } from "../lib/router";
 import { agentRouteRef } from "../lib/utils";
 import { buildSameOriginWebSocketUrl } from "../lib/websocket-url";
 import { tryCreateWebSocket } from "../lib/websocket";
+import { t as translate } from "@/i18n";
+import { priorityLabel, statusLabel } from "@/i18n/status";
 
 const TOAST_COOLDOWN_WINDOW_MS = 10_000;
 const TOAST_COOLDOWN_MAX = 3;
@@ -182,15 +184,17 @@ function resolveActorLabel(
   if (actorType === "agent" && actorId) {
     return (
       resolveAgentName(queryClient, companyId, actorId) ??
-      `Agent ${shortId(actorId)}`
+      `${translate("liveUpdates.actor.agent")} ${shortId(actorId)}`
     );
   }
-  if (actorType === "system") return "System";
+  if (actorType === "system") return translate("liveUpdates.actor.system");
   if (actorType === "user" && actorId) {
     return resolveUserName(queryClient, companyId, actorId) ??
-      (actorId === "board" || actorId === "local-board" ? "Board" : `User ${shortId(actorId)}`);
+      (actorId === "board" || actorId === "local-board" ? translate("liveUpdates.actor.board") : `${translate("liveUpdates.actor.user")} ${shortId(actorId)}`);
   }
-  return actorType === "plugin" ? "Plugin" : "Unknown actor";
+  return actorType === "plugin"
+    ? translate("liveUpdates.actor.plugin")
+    : translate("liveUpdates.actor.unknown");
 }
 
 interface IssueToastContext {
@@ -889,30 +893,32 @@ function describeIssueUpdate(
   if (!details) return null;
   const changes: string[] = [];
   if (typeof details.status === "string")
-    changes.push(`status -> ${details.status.replace(/_/g, " ")}`);
+    changes.push(translate("liveUpdates.issueChange.status", { status: statusLabel(details.status, translate).toLowerCase() }));
   if (typeof details.priority === "string")
-    changes.push(`priority -> ${details.priority}`);
+    changes.push(translate("liveUpdates.issueChange.priority", { priority: priorityLabel(details.priority, translate) }));
   if (
     typeof details.assigneeAgentId === "string" ||
     typeof details.assigneeUserId === "string"
   ) {
-    changes.push("reassigned");
+    changes.push(translate("liveUpdates.issueChange.reassigned"));
   } else if (
     details.assigneeAgentId === null ||
     details.assigneeUserId === null
   ) {
-    changes.push("unassigned");
+    changes.push(translate("liveUpdates.issueChange.unassigned"));
   }
   if (details.reopened === true) {
     const from = readString(details.reopenedFrom);
     changes.push(
-      from ? `reopened from ${from.replace(/_/g, " ")}` : "reopened",
+      from
+        ? translate("liveUpdates.issueChange.reopenedFrom", { status: statusLabel(from, translate).toLowerCase() })
+        : translate("liveUpdates.issueChange.reopened"),
     );
   }
-  if (typeof details.title === "string") changes.push("title changed");
+  if (typeof details.title === "string") changes.push(translate("liveUpdates.issueChange.titleChanged"));
   if (typeof details.description === "string")
-    changes.push("description changed");
-  if (changes.length > 0) return changes.join(", ");
+    changes.push(translate("liveUpdates.issueChange.descriptionChanged"));
+  if (changes.length > 0) return changes.join(translate("common.listSeparator"));
   return null;
 }
 
@@ -971,10 +977,10 @@ function buildActivityToast(
   if (action === "issue.created") {
     return {
       actor: toastActor,
-      title: `${actor} created ${issue.ref}`,
+      title: translate("liveUpdates.issue.created", { actor, ref: issue.ref }),
       body: issue.title ? truncate(issue.title, 96) : undefined,
       tone: "success",
-      action: { label: `View ${issue.ref}`, href: issue.href },
+      action: { label: translate("liveUpdates.action.viewIssue", { ref: issue.ref }), href: issue.href },
       dedupeKey: `activity:${action}:${entityId}`,
     };
   }
@@ -994,10 +1000,10 @@ function buildActivityToast(
         : issue.label;
     return {
       actor: toastActor,
-      title: `${actor} updated ${issue.ref}`,
+      title: translate("liveUpdates.issue.updated", { actor, ref: issue.ref }),
       body: truncate(body, 100),
       tone: "info",
-      action: { label: `View ${issue.ref}`, href: issue.href },
+      action: { label: translate("liveUpdates.action.viewIssue", { ref: issue.ref }), href: issue.href },
       dedupeKey: `activity:${action}:${entityId}`,
     };
   }
@@ -1009,29 +1015,26 @@ function buildActivityToast(
   const reopenedFrom = readString(details?.reopenedFrom);
   const reopenedLabel = reopened
     ? reopenedFrom
-      ? `reopened from ${reopenedFrom.replace(/_/g, " ")}`
-      : "reopened"
+      ? translate("liveUpdates.issueChange.reopenedFrom", { status: statusLabel(reopenedFrom, translate).toLowerCase() })
+      : translate("liveUpdates.issueChange.reopened")
     : null;
   const title = reopened
-    ? `${actor} reopened and commented on ${issue.ref}`
+    ? translate("liveUpdates.issue.reopenedComment", { actor, ref: issue.ref })
     : updated
-      ? `${actor} commented and updated ${issue.ref}`
-      : `${actor} commented on ${issue.ref}`;
-  const body = bodySnippet
-    ? reopenedLabel
-      ? `${reopenedLabel} - ${bodySnippet.replace(/^#+\s*/m, "").replace(/\n/g, " ")}`
-      : bodySnippet.replace(/^#+\s*/m, "").replace(/\n/g, " ")
-    : reopenedLabel
-      ? issue.title
-        ? `${reopenedLabel} - ${issue.title}`
-        : reopenedLabel
-      : (issue.title ?? undefined);
+      ? translate("liveUpdates.issue.updatedComment", { actor, ref: issue.ref })
+      : translate("liveUpdates.issue.commented", { actor, ref: issue.ref });
+  const commentOrTitle = bodySnippet
+    ? bodySnippet.replace(/^#+\s*/m, "").replace(/\n/g, " ")
+    : issue.title ?? undefined;
+  const body = reopenedLabel && commentOrTitle
+    ? translate("liveUpdates.issue.reopenedBody", { label: reopenedLabel, body: commentOrTitle })
+    : reopenedLabel ?? commentOrTitle;
   return {
     actor: toastActor,
     title,
     body: body ? truncate(body, 96) : undefined,
     tone: "info",
-    action: { label: `View ${issue.ref}`, href: issue.href },
+    action: { label: translate("liveUpdates.action.viewIssue", { ref: issue.ref }), href: issue.href },
     dedupeKey: `activity:${action}:${entityId}:${commentId ?? "na"}`,
   };
 }
@@ -1049,13 +1052,13 @@ function buildJoinRequestToast(
     return null;
 
   const requestType = readString(details?.requestType);
-  const label = requestType === "agent" ? "Agent" : "Someone";
+  const label = translate(requestType === "agent" ? "liveUpdates.actor.agent" : "liveUpdates.actor.someone");
 
   return {
-    title: `${label} wants to join`,
-    body: "A new join request is waiting for approval.",
+    title: translate("liveUpdates.joinRequest.title", { actor: label }),
+    body: translate("liveUpdates.joinRequest.body"),
     tone: "info",
-    action: { label: "View inbox", href: "/inbox/mine" },
+    action: { label: translate("liveUpdates.action.viewInbox"), href: "/inbox/mine" },
     dedupeKey: `join-request:${entityId}`,
   };
 }
@@ -1071,8 +1074,8 @@ function buildAgentStatusToast(
   if (!agentId || !status || !AGENT_TOAST_STATUSES.has(status)) return null;
 
   const tone = status === "error" ? "error" : "info";
-  const name = nameOf(agentId) ?? `Agent ${shortId(agentId)}`;
-  const title = status === "running" ? `${name} started` : `${name} errored`;
+  const name = nameOf(agentId) ?? `${translate("liveUpdates.actor.agent")} ${shortId(agentId)}`;
+  const title = translate(status === "running" ? "liveUpdates.agent.started" : "liveUpdates.agent.errored", { name });
 
   const agents = queryClient.getQueryData<Agent[]>(
     queryKeys.agents.list(companyId),
@@ -1084,7 +1087,7 @@ function buildAgentStatusToast(
     title,
     body,
     tone,
-    action: { label: "View agent", href: `/agents/${agentId}` },
+    action: { label: translate("liveUpdates.action.viewAgent"), href: `/agents/${agentId}` },
     dedupeKey: `agent-status:${agentId}:${status}`,
   };
 }
@@ -1108,18 +1111,18 @@ function buildRunStatusToast(
   if (errorCode === "workspace_busy") return null;
   const contextSource = readString(payload.contextSource);
   const triggerDetail = readString(payload.triggerDetail);
-  const name = nameOf(agentId) ?? "Agent";
+  const name = nameOf(agentId) ?? translate("liveUpdates.actor.agent");
   if (
     status === "failed" &&
     errorCode === "low_trust_isolation_unavailable" &&
     contextSource?.startsWith("chat:")
   ) {
     return {
-      title: `${name} couldn't start this chat`,
-      body: "This external chat identity isn't linked, and isolated guest workspaces are disabled. Link the identity in Connectors or enable isolated workspaces, then start a new task.",
+      title: translate("liveUpdates.run.chatStartFailedTitle", { name }),
+      body: translate("liveUpdates.run.chatStartFailedBody"),
       tone: "warn",
       ttlMs: 10_000,
-      action: { label: "Open chat connections", href: "/apps" },
+      action: { label: translate("liveUpdates.action.openChatConnections"), href: "/apps" },
       dedupeKey: `run-status:${runId}:${status}`,
     };
   }
@@ -1129,21 +1132,21 @@ function buildRunStatusToast(
       : status === "cancelled"
         ? "info"
         : "error";
-  const statusLabel =
+  const statusKey =
     status === "succeeded"
-      ? "succeeded"
+      ? "liveUpdates.run.status.succeeded"
       : status === "failed"
-        ? "failed"
+        ? "liveUpdates.run.status.failed"
         : status === "timed_out"
-          ? "timed out"
-          : "cancelled";
-  const title = `${name} run ${statusLabel}`;
+          ? "liveUpdates.run.status.timedOut"
+          : "liveUpdates.run.status.cancelled";
+  const title = translate("liveUpdates.run.title", { name, status: translate(statusKey) });
 
   let body: string | undefined;
   if (error) {
     body = truncate(error, 100);
   } else if (triggerDetail) {
-    body = `Trigger: ${triggerDetail}`;
+    body = translate("liveUpdates.run.trigger", { detail: triggerDetail });
   }
 
   return {
@@ -1151,7 +1154,7 @@ function buildRunStatusToast(
     body,
     tone,
     ttlMs: status === "succeeded" ? 5000 : 7000,
-    action: { label: "View run", href: `/agents/${agentId}/runs/${runId}` },
+    action: { label: translate("liveUpdates.action.viewRun"), href: `/agents/${agentId}/runs/${runId}` },
     dedupeKey: `run-status:${runId}:${status}`,
   };
 }

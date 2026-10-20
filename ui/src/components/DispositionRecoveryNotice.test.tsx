@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DispositionRecoveryNotice, DispositionRecoveryProvider, dispositionRetryUnavailableReason, readDispositionRecoverySnapshot, type DispositionRecoveryContextValue, type DispositionRecoverySnapshot } from "./DispositionRecoveryNotice";
 import { TaskChatSystemNotice } from "./task-chat/TaskChatSystemNotice";
+import { setLocale } from "@/i18n";
 
 const snapshot: DispositionRecoverySnapshot = { kind: "disposition_repair_escalated", actionId: "action-1", attemptCount: 2, maxAttempts: 2, reason: "unchanged_source_state_exhausted", assigneeAgentId: "agent-1" };
 function context(): DispositionRecoveryContextValue {
@@ -17,8 +18,8 @@ function context(): DispositionRecoveryContextValue {
 describe("disposition recovery notice", () => {
   let container: HTMLDivElement;
   let root: Root;
-  beforeEach(() => { container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
-  afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
+  beforeEach(async () => { await setLocale("en"); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
+  afterEach(async () => { await act(async () => root.unmount()); container.remove(); await setLocale("en"); });
   async function render(value = context(), data = snapshot) {
     await act(async () => root.render(<DispositionRecoveryProvider value={value}><DispositionRecoveryNotice snapshot={data} createdAt={new Date().toISOString()} /></DispositionRecoveryProvider>));
   }
@@ -34,6 +35,17 @@ describe("disposition recovery notice", () => {
     expect(container.querySelector(`#${CSS.escape(button("Hide details").getAttribute("aria-controls")!)}`)).not.toBeNull();
     expect(container.textContent).toContain("2 of 2");
     expect(container.textContent).toContain("Alex");
+    expect(container.textContent).toContain(snapshot.reason);
+  });
+  it("renders recovery controls in Simplified Chinese and keeps technical values intact", async () => {
+    await setLocale("zh-CN");
+    await render();
+    expect(container.textContent).toContain("Agent 需要处理");
+    expect(container.textContent).toContain("自动尝试解决失败了 2 次");
+    expect(button("重试 Agent").disabled).toBe(false);
+    await act(async () => button("查看详情").click());
+    expect(container.textContent).toContain("自动尝试次数");
+    expect(container.textContent).toContain("2 / 2 次");
     expect(container.textContent).toContain(snapshot.reason);
   });
   it("awaits the real request, blocks repeated clicks, then acknowledges the result", async () => {

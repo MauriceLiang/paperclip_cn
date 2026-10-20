@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectWorkspaceSummary } from "../lib/project-workspaces-tab";
 import { queryKeys } from "../lib/queryKeys";
 import { ProjectWorkspaceSummaryCard } from "./ProjectWorkspaceSummaryCard";
+import { i18n } from "@/i18n";
 
 const mockInstanceSettingsApi = vi.hoisted(() => ({
   getExperimental: vi.fn(),
@@ -127,7 +128,10 @@ describe("ProjectWorkspaceSummaryCard", () => {
   let container: HTMLDivElement;
   let writeClipboard: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     writeClipboard = vi.fn().mockResolvedValue(undefined);
@@ -142,9 +146,12 @@ describe("ProjectWorkspaceSummaryCard", () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({});
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
   });
 
   it("keeps the path row hidden while the policy is still loading", () => {
@@ -277,6 +284,39 @@ describe("ProjectWorkspaceSummaryCard", () => {
     act(() => {
       root.unmount();
     });
+  });
+
+  it("localizes workspace summary labels, states, and accessible copy actions", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(withQueryClient(
+        <ProjectWorkspaceSummaryCard
+          projectRef="paperclip-app"
+          summary={createSummary({ serviceCount: 2, runningServiceCount: 1, linkedIssueCount: 5 })}
+          runtimeActionKey={null}
+          runtimeActionPending={false}
+          onRuntimeAction={() => {}}
+          onCloseWorkspace={() => {}}
+        />,
+      ));
+    });
+
+    expect(container.textContent).toContain("执行工作区");
+    expect(container.textContent).toContain("更新于");
+    expect(container.textContent).toContain("1/2 个服务");
+    expect(container.textContent).toContain("活跃");
+    expect(container.textContent).toContain("停止服务");
+    expect(container.textContent).toContain("关闭工作区");
+    expect(container.textContent).toContain("关联任务");
+    expect(container.textContent).toContain("还有 1 项");
+    expect(container.querySelector('[aria-label="复制分支"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="复制路径"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Start services");
+
+    await act(async () => root.unmount());
   });
 
   it("uses project workspace routes and omits close controls for project workspaces", () => {

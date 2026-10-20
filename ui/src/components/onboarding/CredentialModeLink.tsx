@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 
 import { cn } from "../../lib/utils";
+import { useTranslation } from "@/i18n";
 import type { CredentialMode } from "./ModelSourceTiles";
 import { LINK_LABEL_FADE_IN, LINK_LABEL_FADE_OUT } from "./onboarding-motion";
 
@@ -17,9 +18,9 @@ import { LINK_LABEL_FADE_IN, LINK_LABEL_FADE_OUT } from "./onboarding-motion";
  * holds up because they are right above it.
  */
 
-const LINK_LABEL: Record<CredentialMode, string> = {
-  subscription: "Use subscription instead",
-  api: "Use API key instead",
+const LINK_LABEL_KEY: Record<CredentialMode, string> = {
+  subscription: "onboardingExtra.useSubscriptionInstead",
+  api: "onboardingExtra.useApiKeyInstead",
 };
 const NATIVE_MODES: CredentialMode[] = ["subscription", "api"];
 
@@ -43,10 +44,12 @@ function ModeLink({ destination, onClick, modes }: {
   onClick: () => void;
   modes: CredentialMode[];
 }) {
+  const { t } = useTranslation();
+  const label = t(LINK_LABEL_KEY[destination]);
   return (
     <button
       type="button"
-      aria-label={LINK_LABEL[destination]}
+      aria-label={label}
       onClick={onClick}
       className={cn(
         // A grid rather than a flow of text, so both labels can occupy one cell
@@ -69,7 +72,7 @@ function ModeLink({ destination, onClick, modes }: {
           aria-hidden
           className="invisible col-start-1 row-start-1 whitespace-nowrap"
         >
-          {LINK_LABEL[sizerMode]}
+          {t(LINK_LABEL_KEY[sizerMode])}
         </span>
       ))}
 
@@ -91,7 +94,7 @@ function ModeLink({ destination, onClick, modes }: {
           animate={{ opacity: 1, transition: LINK_LABEL_FADE_IN }}
           exit={{ opacity: 0, transition: LINK_LABEL_FADE_OUT }}
         >
-          {LINK_LABEL[destination]}
+          {label}
         </motion.span>
       </AnimatePresence>
     </button>

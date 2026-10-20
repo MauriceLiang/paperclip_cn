@@ -5,7 +5,9 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppDetailSidebar } from "./AppConnectionSidebar";
+import { AppDetailSidebar as ProductionAppDetailSidebar } from "./AppConnectionSidebar.production";
 import { aiConnectionRouterAppDefinition } from "@paperclipai/shared";
+import { setLocale } from "@/i18n";
 
 const sidebarNavItemMock = vi.hoisted(() => vi.fn());
 const currentPath = vi.hoisted(() => ({ value: "/apps/conn-1/permissions" }));
@@ -89,6 +91,20 @@ vi.mock("./SidebarNavItem", () => ({
         {props.badge ? ` ${props.badge}` : ""}
       </div>
     );
+  },
+}));
+
+vi.mock("./SidebarNavItem.production", () => ({
+  SidebarNavItem: (props: {
+    to: string;
+    label: string;
+    end?: boolean;
+    badge?: number;
+    badgeTone?: string;
+    badgeLabel?: string;
+  }) => {
+    sidebarNavItemMock(props);
+    return <div data-to={props.to}>{props.label}{props.badge ? ` ${props.badge}` : ""}</div>;
   },
 }));
 
@@ -199,6 +215,25 @@ describe("AppConnectionSidebar", () => {
     expect(sidebarNavItemMock).not.toHaveBeenCalledWith(expect.objectContaining({ label: "Activity" }));
     expect(sidebarNavItemMock).not.toHaveBeenCalledWith(expect.objectContaining({ label: "Advanced" }));
     expect(sidebarNavItemMock).not.toHaveBeenCalledWith(expect.objectContaining({ label: "Setup" }));
+  });
+
+  it("localizes production app connection tabs in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    await renderSidebar(<ProductionAppDetailSidebar kind="connection" connectionId="conn-1" />);
+
+    expect(container.querySelector('a[href="/apps/connections"]')?.textContent).toContain("所有应用");
+    expect(sidebarNavItemMock).toHaveBeenCalledWith(expect.objectContaining({
+      to: "/apps/conn-1/permissions",
+      label: "权限",
+      end: true,
+    }));
+    expect(sidebarNavItemMock).toHaveBeenCalledWith(expect.objectContaining({
+      to: "/apps/conn-1/review",
+      label: "审核",
+      badgeLabel: "待审核",
+    }));
+
+    await act(() => setLocale("en"));
   });
 
   it("marks the current tab active through the nav item target", async () => {
@@ -319,5 +354,24 @@ describe("AppConnectionSidebar", () => {
     expect(container.textContent).toContain("App");
     expect(container.querySelector('a[href="/apps"]')?.textContent).toContain("All connectors");
     expect(container.querySelectorAll("[data-to]").length).toBe(2);
+  });
+
+  it.each([
+    ["streamlined", AppDetailSidebar],
+    ["production", ProductionAppDetailSidebar],
+  ])("localizes the generic app fallback in Simplified Chinese (%s)", async (_shell, Sidebar) => {
+    await setLocale("zh-CN");
+    mockToolsApi.getConnection.mockResolvedValue(undefined);
+    mockToolsApi.listApplications.mockResolvedValue({ applications: [] });
+    mockToolsApi.listConnections.mockResolvedValue({ connections: [] });
+    mockToolsApi.listGallery.mockResolvedValue({ apps: [] });
+    mockToolsApi.listAppsAttention.mockResolvedValue({ apps: [], totals: {} });
+
+    await renderSidebar(<Sidebar kind="connection" connectionId="missing-connection" />);
+
+    expect(container.textContent).toContain("应用");
+    expect(container.textContent).not.toContain("App");
+
+    await setLocale("en");
   });
 });

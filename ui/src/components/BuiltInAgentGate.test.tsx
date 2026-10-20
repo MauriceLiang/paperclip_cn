@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BuiltInAgentGate } from "./BuiltInAgentGate";
 import type { BuiltInAgentState, BuiltInAgentStatus } from "@/api/builtInAgents";
+import { setLocale } from "@/i18n";
 
 const listMock = vi.hoisted(() => vi.fn());
 const resumeMock = vi.hoisted(() => vi.fn());
@@ -90,7 +91,8 @@ describe("BuiltInAgentGate (PAP-12978)", () => {
     await flushReact();
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     listMock.mockReset();
@@ -99,12 +101,13 @@ describe("BuiltInAgentGate (PAP-12978)", () => {
     getExperimentalMock.mockResolvedValue({ enableBuiltInAgents: true });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     flushSync(() => {
       root?.unmount();
     });
     root = null;
     container.remove();
+    await setLocale("en");
   });
 
   it("renders the setup empty-state for needs_setup and hides the feature", async () => {
@@ -158,6 +161,19 @@ describe("BuiltInAgentGate (PAP-12978)", () => {
     await renderGate();
     expect(container.querySelector('[data-testid="feature"]')).not.toBeNull();
     expect(container.textContent).not.toContain("Set up the Briefs Agent");
+  });
+
+  it("localizes built-in agent lifecycle copy in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    try {
+      listMock.mockResolvedValue([makeState("paused")]);
+      await renderGate();
+      expect(container.textContent).toContain("Briefs已暂停");
+      expect(container.textContent).toContain("恢复 Agent");
+      expect(container.textContent).toContain("查看 Agent");
+    } finally {
+      await setLocale("en");
+    }
   });
 
   it("does not query built-in agents when the feature flag is off", async () => {

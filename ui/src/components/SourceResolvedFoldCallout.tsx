@@ -1,10 +1,11 @@
 import { Sparkles } from "lucide-react";
 import { Link } from "@/lib/router";
-import { cn, relativeTime } from "@/lib/utils";
+import { cn, formatDateTime, relativeTime } from "@/lib/utils";
+import { statusLabel } from "@/i18n/status";
+import { useTranslation } from "@/i18n";
 import {
   type SourceResolvedWatchdogFold,
   formatCleanupOutcome,
-  formatSilenceAgeMs,
   shortenEvidenceId,
 } from "@/lib/source-resolved-watchdog-fold";
 
@@ -19,7 +20,18 @@ function isoOrLocaleString(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return formatDateTime(date);
+}
+
+function formatSilenceAge(ms: number | null | undefined, t: ReturnType<typeof useTranslation>["t"]): string | null {
+  if (!ms || ms <= 0) return null;
+  const totalMinutes = Math.floor(ms / 60_000);
+  if (totalMinutes < 1) return t("issueComponents.sourceResolvedFold.underOneMinute");
+  if (totalMinutes < 60) return t("issueComponents.sourceResolvedFold.minutes", { count: totalMinutes });
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) return t("issueComponents.sourceResolvedFold.hours", { count: hours });
+  return t("issueComponents.sourceResolvedFold.hoursMinutes", { hours, minutes });
 }
 
 function issueLink(id: string, identifier: string | null) {
@@ -48,19 +60,31 @@ export function SourceResolvedFoldCallout({
   finalizedAt,
   className,
 }: SourceResolvedFoldCalloutProps) {
+  const { t } = useTranslation();
   const sourceLabel = fold.sourceIssueIdentifier ?? fold.sourceIssueId.slice(0, 8);
   const evidenceShort = shortenEvidenceId(fold.sameRunEvidenceId);
   const evidenceAt = isoOrLocaleString(fold.sameRunEvidenceAt);
-  const silenceAgeLabel = formatSilenceAgeMs(fold.silenceAgeMs);
+  const silenceAgeLabel = formatSilenceAge(fold.silenceAgeMs, t);
   const silenceStartedLabel = isoOrLocaleString(fold.silenceStartedAt);
-  const cleanupLabel = formatCleanupOutcome(fold.cleanup.outcome);
+  const cleanupOutcomeKeys: Record<string, string> = {
+    terminated: "terminated",
+    termination_sent_still_running: "terminationSentStillRunning",
+    failed: "failed",
+    not_running: "notRunning",
+    no_process_metadata: "noProcessMetadata",
+    skipped_non_local_adapter: "skippedNonLocalAdapter",
+  };
+  const cleanupOutcomeKey = cleanupOutcomeKeys[fold.cleanup.outcome];
+  const cleanupLabel = cleanupOutcomeKey
+    ? t(`issueComponents.sourceResolvedFold.cleanupOutcome.${cleanupOutcomeKey}`)
+    : formatCleanupOutcome(fold.cleanup.outcome);
   const finalizedRelative = finalizedAt ? relativeTime(finalizedAt) : null;
   const evaluationLabel = fold.evaluationIssueIdentifier ?? fold.evaluationIssueId?.slice(0, 8);
 
   return (
     <section
       role="status"
-      aria-label="Source-resolved watchdog fold"
+      aria-label={t("issueComponents.sourceResolvedFold.badgeAria")}
       data-source-resolved-fold
       className={cn(
         "relative w-full overflow-hidden rounded-lg border text-sm shadow-(--shadow-extract-8)",
@@ -81,10 +105,10 @@ export function SourceResolvedFoldCallout({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-(length:--text-micro) font-semibold uppercase tracking-(--tracking-eyebrow)">
-            <span className="text-emerald-900 dark:text-emerald-200">SOURCE-RESOLVED FOLD</span>
+            <span className="text-emerald-900 dark:text-emerald-200">{t("issueComponents.sourceResolvedFold.heading")}</span>
             <span className="text-muted-foreground/60" aria-hidden>·</span>
             <span className="font-medium normal-case tracking-normal text-muted-foreground">
-              system audit
+              {t("issueComponents.sourceResolvedFold.systemAudit")}
             </span>
             {finalizedRelative ? (
               <>
@@ -96,7 +120,7 @@ export function SourceResolvedFoldCallout({
             ) : null}
           </div>
           <p className="mt-1 text-sm leading-6">
-            This run was folded as a source-resolved false positive.
+            {t("issueComponents.sourceResolvedFold.description")}
           </p>
         </div>
       </header>
@@ -107,7 +131,7 @@ export function SourceResolvedFoldCallout({
           "[&>*]:border-emerald-300/40 dark:[&>*]:border-emerald-500/20",
         )}
       >
-        <MetaRow label="Source task">
+        <MetaRow label={t("issueComponents.sourceResolvedFold.sourceTask")}>
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <Link
               to={issueLink(fold.sourceIssueId, fold.sourceIssueIdentifier)}
@@ -116,11 +140,11 @@ export function SourceResolvedFoldCallout({
               {sourceLabel}
             </Link>
             <span className="rounded-md border border-emerald-300/60 bg-background/60 px-1.5 py-0.5 text-(length:--text-micro) font-medium text-emerald-900 dark:border-emerald-500/30 dark:text-emerald-200">
-              {fold.sourceIssueStatus}
+              {statusLabel(fold.sourceIssueStatus, t)}
             </span>
           </span>
         </MetaRow>
-        <MetaRow label="Same-run evidence">
+        <MetaRow label={t("issueComponents.sourceResolvedFold.sameRunEvidence")}>
           <span className="inline-flex flex-wrap items-baseline gap-1.5">
             <span className="rounded bg-background/70 px-1.5 py-0.5 font-mono text-(length:--text-micro) text-emerald-900 dark:bg-background/40 dark:text-emerald-100">
               {fold.sameRunEvidenceKind}
@@ -132,26 +156,26 @@ export function SourceResolvedFoldCallout({
               {evidenceShort}
             </code>
             {evidenceAt ? (
-              <span className="text-(length:--text-micro) text-muted-foreground">at {evidenceAt}</span>
+              <span className="text-(length:--text-micro) text-muted-foreground">{t("issueComponents.sourceResolvedFold.at", { date: evidenceAt })}</span>
             ) : null}
           </span>
         </MetaRow>
-        <MetaRow label="Silence age before fold">
+        <MetaRow label={t("issueComponents.sourceResolvedFold.silenceAgeBeforeFold")}>
           {silenceAgeLabel ? (
             <span>
               {silenceAgeLabel}
               {silenceStartedLabel ? (
-                <span className="text-muted-foreground"> (silence started {silenceStartedLabel})</span>
+                <span className="text-muted-foreground"> {t("issueComponents.sourceResolvedFold.silenceStarted", { date: silenceStartedLabel })}</span>
               ) : null}
             </span>
           ) : (
-            <span className="text-muted-foreground">unknown</span>
+            <span className="text-muted-foreground">{t("common.unavailable")}</span>
           )}
         </MetaRow>
-        <MetaRow label="Process cleanup">
+        <MetaRow label={t("issueComponents.sourceResolvedFold.processCleanup")}>
           <span
             className="inline-flex flex-wrap items-baseline gap-1.5"
-            title={fold.cleanup.outcome}
+            title={cleanupLabel}
           >
             <span>{cleanupLabel}</span>
             {fold.cleanup.error ? (
@@ -160,7 +184,7 @@ export function SourceResolvedFoldCallout({
           </span>
         </MetaRow>
         {fold.evaluationIssueId ? (
-          <MetaRow label="Evaluation task">
+          <MetaRow label={t("issueComponents.sourceResolvedFold.evaluationTask")}>
             <Link
               to={issueLink(fold.evaluationIssueId, fold.evaluationIssueIdentifier)}
               className="rounded-sm font-medium underline-offset-2 hover:underline"

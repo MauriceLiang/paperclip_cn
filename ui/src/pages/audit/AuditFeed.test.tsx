@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/client";
+import { setLocale } from "@/i18n";
 import { AuditFeed } from "./AuditFeed";
 
 const listAgentActionsMock = vi.hoisted(() => vi.fn());
@@ -204,6 +205,31 @@ describe("AuditFeed", () => {
     expect(container.textContent).toContain("on behalf of Dotta");
     expect(container.querySelector('a[href="/agents/agent-1/runs/run-1"]')).toBeTruthy();
     expect(container.textContent).toContain("Recorded by Paperclip");
+  });
+
+  it("localizes known entity types while preserving the raw audit action code", async () => {
+    await setLocale("zh-CN");
+    listAgentActionsMock.mockResolvedValue({
+      items: [record({
+        actorType: "user",
+        actorId: "local-board",
+        action: "company.created",
+        entityType: "company",
+        entityId: "company-1",
+        agentId: null,
+        runId: null,
+        responsibleUserId: null,
+        details: {},
+        entity: { issue: null, comment: null, document: null },
+      })],
+      nextCursor: null,
+      accessTier: "basic",
+    });
+
+    await render();
+
+    expect(container.textContent).toContain("组织");
+    expect(container.textContent).toContain("company.created");
   });
 
   it("filters and renders connection tests in the same audit row shape", async () => {

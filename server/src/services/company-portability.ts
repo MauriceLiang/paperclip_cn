@@ -4791,6 +4791,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       finalFiles["README.md"] = generateReadme(resolved.manifest, {
         companyName: company.name,
         companyDescription: company.description ?? null,
+        readmeLocale: input.readmeLocale,
       });
     }
 

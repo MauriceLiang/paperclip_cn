@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { t } from ".";
 import en from "./locales/en.json";
-import { localeMessages } from "./locales";
+import { STRICT_LOCALES, localeMessages } from "./locales";
 import { validateLocaleMessages } from "./locale-validation";
 
 describe("locale validation", () => {
@@ -14,8 +14,49 @@ describe("locale validation", () => {
   it("accepts registered locale files", () => {
     expect(Object.keys(localeMessages)).toContain("en");
     for (const [locale, messages] of Object.entries(localeMessages)) {
-      expect(validateLocaleMessages(messages), locale).toEqual([]);
+      const mode = (STRICT_LOCALES as readonly string[]).includes(locale) ? "strict" : "partial";
+      expect(validateLocaleMessages(messages, en, { mode }), locale).toEqual([]);
     }
+  });
+
+  it("allows missing keys in partial mode but rejects extra keys", () => {
+    const reference = {
+      app: { noCompanies: { title: "Title", description: "Description" } },
+    };
+
+    expect(
+      validateLocaleMessages({ app: { noCompanies: { title: "Titel" } } }, reference, {
+        mode: "partial",
+      }),
+    ).toEqual([]);
+
+    expect(
+      validateLocaleMessages({ app: { noCompanies: { title: "Titel", extra: "Extra" } } }, reference, {
+        mode: "partial",
+      }),
+    ).toEqual(["app.noCompanies.extra is not defined in English"]);
+  });
+
+  it("still validates placeholders and unsafe payloads in partial translations", () => {
+    const reference = {
+      message: "Invite {{name}} to {{company}}",
+      safe: "Create company",
+    };
+
+    expect(
+      validateLocaleMessages({ message: "Einladen {{name}}" }, reference, { mode: "partial" }),
+    ).toEqual([
+      'message interpolation placeholders must match English exactly: expected ["company","name"], received ["name"]',
+    ]);
+
+    expect(
+      validateLocaleMessages({ safe: "<script>alert(1)</script>" }, reference, { mode: "partial" }),
+    ).toEqual(
+      expect.arrayContaining([
+        "safe contains disallowed <script",
+        "safe contains disallowed raw HTML tag",
+      ]),
+    );
   });
 
   it("rejects missing and extra nested keys", () => {
@@ -92,6 +133,13 @@ describe("locale validation", () => {
         "html contains disallowed raw HTML tag",
       ]),
     );
+  });
+
+  it("ignores sentence punctuation after an otherwise matching URL", () => {
+    const reference = { message: "Paste https://example.test or http://." };
+    const translated = { message: "粘贴 https://example.test 或 http://。" };
+
+    expect(validateLocaleMessages(translated, reference)).toEqual([]);
   });
 
   it("caps localized string length relative to English", () => {

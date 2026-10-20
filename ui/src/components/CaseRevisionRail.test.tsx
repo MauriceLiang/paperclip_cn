@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CaseDocumentRevisions } from "@/api/cases";
 import { CaseRevisionRail } from "./CaseRevisionRail";
+import { setLocale } from "@/i18n";
 
 function act(callback: () => void) {
   flushSync(callback);
@@ -74,12 +75,16 @@ const revisions: CaseDocumentRevisions = {
 
 describe("CaseRevisionRail", () => {
   let container: HTMLDivElement;
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     mockCasesApi.listRevisions.mockReset();
   });
-  afterEach(() => container.remove());
+  afterEach(async () => {
+    container.remove();
+    await setLocale("en");
+  });
 
   async function render() {
     const root = createRoot(container);
@@ -120,6 +125,20 @@ describe("CaseRevisionRail", () => {
     act(() => rev1Button!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     await flush();
     expect(container.querySelector('[data-testid="md"]')?.textContent).toBe("# First version");
+    act(() => root.unmount());
+  });
+
+  it("renders fixed labels in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    mockCasesApi.listRevisions.mockResolvedValue(revisions);
+    const root = await render();
+
+    expect(container.textContent).toContain("修订记录");
+    expect(container.textContent).toContain("最新");
+    expect(container.textContent).toContain("修订版 2");
+    expect(container.textContent).toContain("关联任务");
+    expect(container.textContent).toContain("Cases Agent");
+
     act(() => root.unmount());
   });
 });

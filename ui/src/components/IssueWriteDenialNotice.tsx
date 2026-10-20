@@ -6,6 +6,7 @@ import {
   type IssueWriteDenialTone,
 } from "@paperclipai/shared";
 import { cn } from "../lib/utils";
+import { useTranslation } from "@/i18n";
 
 /**
  * Renders actionable copy for a denied issue write (the open cross-task write design (failure UX)).
@@ -15,8 +16,8 @@ import { cn } from "../lib/utils";
  * burned a full detour discovering a workaround behind an opaque 403; this notice always
  * states the boundary that fired, who *can* act, and the sanctioned path.
  *
- * Copy comes from the shared `describeIssueWriteDenial` contract, so the words a
- * human reads here match the API error body an agent reads.
+ * The shared denial contract supplies stable codes and tone; this board surface
+ * localizes the same boundary and recovery guidance for the selected UI locale.
  */
 
 const TONE_ICONS: Record<IssueWriteDenialTone, typeof ShieldX> = {
@@ -73,7 +74,30 @@ export function IssueWriteDenialNotice({
   context?: IssueWriteDenialContext;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const copy = describeIssueWriteDenial(code, context ?? {});
+  const actor = context?.actorLabel?.trim() || t("issueComponents.writeDenial.fallbacks.actor");
+  const issue = context?.issueIdentifier?.trim() || t("issueComponents.writeDenial.fallbacks.issue");
+  const assignee = context?.assigneeLabel?.trim() || t("issueComponents.writeDenial.fallbacks.assignee");
+  const responsible = context?.responsibleUserName?.trim() || t("issueComponents.writeDenial.fallbacks.responsible");
+  const denialKey = `issueComponents.writeDenial.codes.${code}`;
+  const localizedCopy = {
+    ...copy,
+    boundary: t(`${denialKey}.boundary`, { actor, issue, assignee, responsible, cap: context?.cap ?? 20 }),
+    title: t(`${denialKey}.title`, { actor, issue, assignee, responsible, cap: context?.cap ?? 20 }),
+    description: t(`${denialKey}.description`, {
+      actor,
+      issue,
+      assignee,
+      responsible,
+      cap: context?.cap ?? 20,
+      attemptDetail: context?.count == null
+        ? ""
+        : t("issueComponents.writeDenial.attemptDetail", { count: context.count }),
+    }),
+    whoCanAct: t(`${denialKey}.whoCanAct`, { actor, issue, assignee, responsible, cap: context?.cap ?? 20 }),
+    sanctionedPath: t(`${denialKey}.sanctionedPath`, { actor, issue, assignee, responsible, cap: context?.cap ?? 20 }),
+  };
   const tone = TONE_CLASSES[copy.tone];
   const Icon = VISIBILITY_CODES.has(code) ? EyeOff : TONE_ICONS[copy.tone];
 
@@ -89,22 +113,22 @@ export function IssueWriteDenialNotice({
         <Icon className={cn("mt-0.5 size-4 shrink-0", tone.icon)} aria-hidden="true" />
         <div className="min-w-0 space-y-1">
           <p className="font-medium leading-5">
-            {copy.title}
+            {localizedCopy.title}
             {/* Naming the boundary is obligation 1 of plan §6. */}
-            <span className="ml-1.5 font-normal opacity-80">({copy.boundary})</span>
+            <span className="ml-1.5 font-normal opacity-80">({localizedCopy.boundary})</span>
           </p>
-          <p className="leading-5">{copy.description}</p>
+          <p className="leading-5">{localizedCopy.description}</p>
           {/* Inline flow, not flex rows: a flex `dd` is an unbreakable line box,
               so a long value drops whole and orphans its label. Inline keeps the
               label and the first words of the value together at every width. */}
           <dl className={cn("space-y-0.5 text-xs leading-5", tone.action)}>
             <div className="min-w-0">
-              <dt className="inline font-medium">Who can act:</dt>{" "}
-              <dd className="inline">{copy.whoCanAct}</dd>
+              <dt className="inline font-medium">{t("issueComponents.writeDenial.whoCanAct")}</dt>{" "}
+              <dd className="inline">{localizedCopy.whoCanAct}</dd>
             </div>
             <div className="min-w-0">
-              <dt className="inline font-medium">Try this:</dt>{" "}
-              <dd className="inline">{copy.sanctionedPath}</dd>
+              <dt className="inline font-medium">{t("issueComponents.writeDenial.tryThis")}</dt>{" "}
+              <dd className="inline">{localizedCopy.sanctionedPath}</dd>
             </div>
           </dl>
         </div>

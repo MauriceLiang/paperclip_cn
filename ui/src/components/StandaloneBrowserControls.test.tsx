@@ -3,6 +3,7 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "../context/ToastContext";
 import { StandaloneBrowserControls } from "./StandaloneBrowserControls";
@@ -75,13 +76,14 @@ describe("StandaloneBrowserControls", () => {
   let container: HTMLDivElement;
   const originalMatchMedia = window.matchMedia;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     delete (navigator as Navigator & { standalone?: boolean }).standalone;
     if (originalMatchMedia) {
       Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
@@ -90,6 +92,7 @@ describe("StandaloneBrowserControls", () => {
     }
     container.remove();
     document.body.innerHTML = "";
+    await setLocale("en");
   });
 
   it("shows refresh, share, and open-in-browser controls in mobile standalone mode", async () => {
@@ -109,6 +112,30 @@ describe("StandaloneBrowserControls", () => {
     expect(container.querySelector('[aria-label="Refresh"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Share"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Open in Browser"]')).not.toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("localizes controls in mobile standalone mode", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <TooltipProvider>
+          <ToastProvider>
+            <StandaloneBrowserControls mobile />
+          </ToastProvider>
+        </TooltipProvider>,
+      );
+    });
+    await flushReact();
+
+    expect(container.querySelector('[aria-label="刷新"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="分享"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="在浏览器中打开"]')).not.toBeNull();
 
     await act(async () => {
       root.unmount();

@@ -8,6 +8,8 @@ import { MarkdownBody } from "@/components/MarkdownBody";
 import { DocumentAnnotationsCountChip, IssueDocumentAnnotations } from "@/components/IssueDocumentAnnotations";
 import { useIssuePlanDocument } from "@/hooks/useIssuePlanDocument";
 import { useLocation } from "@/lib/router";
+import { useTranslation } from "@/i18n";
+import { formatDateTime } from "@/i18n/formatters";
 
 interface IssuePropertiesPlansTabProps {
   issue: Issue;
@@ -36,6 +38,7 @@ function hasPendingPlanConfirmation(interactions: IssueThreadInteraction[] | und
  * the /dev/task-chat-lab harness).
  */
 export function IssuePropertiesPlansTab({ issue }: IssuePropertiesPlansTabProps) {
+  const { t } = useTranslation();
   const { data: planDocument, isLoading: planDocumentLoading } = useIssuePlanDocument(issue.id);
   const location = useLocation();
   const [annotationPanelOpen, setAnnotationPanelOpen] = useState(false);
@@ -54,18 +57,18 @@ export function IssuePropertiesPlansTab({ issue }: IssuePropertiesPlansTabProps)
     return (
       <div className="px-1 py-6 text-sm text-muted-foreground">
         {planDocumentLoading ? (
-          "Loading plan…"
+          t("issuesPage.planTab.loading")
         ) : issue.workMode === "planning" ? (
           <div className="space-y-2">
-            <p>This task is in plan mode but no plan document has been written yet.</p>
+            <p>{t("issuesPage.planTab.planningWithoutDocument")}</p>
             {pendingPlanConfirmation ? (
               <p className="text-amber-foreground">
-                A plan confirmation is pending, but the plan document it should confirm is missing.
+                {t("issuesPage.planTab.pendingConfirmationWithoutDocument")}
               </p>
             ) : null}
           </div>
         ) : (
-          "No plan yet. The plan document, accepted plans, and their revisions will appear here."
+          t("issuesPage.planTab.empty")
         )}
       </div>
     );
@@ -80,12 +83,10 @@ export function IssuePropertiesPlansTab({ issue }: IssuePropertiesPlansTabProps)
       {planDocument ? (
         <section data-testid="issue-plan-document" className="space-y-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            {`Revision ${planDocument.latestRevisionNumber ?? 1} · updated ${new Date(planDocument.updatedAt).toLocaleString([], {
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            })}`}
+            {t("issuesPage.planTab.revisionUpdated", {
+              revision: planDocument.latestRevisionNumber ?? 1,
+              date: formatDateTime(planDocument.updatedAt),
+            })}
             <DocumentAnnotationsCountChip
               issueId={issue.id}
               docKey="plan"

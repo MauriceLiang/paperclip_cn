@@ -407,8 +407,13 @@ export function chooseTickStepMs(pxPerMinute: number): number {
   return steps[steps.length - 1] * 60000;
 }
 
-export function formatDuration(startMs: number, endMs: number): string {
+export function formatDuration(startMs: number, endMs: number, locale: "en" | "zh-CN" = "en"): string {
   const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
+  if (locale === "zh-CN") {
+    if (mins >= 1440) return `${Math.floor(mins / 1440)}天 ${Math.floor((mins % 1440) / 60)}小时`;
+    if (mins >= 60) return `${Math.floor(mins / 60)}小时 ${mins % 60}分`;
+    return `${mins}分`;
+  }
   if (mins >= 1440) return `${Math.floor(mins / 1440)}d ${Math.floor((mins % 1440) / 60)}h`;
   if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   return `${mins}m`;

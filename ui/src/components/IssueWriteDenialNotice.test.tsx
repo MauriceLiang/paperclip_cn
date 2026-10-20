@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ISSUE_WRITE_DENIAL_CODES } from "@paperclipai/shared";
 import { IssueWriteDenialNotice } from "./IssueWriteDenialNotice";
 import { issueWriteDenialForActivity } from "../lib/issue-write-denial-activity";
+import { setLocale } from "@/i18n";
 
 describe("IssueWriteDenialNotice", () => {
   it("answers all three plan §6 obligations for every code", () => {
@@ -13,6 +14,26 @@ describe("IssueWriteDenialNotice", () => {
       expect(html, code).toContain("Who can act:");
       expect(html, code).toContain("Try this:");
       expect(html, code).toContain(`data-denial-code="${code}"`);
+    }
+  });
+
+  it("localizes the full denial explanation for the Simplified Chinese UI", async () => {
+    await setLocale("zh-CN");
+    try {
+      const html = renderToStaticMarkup(
+        <IssueWriteDenialNotice
+          code="cross_issue_influence_cap_exceeded"
+          context={{ actorLabel: "Fable", issueIdentifier: "TASK-482", assigneeLabel: "CodexCoder", cap: 20, count: 21 }}
+        />,
+      );
+      expect(html).toContain("每次运行的跨任务写入上限：20 次");
+      expect(html).toContain("本次是第 21 次尝试");
+      expect(html).toContain("谁可以处理：");
+      expect(html).toContain("建议操作：");
+      expect(html).not.toContain("Who can act:");
+      expect(html).not.toContain("This run has spent its cross-issue write budget");
+    } finally {
+      await setLocale("en");
     }
   });
 

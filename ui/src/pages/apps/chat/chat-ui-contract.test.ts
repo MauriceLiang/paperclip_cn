@@ -1,8 +1,30 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import en from "@/i18n/locales/en.json";
+
+function resolveEnglishCopy(key: string): string | undefined {
+  let value: unknown = en;
+  for (const part of key.split(".")) {
+    if (!value || typeof value !== "object") return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return typeof value === "string" ? value : undefined;
+}
+
 function source(relativePath: string) {
-  return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  const content = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  const keys = new Set<string>();
+  const keyPattern = /(?:\bi18nKey\s*=\s*["']([^"']+)["']|\b(?:t|translate)\s*\(\s*["'`]([^"'`]+)["'`])/g;
+  for (const match of content.matchAll(keyPattern)) {
+    const key = match[1] ?? match[2];
+    if (key) keys.add(key);
+  }
+  for (const match of content.matchAll(/["'`]([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)["'`]/g)) {
+    keys.add(match[1]);
+  }
+  const englishCopy = [...keys].map(resolveEnglishCopy).filter((value): value is string => Boolean(value));
+  return `${content}\n${englishCopy.join("\n")}`;
 }
 
 describe("chat connector UI contract", () => {
@@ -35,8 +57,9 @@ describe("chat connector UI contract", () => {
     for (const file of ["Inbox.tsx", "LegacyInbox.tsx"]) {
       const page = source(`../../${file}`);
       expect(page).toMatch(
-        /const retryRunMutation = useMutation\(\{[\s\S]*?onError: \(error\) => \{\s*pushToast\(\{\s*title: "Run retry failed"/,
+        /const retryRunMutation = useMutation\(\{[\s\S]*?onError: \(error\) => \{\s*pushToast\(\{\s*title:\s*(?:t|translate)\(/,
       );
+      expect(page).toContain("Run retry failed");
     }
   });
   it("keeps the exact dual-purpose choice and immutable searchable agent selection", () => {
@@ -184,9 +207,8 @@ describe("chat connector UI contract", () => {
     expect(setup).not.toContain("/setprivacy");
     expect(setup).toContain("/task@bot_username");
     expect(setup).toContain("registers its command menu automatically");
-    expect(setup).toContain(
-      "ordinary\n          mentions are not delivered to bots",
-    );
+    expect(setup).toContain("appsPage.chatSetup.telegramPrivacyNote");
+    expect(setup).toContain("ordinary mentions are not delivered to bots");
     expect(setup).toContain("Create Azure Bot");
     expect(setup).toContain("Microsoft 365 work or school organization");
     expect(setup).toContain("teams.live.com");

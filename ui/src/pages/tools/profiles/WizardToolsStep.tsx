@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Plug, Plus, Search, X } from "lucide-react";
 import { Link } from "@/lib/router";
 import { cn } from "@/lib/utils";
+import { t as translate, useTranslation } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +22,7 @@ import {
   toggleApp,
   toggleTool,
   toolCapability,
-  CAPABILITY_LABEL,
+  CAPABILITY_LABEL_KEY,
   type AdvancedRule,
   type AdvancedRuleKind,
   type AppGroup,
@@ -52,6 +53,7 @@ export interface WizardToolsStepProps {
 }
 
 export function WizardToolsStep(props: WizardToolsStepProps) {
+  const { t } = useTranslation();
   const { appGroups, catalogLoading, selections, onSelectionsChange } = props;
   const [search, setSearch] = useState("");
   const [capabilityFilter, setCapabilityFilter] = useState<ToolCapability | null>(null);
@@ -74,7 +76,7 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
       .filter((entry) => entry.tools.length > 0);
   }, [appGroups, search, capabilityFilter]);
 
-  if (catalogLoading) return <LoadingState label="Loading tools…" />;
+  if (catalogLoading) return <LoadingState label={t("toolsPage.profiles.toolsStep.loadingTools")} />;
 
   // Cold state A (AP17): nothing connected at all.
   if (appGroups.length === 0) {
@@ -82,14 +84,13 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
       <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
         <Plug className="h-6 w-6 text-muted-foreground" />
         <div>
-          <p className="text-sm font-medium text-foreground">App connections are coming soon</p>
+          <p className="text-sm font-medium text-foreground">{t("toolsPage.profiles.toolsStep.coldTitle")}</p>
           <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            Profiles will be available once app connections are ready. Browse the planned integrations in the
-            meantime.
+            {t("toolsPage.profiles.toolsStep.coldBody")}
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link to="/apps">Browse app connections</Link>
+          <Link to="/apps">{t("toolsPage.profiles.toolsStep.browseConnections")}</Link>
         </Button>
       </div>
     );
@@ -103,7 +104,7 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tools…"
+            placeholder={t("toolsPage.profiles.toolsStep.searchPlaceholder")}
             className="pl-8"
           />
         </div>
@@ -120,7 +121,7 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
                   : "border-border text-muted-foreground hover:bg-accent",
               )}
             >
-              {CAPABILITY_LABEL[cap]}
+              {t(CAPABILITY_LABEL_KEY[cap])}
             </button>
           ))}
         </div>
@@ -129,7 +130,7 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
       {filteredGroups.length === 0 ? (
         // Cold state B (AP17): a search/filter that matches nothing.
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-10 text-center">
-          <p className="text-sm font-medium text-foreground">No tools match “{search}”.</p>
+          <p className="text-sm font-medium text-foreground">{t("toolsPage.profiles.toolsStep.noMatch", { search })}</p>
           <button
             type="button"
             onClick={() => {
@@ -138,7 +139,7 @@ export function WizardToolsStep(props: WizardToolsStepProps) {
             }}
             className="text-sm font-medium text-primary hover:underline"
           >
-            Clear search
+            {t("toolsPage.profiles.toolsStep.clearSearch")}
           </button>
         </div>
       ) : (
@@ -183,6 +184,7 @@ function AppRow({
   onToggleApp: () => void;
   onToggleTool: (toolId: string) => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const state = appCheckState(group, selection);
   const checked = state === "checked" ? true : state === "indeterminate" ? "indeterminate" : false;
@@ -190,7 +192,7 @@ function AppRow({
   return (
     <div>
       <div className="flex items-center gap-2.5 px-3 py-2">
-        <Checkbox checked={checked} onCheckedChange={onToggleApp} aria-label={`All ${group.name} tools`} />
+        <Checkbox checked={checked} onCheckedChange={onToggleApp} aria-label={t("toolsPage.profiles.toolsStep.allAppToolsAria", { name: group.name })} />
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -203,12 +205,12 @@ function AppRow({
           )}
           <span className="flex flex-col">
             <span className="text-sm font-medium text-foreground">
-              All {group.name} tools ({group.tools.length})
+              {t("toolsPage.profiles.toolsStep.allAppTools", { name: group.name, count: group.tools.length })}
             </span>
             <span className="text-xs text-muted-foreground">
               {state === "indeterminate"
                 ? appSelectionLabel(group, selection)
-                : "includes tools " + group.name + " adds later"}
+                : t("toolsPage.profiles.toolsStep.includesLater", { name: group.name })}
             </span>
           </span>
         </button>
@@ -232,7 +234,7 @@ function AppRow({
                   <span className="flex flex-wrap items-center gap-2">
                     <code className="font-mono text-xs text-foreground">{tool.toolName}</code>
                     <Badge variant={CAPABILITY_VARIANT[cap]} className="text-(length:--text-nano)">
-                      {CAPABILITY_LABEL[cap]}
+              {t(CAPABILITY_LABEL_KEY[cap])}
                     </Badge>
                   </span>
                   {tool.title || tool.description ? (
@@ -255,22 +257,23 @@ function NewToolsRadio({
   value: NewToolsAction;
   onChange: (next: NewToolsAction) => void;
 }) {
+  const { t } = useTranslation();
   const options: Array<{ value: NewToolsAction; label: string; hint: string; recommended?: boolean }> = [
     {
       value: "deny",
-      label: "Stay blocked until someone allows them",
-      hint: "New tools an app adds later won't be usable until you review them.",
+      label: t("toolsPage.profiles.toolsStep.newToolsDenyTitle"),
+      hint: t("toolsPage.profiles.toolsStep.newToolsDenyHint"),
       recommended: true,
     },
     {
       value: "allow",
-      label: "Allowed automatically",
-      hint: "Any tool an app adds later becomes usable right away.",
+      label: t("toolsPage.profiles.toolsStep.newToolsAllowTitle"),
+      hint: t("toolsPage.profiles.toolsStep.newToolsAllowHint"),
     },
   ];
   return (
     <fieldset className="space-y-2 rounded-lg border border-border p-4">
-      <legend className="px-1 text-sm font-medium text-foreground">New tools that appear later</legend>
+      <legend className="px-1 text-sm font-medium text-foreground">{t("toolsPage.profiles.toolsStep.newToolsLegend")}</legend>
       <div className="space-y-2">
         {options.map((opt) => (
           <label key={opt.value} className="flex cursor-pointer items-start gap-2.5">
@@ -286,10 +289,10 @@ function NewToolsRadio({
                 {opt.label}
                 {opt.recommended ? (
                   <Badge variant="outline" className="text-(length:--text-nano)">
-                    Recommended
+                    {t("toolsPage.profiles.toolsStep.recommended")}
                   </Badge>
                 ) : (
-                  <span className="text-xs font-normal text-amber-600">(risky)</span>
+                  <span className="text-xs font-normal text-amber-600">{t("toolsPage.profiles.toolsStep.risky")}</span>
                 )}
               </span>
               <span className="text-xs text-muted-foreground">{opt.hint}</span>
@@ -301,11 +304,21 @@ function NewToolsRadio({
   );
 }
 
-const RULE_KIND_OPTIONS: Array<{ value: AdvancedRuleKind; label: string }> = [
-  { value: "tool_name", label: "Tool name pattern" },
-  { value: "risk_level", label: "Risk level" },
-  { value: "catalog_entry", label: "By tool ID" },
+const RULE_KIND_OPTIONS: Array<{ value: AdvancedRuleKind; labelKey: string }> = [
+  { value: "tool_name", labelKey: "toolsPage.profiles.toolsStep.rules.toolNamePattern" },
+  { value: "risk_level", labelKey: "toolsPage.profiles.toolsStep.rules.riskLevel" },
+  { value: "catalog_entry", labelKey: "toolsPage.profiles.toolsStep.rules.byToolId" },
 ];
+
+const RISK_KEYS: Record<string, string> = {
+  read: "toolsPage.shared.badges.risk.read",
+  write: "toolsPage.shared.badges.risk.write",
+  destructive: "toolsPage.shared.badges.risk.destructive",
+  low: "toolsPage.shared.badges.risk.low",
+  medium: "toolsPage.shared.badges.risk.medium",
+  high: "toolsPage.shared.badges.risk.high",
+  critical: "toolsPage.shared.badges.risk.critical",
+};
 
 function createAdvancedRuleId() {
   const randomUuid = globalThis.crypto?.randomUUID?.();
@@ -314,10 +327,17 @@ function createAdvancedRuleId() {
 }
 
 function ruleSummary(rule: AdvancedRule): string {
-  const verb = rule.effect === "include" ? "Allow" : "Block";
-  if (rule.kind === "tool_name") return `${verb} tools matching ${rule.value}`;
-  if (rule.kind === "risk_level") return `${verb} ${rule.riskLevel ?? rule.value} tools`;
-  return `${verb} tool ${rule.value}`;
+  const allow = rule.effect === "include";
+  if (rule.kind === "tool_name") {
+    return translate(allow ? "toolsPage.profiles.toolsStep.rules.allowMatching" : "toolsPage.profiles.toolsStep.rules.blockMatching", { value: rule.value });
+  }
+  if (rule.kind === "risk_level") {
+    const risk = rule.riskLevel ?? rule.value;
+    const riskKey = RISK_KEYS[risk];
+    const riskLabel = riskKey ? translate(riskKey) : risk;
+    return translate(allow ? "toolsPage.profiles.toolsStep.rules.allowRisk" : "toolsPage.profiles.toolsStep.rules.blockRisk", { risk: riskLabel });
+  }
+  return translate(allow ? "toolsPage.profiles.toolsStep.rules.allowTool" : "toolsPage.profiles.toolsStep.rules.blockTool", { value: rule.value });
 }
 
 function AdvancedRules({
@@ -327,6 +347,7 @@ function AdvancedRules({
   rules: AdvancedRule[];
   onChange: (next: AdvancedRule[]) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<AdvancedRuleKind>("tool_name");
   const [value, setValue] = useState("");
@@ -349,13 +370,12 @@ function AdvancedRules({
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-border">
       <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
-        <span className="text-sm font-medium text-foreground">Advanced rules</span>
+        <span className="text-sm font-medium text-foreground">{t("toolsPage.profiles.toolsStep.rules.title")}</span>
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 border-t border-border px-4 py-3">
         <p className="text-xs text-muted-foreground">
-          Match tools by a name pattern, a risk level, or a specific tool ID. These run on top of the choices
-          above.
+          {t("toolsPage.profiles.toolsStep.rules.description")}
         </p>
 
         {rules.length > 0 ? (
@@ -368,7 +388,7 @@ function AdvancedRules({
                 <span className="text-foreground">{ruleSummary(rule)}</span>
                 <button
                   type="button"
-                  aria-label="Remove rule"
+                  aria-label={t("toolsPage.profiles.toolsStep.rules.removeAria")}
                   onClick={() => onChange(rules.filter((r) => r.id !== rule.id))}
                   className="text-muted-foreground hover:text-destructive"
                 >
@@ -385,8 +405,8 @@ function AdvancedRules({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="include">Allow</SelectItem>
-              <SelectItem value="exclude">Block</SelectItem>
+              <SelectItem value="include">{t("toolsPage.profiles.toolsStep.rules.allow")}</SelectItem>
+              <SelectItem value="exclude">{t("toolsPage.profiles.toolsStep.rules.block")}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={kind} onValueChange={(v) => setKind(v as AdvancedRuleKind)}>
@@ -396,7 +416,7 @@ function AdvancedRules({
             <SelectContent>
               {RULE_KIND_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -407,22 +427,24 @@ function AdvancedRules({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="read">Read-only</SelectItem>
-                <SelectItem value="write">Makes changes</SelectItem>
-                <SelectItem value="destructive">Destructive</SelectItem>
+                <SelectItem value="read">{t("toolsPage.profiles.toolsStep.rules.readOnly")}</SelectItem>
+                <SelectItem value="write">{t("toolsPage.profiles.toolsStep.rules.makesChanges")}</SelectItem>
+                <SelectItem value="destructive">{t("toolsPage.profiles.toolsStep.rules.destructive")}</SelectItem>
               </SelectContent>
             </Select>
           ) : (
             <Input
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={kind === "tool_name" ? "e.g. gmail.send*" : "tool ID"}
+              placeholder={kind === "tool_name"
+                ? t("toolsPage.profiles.toolsStep.rules.toolNamePlaceholder")
+                : t("toolsPage.profiles.toolsStep.rules.toolIdPlaceholder")}
               className="w-44"
             />
           )}
           <Button type="button" variant="outline" size="sm" onClick={addRule}>
             <Plus className="mr-1 h-3.5 w-3.5" />
-            Add rule
+            {t("toolsPage.profiles.toolsStep.rules.addRule")}
           </Button>
         </div>
       </CollapsibleContent>

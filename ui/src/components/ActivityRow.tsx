@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import { formatActivityVerb } from "../lib/activity-format";
 import { deriveProjectUrlKey, type ActivityEvent, type Agent } from "@paperclipai/shared";
 import type { CompanyUserProfile } from "../lib/company-members";
+import { useTranslation } from "@/i18n";
 import { useState, type ReactNode } from "react";
 import { CellMarquee, HoveredCellContext, useCellMarqueeHover } from "./CellMarquee";
 
@@ -34,6 +35,7 @@ export interface ActivityRowProps {
 }
 
 export function ActivityRow({ event, agentMap, userProfileMap, entityNameMap, entityTitleMap, className, appearance = "default", density = "comfortable" }: ActivityRowProps) {
+  const { t } = useTranslation();
   const verb = formatActivityVerb(event.action, event.details, { agentMap, userProfileMap });
 
   const isHeartbeatEvent = event.entityType === "heartbeat_run";
@@ -54,7 +56,14 @@ export function ActivityRow({ event, agentMap, userProfileMap, entityNameMap, en
 
   const actor = event.actorType === "agent" ? agentMap.get(event.actorId) : null;
   const userProfile = event.actorType === "user" ? userProfileMap?.get(event.actorId) : null;
-  const actorName = actor?.name ?? (event.actorType === "system" ? "System" : userProfile?.label ?? (event.actorType === "user" ? "Board" : event.actorId || "Unknown"));
+  const isLocalBoard = event.actorType === "user" && event.actorId === "local-board";
+  const actorName = actor?.name ?? (event.actorType === "system"
+    ? t("dashboardPage.actors.system")
+    : isLocalBoard
+      ? t("shell.account.board")
+      : userProfile?.label ?? (event.actorType === "user"
+        ? t("shell.account.board")
+        : event.actorId || t("dashboardPage.actors.unknown")));
   const actorAvatarUrl = userProfile?.image ?? null;
   const avatar = event.actorType === "agent" ? (
     <AgentAvatar agent={actor} name={actorName} size={24} className="@xl:self-center" />

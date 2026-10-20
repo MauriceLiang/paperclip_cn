@@ -9,6 +9,7 @@ import { CopyText } from "@/components/CopyText";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { agentAvatarUrl } from "@/lib/agent-avatar-url";
+import { useTranslation } from "@/i18n";
 import { Link } from "@/lib/router";
 import { GitHubAppBranding, gitHubBotMention } from "./GitHubAppIdentity";
 
@@ -32,12 +33,13 @@ export function GitHubConnectionComplete({
   onClose: () => void;
   onCloseAutoFocus?: () => void;
 }) {
+  const { t } = useTranslation();
   const repositories = useQuery({
     queryKey: ["github-connected-repositories", endpoint.id],
     queryFn: () => githubChatApi.repositories(endpoint.id, { limit: 1 }),
   });
   const avatar = agent ?? { id: endpoint.assignedAgentId, name: endpoint.assignedAgentName };
-  const mention = `${gitHubBotMention(endpoint) || "@your-bot"} review this pull request`;
+  const mention = t("appsPage.githubComplete.tryMention", { mention: gitHubBotMention(endpoint) || "@your-bot" });
   const count = repositories.data?.enabledCount;
   const incomplete = runtimeChecks?.filter((check) => !check.ok) ?? [];
   return (
@@ -54,7 +56,7 @@ export function GitHubConnectionComplete({
           <header className="space-y-5">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="size-6 shrink-0 text-(--status-task-done)" />
-              <DialogTitle className="text-xl leading-normal">GitHub connected</DialogTitle>
+              <DialogTitle className="text-xl leading-normal">{t("appsPage.githubComplete.connected")}</DialogTitle>
             </div>
             <div className="flex items-center gap-3">
               <AgentAvatar agent={avatar} size={48} />
@@ -75,14 +77,14 @@ export function GitHubConnectionComplete({
                   </>}
                 </p>
                 <Link to={`/apps/chat/${endpoint.id}/access`} className="inline-block text-xs text-muted-foreground underline underline-offset-4">
-                  {repositories.isError ? "Repository access unavailable" : count === undefined ? "Repository access" : count === 0 ? "No repositories enabled" : `${count} ${count === 1 ? "repository" : "repositories"} enabled`}
+                  {repositories.isError ? t("appsPage.githubComplete.repoAccessUnavailable") : count === undefined ? t("appsPage.githubComplete.repoAccess") : count === 0 ? t("appsPage.githubComplete.noReposEnabled") : t("appsPage.githubComplete.reposEnabled", { count })}
                 </Link>
               </div>
             </div>
           </header>
           {incomplete.length > 0 && (
             <section className="space-y-2">
-              <h2 className="text-sm font-medium">Before your first review</h2>
+              <h2 className="text-sm font-medium">{t("appsPage.githubComplete.beforeFirstReview")}</h2>
               {incomplete.map((check) => (
                 <p key={check.key} className="text-sm text-muted-foreground">{check.detail}</p>
               ))}
@@ -90,17 +92,17 @@ export function GitHubConnectionComplete({
           )}
           <section className="space-y-3">
             <div className="space-y-1">
-              <h2 className="text-base font-semibold">Try your bot</h2>
+              <h2 className="text-base font-semibold">{t("appsPage.githubComplete.tryBot")}</h2>
               <p className="text-sm text-muted-foreground">
                 {count === 0
-                  ? "Enable a repository in Access to try your bot."
-                  : "Post this on a pull request in an enabled repository."}
+                  ? t("appsPage.githubComplete.enableRepoFirst")
+                  : t("appsPage.githubComplete.postOnPr")}
               </p>
             </div>
             <CopyText
               text={mention}
-              ariaLabel="Copy mention"
-              title="Copy mention"
+              ariaLabel={t("appsPage.githubComplete.copyMention")}
+              title={t("appsPage.githubComplete.copyMention")}
               containerClassName="w-full"
               className="flex w-full items-center gap-3 rounded-md border border-border bg-muted/30 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -113,7 +115,7 @@ export function GitHubConnectionComplete({
             avatarUrl={agentAvatarUrl(resolveAgentAppearance(avatar.appearance, endpoint.assignedAgentId), 512, 1, "rest")}
           />
           <DialogFooter>
-            <Button onClick={onClose}>Done</Button>
+            <Button onClick={onClose}>{t("common.done")}</Button>
           </DialogFooter>
         </div>
       </DialogContent>

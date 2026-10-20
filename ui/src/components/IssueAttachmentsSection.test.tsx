@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueAttachmentsSection } from "./IssueAttachmentsSection";
+import { setLocale } from "@/i18n";
 
 vi.mock("./MarkdownBody", () => ({
   MarkdownBody: ({ children, className }: { children: string; className?: string }) => (
@@ -114,6 +115,7 @@ describe("IssueAttachmentsSection", () => {
     queryClient.clear();
     container.remove();
     vi.unstubAllGlobals();
+    await setLocale("en");
   });
 
   it("renders markdown attachments with the document markdown presentation", async () => {
@@ -149,6 +151,30 @@ describe("IssueAttachmentsSection", () => {
       expect(markdownBody?.textContent).toContain("Imported plan");
       expect(markdownBody?.className).toContain("paperclip-edit-in-place-content");
     });
+  });
+
+  it("localizes attachment actions and deletion confirmation", async () => {
+    await setLocale("zh-CN");
+    const attachment = makeAttachment();
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <IssueAttachmentsSection
+            attachments={[attachment]}
+            onDelete={vi.fn()}
+            onImageClick={vi.fn()}
+          />
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(container.textContent).toContain("附件");
+    const deleteButton = container.querySelector<HTMLButtonElement>('button[title="删除附件"]');
+    expect(deleteButton).toBeTruthy();
+    await act(async () => deleteButton?.click());
+    expect(container.textContent).toContain("确定删除此附件？此操作无法撤销。");
+
+    await act(async () => root.unmount());
   });
 
   it("does not promote specific non-markdown content types by filename alone", async () => {

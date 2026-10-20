@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppsSidebar } from "./AppsSidebar";
 import { AppsSidebar as ProductionAppsSidebar } from "./AppsSidebar.production";
 import { contextualSidebarStyles } from "./contextual-sidebar-styles";
+import { setLocale } from "@/i18n";
 
 const sidebarNavItemMock = vi.hoisted(() => vi.fn());
 const route = vi.hoisted(() => ({ pathname: "/SLA/apps" }));
@@ -223,5 +224,34 @@ describe("AppsSidebar", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("localizes production connector navigation in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <ProductionAppsSidebar />
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+
+    expect(container.querySelector('nav[aria-label="连接器"]')).not.toBeNull();
+    expect(container.textContent).toContain("连接器");
+    expect(container.textContent).toContain("浏览");
+    expect(container.textContent).toContain("审核");
+    expect(container.textContent).toContain("开发者");
+    expect(container.textContent).toContain("面向开发者的高级设置");
+    expect(sidebarNavItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "/apps", label: "浏览" }),
+    );
+
+    await act(async () => root.unmount());
+    queryClient.clear();
+    await setLocale("en");
   });
 });

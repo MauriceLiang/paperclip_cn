@@ -33,6 +33,7 @@ export type TaskViewSurface = "inbox" | "issues";
 export interface TaskView {
   key: TaskViewKey;
   label: string;
+  labelKey: string;
   surface: TaskViewSurface;
   /** Which inbox tab renders this view (`inbox` surface only). */
   inboxTab?: InboxTab;
@@ -40,31 +41,35 @@ export interface TaskView {
   statuses?: string[];
   /** One-line description shown in the Views menu. */
   hint: string;
+  hintKey: string;
 }
 
 export interface TaskViewGroup {
   label: string;
+  labelKey: string;
   views: TaskView[];
 }
 
 export const TASK_VIEW_GROUPS: TaskViewGroup[] = [
   {
     label: "My work",
+    labelKey: "taskViews.groups.myWork",
     views: [
-      { key: "mine", label: "Mine", surface: "inbox", inboxTab: "mine", hint: "Assigned to you or waiting on you" },
-      { key: "unread", label: "Unread", surface: "inbox", inboxTab: "unread", hint: "Tasks you touched with new activity" },
-      { key: "blocked", label: "Blocked", surface: "inbox", inboxTab: "blocked", hint: "Blocked tasks, grouped by blocker" },
-      { key: "recent", label: "Recent", surface: "inbox", inboxTab: "recent", hint: "Everything you touched lately" },
-      { key: "everything", label: "Everything", surface: "inbox", inboxTab: "all", hint: "Tasks, approvals, failed runs and join requests" },
+      { key: "mine", label: "Mine", labelKey: "taskViews.views.mine", surface: "inbox", inboxTab: "mine", hint: "Assigned to you or waiting on you", hintKey: "taskViews.hints.mine" },
+      { key: "unread", label: "Unread", labelKey: "taskViews.views.unread", surface: "inbox", inboxTab: "unread", hint: "Tasks you touched with new activity", hintKey: "taskViews.hints.unread" },
+      { key: "blocked", label: "Blocked", labelKey: "taskViews.views.blocked", surface: "inbox", inboxTab: "blocked", hint: "Blocked tasks, grouped by blocker", hintKey: "taskViews.hints.blocked" },
+      { key: "recent", label: "Recent", labelKey: "taskViews.views.recent", surface: "inbox", inboxTab: "recent", hint: "Everything you touched lately", hintKey: "taskViews.hints.recent" },
+      { key: "everything", label: "Everything", labelKey: "taskViews.views.everything", surface: "inbox", inboxTab: "all", hint: "Tasks, approvals, failed runs and join requests", hintKey: "taskViews.hints.everything" },
     ],
   },
   {
     label: "Organization",
+    labelKey: "taskViews.groups.organization",
     views: [
-      { key: "all", label: "All tasks", surface: "issues", statuses: [], hint: "Every task in the organization" },
-      { key: "active", label: "Active", surface: "issues", statuses: ["todo", "in_progress", "in_review", "blocked"], hint: "Open tasks, running or not" },
-      { key: "backlog", label: "Backlog", surface: "issues", statuses: ["backlog"], hint: "Not started yet" },
-      { key: "done", label: "Done", surface: "issues", statuses: ["done", "cancelled"], hint: "Completed and cancelled" },
+      { key: "all", label: "All tasks", labelKey: "taskViews.views.all", surface: "issues", statuses: [], hint: "Every task in the organization", hintKey: "taskViews.hints.all" },
+      { key: "active", label: "Active", labelKey: "taskViews.views.active", surface: "issues", statuses: ["todo", "in_progress", "in_review", "blocked"], hint: "Open tasks, running or not", hintKey: "taskViews.hints.active" },
+      { key: "backlog", label: "Backlog", labelKey: "taskViews.views.backlog", surface: "issues", statuses: ["backlog"], hint: "Not started yet", hintKey: "taskViews.hints.backlog" },
+      { key: "done", label: "Done", labelKey: "taskViews.views.done", surface: "issues", statuses: ["done", "cancelled"], hint: "Completed and cancelled", hintKey: "taskViews.hints.done" },
     ],
   },
 ];

@@ -1,6 +1,7 @@
 import type { IssueDocument } from "@paperclipai/shared";
 import { Lightbulb, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import { useTaskChatShimmer } from "./TaskChatShimmer";
 import type { TaskChatProviderActivityItem } from "./task-chat-model";
 
@@ -83,6 +84,7 @@ export function TaskChatPlanPreviewCard({
   testId = "task-chat-plan-preview",
   className,
 }: TaskChatPlanPreviewCardProps) {
+  const { t } = useTranslation();
   const shimmer = useTaskChatShimmer(source.kind === "live" ? source.activity.id : "saved-plan");
   const revision = planRevision(source);
   const content = source.kind === "saved" && source.document
@@ -91,9 +93,15 @@ export function TaskChatPlanPreviewCard({
       ? { title: source.fallbackTitle?.trim() || "Plan", preview: [] as string[] }
       : livePlanContent(source.activity);
   const live = source.kind === "live";
+  const hasGeneratedTitle = source.kind === "live"
+    ? !source.activity.title.trim() || source.activity.title.trim().toLowerCase() === "plan"
+    : source.document
+      ? !/^#\s+/m.test(source.document.body)
+      : !source.fallbackTitle?.trim();
+  const displayTitle = hasGeneratedTitle ? t("taskChatPage.plan.title") : content.title;
   const headerDetail = revision == null
     ? null
-    : `rev ${revision}`;
+    : t("taskChatPage.plan.revision", { revision });
   const body = (
     <>
       <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2.5 text-sm text-muted-foreground">
@@ -119,7 +127,7 @@ export function TaskChatPlanPreviewCard({
         ) : null}
       </div>
       <div className="relative max-h-36 overflow-hidden px-4 py-3">
-        <h3 className="text-base font-semibold leading-6 text-foreground">{content.title}</h3>
+        <h3 className="text-base font-semibold leading-6 text-foreground">{displayTitle}</h3>
         {content.preview.length > 0 ? (
           <ul className="mt-2 space-y-1.5 text-sm leading-5 text-muted-foreground">
             {content.preview.map((line, index) => (
@@ -131,7 +139,9 @@ export function TaskChatPlanPreviewCard({
           </ul>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
-            {live ? "Waiting for the first plan step…" : "Open the synchronized plan to review it."}
+            {live
+              ? t("taskChatPage.plan.waitingFirstStep")
+              : t("taskChatPage.plan.openToReview")}
           </p>
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-b from-transparent to-card/95" />
@@ -149,7 +159,9 @@ export function TaskChatPlanPreviewCard({
       <a
         href={href}
         data-testid={testId}
-        aria-label={ariaLabel ?? `Open Plan${revision == null ? "" : ` revision ${revision}`}`}
+        aria-label={ariaLabel ?? (revision == null
+          ? t("taskChatPage.plan.openAria")
+          : t("taskChatPage.plan.openRevisionAria", { revision }))}
         className={sharedClassName}
       >
         {body}
@@ -159,7 +171,7 @@ export function TaskChatPlanPreviewCard({
 
   return (
     <section
-      aria-label={ariaLabel ?? "Streaming Plan preview"}
+      aria-label={ariaLabel ?? t("taskChatPage.plan.streamingPreviewAria")}
       data-testid={testId}
       className={sharedClassName}
     >

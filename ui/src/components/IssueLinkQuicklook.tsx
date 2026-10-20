@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StatusGlyph } from "@/components/StatusGlyph";
 import { ProjectTile } from "@/components/ProjectTile";
+import { useTranslation } from "@/i18n";
 import { useFlyoutAppearance } from "@/components/ui/flyout-appearance";
 
 /* ------------------------------------------------------------------ */
@@ -249,6 +250,7 @@ export const IssueLinkQuicklook = React.forwardRef<
   },
   ref,
 ) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const instanceId = React.useMemo(() => Symbol("issue-quicklook"), []);
   const open = useIsQuicklookOpen(instanceId);
@@ -445,7 +447,7 @@ export const IssueLinkQuicklook = React.forwardRef<
             <div className="h-4 w-full rounded bg-accent/40" />
             <div className="h-4 w-3/4 rounded bg-accent/30" />
             {!isLoading ? (
-              <p className="text-xs text-muted-foreground">Unable to load task preview.</p>
+              <p className="text-xs text-muted-foreground">{t("issueComponents.taskChat.sidePanel.quicklookLoadFailed")}</p>
             ) : null}
           </div>
         )}

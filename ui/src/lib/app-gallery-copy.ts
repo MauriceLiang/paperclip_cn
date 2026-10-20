@@ -1,3 +1,5 @@
+import { t as translate } from "@/i18n";
+import { getAppStoreDefinition } from "@paperclipai/shared";
 /**
  * Prosumer copy for the Apps surface (PAP-10856).
  *
@@ -42,6 +44,14 @@ export interface AppCopy {
   tagline: string;
   /** Single line for the connect step header (M3b). */
   short: string;
+}
+
+export function appDisplayNameFor(
+  slug: string,
+  fallbackName: string,
+  t: (key: string, options?: Record<string, unknown>) => string = translate,
+): string {
+  return slug === "local" ? t("appGallery.local.name") : fallbackName;
 }
 
 /**
@@ -154,14 +164,30 @@ const GENERIC: AppCopy = {
 };
 
 /** Curated, gate-safe copy for a gallery app. */
-export function appCopyFor(key: string, fallbackTagline?: string | null): AppCopy {
+export function appCopyFor(
+  key: string,
+  fallbackTagline?: string | null,
+  t?: (key: string, options?: Record<string, unknown>) => string,
+): AppCopy {
   const curated = APP_COPY[key];
-  if (curated) return curated;
+  if (curated) {
+    return t
+      ? { tagline: t(`appGallery.${key}.tagline`), short: t(`appGallery.${key}.short`) }
+      : curated;
+  }
+  if (t && getAppStoreDefinition(key)) {
+    return {
+      tagline: t(`appGallery.${key}.tagline`),
+      short: t(`appGallery.${key}.short`),
+    };
+  }
   if (fallbackTagline) {
     const cleaned = sanitizeProsumerCopy(fallbackTagline);
     if (cleaned) return { tagline: cleaned, short: cleaned };
   }
-  return GENERIC;
+  return t
+    ? { tagline: t("appGallery.generic.tagline"), short: t("appGallery.generic.short") }
+    : GENERIC;
 }
 
 /**
@@ -174,8 +200,12 @@ export function credentialFieldLabel(
   appName: string,
   rawLabel: string,
   fieldCount: number,
+  t?: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  if (fieldCount <= 1) return `Your ${appName} key`;
+  const fallback = t
+    ? t("appGallery.credentialField", { app: appName })
+    : `Your ${appName} key`;
+  if (fieldCount <= 1) return fallback;
   const cleaned = sanitizeProsumerCopy(rawLabel);
-  return cleaned || `Your ${appName} key`;
+  return cleaned || fallback;
 }

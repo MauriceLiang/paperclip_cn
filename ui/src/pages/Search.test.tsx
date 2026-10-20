@@ -1000,7 +1000,7 @@ describe("Search page", () => {
     await waitForAssertion(() => {
       expect(container.querySelector('[data-testid="search-zero-results-recovery"]')).not.toBeNull();
       expect(container.textContent).toContain("No results with these filters");
-      expect(container.textContent).toContain("12 results match");
+      expect(container.textContent).toContain("12 matching results were found");
       expect(container.textContent).toContain("Loosen a filter");
       expect(container.textContent).toContain("+12 results");
       expect(container.textContent).toContain("Clear all filters");

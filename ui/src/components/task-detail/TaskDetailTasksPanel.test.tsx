@@ -2,7 +2,8 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { Issue, Project } from "@paperclipai/shared";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { TaskDetailTasksPanel } from "./TaskDetailTasksPanel";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -12,7 +13,18 @@ const task = (id: string, overrides: Partial<Issue> = {}) => ({ id, title: id, s
 const project = { id: "project-1", name: "Board UI", urlKey: "board-ui" } as Project;
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
-afterEach(() => { act(() => root?.unmount()); container?.remove(); });
+beforeEach(async () => {
+  await act(async () => {
+    await i18n.changeLanguage("en");
+  });
+});
+afterEach(async () => {
+  act(() => root?.unmount());
+  container?.remove();
+  await act(async () => {
+    await i18n.changeLanguage("en");
+  });
+});
 function render(props: React.ComponentProps<typeof TaskDetailTasksPanel>) {
   container = document.createElement("div"); document.body.append(container);
   root = createRoot(container);
@@ -123,5 +135,29 @@ describe("TaskDetailTasksPanel", () => {
     render({ createdFrom: null, subtasks: [], createdTasks: [], projects: [] });
     expect(container.querySelector('section[aria-label="Created from"]')).toBeNull();
     expect(container.textContent).toContain("No tasks yet.");
+  });
+
+  it("localizes task relationship headings, progress, and creation provenance", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+    render({
+      createdFrom: {
+        issue: { id: "source", identifier: "PAP-168", title: "Verify Tailscale fix", status: "in_progress" },
+        run: { id: "run-1", agentId: "qa" },
+        agent: { id: "qa", name: "Paperclip QA" },
+      },
+      ancestors: [],
+      subtasks: [task("child", { status: "in_progress" })],
+      createdTasks: [],
+      projects: [],
+    });
+
+    expect(container.querySelector('section[aria-label="创建来源"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="issue-created-from"]')?.textContent).toContain("创建来源");
+    expect(container.querySelector('[data-testid="issue-created-from"]')?.textContent).toContain("由 Paperclip QA 创建");
+    expect(container.querySelector('section[aria-label="子任务"] h2')?.textContent).toBe("子任务");
+    expect(container.textContent).toContain("下一步操作");
+    expect(container.textContent).toContain("进度");
   });
 });

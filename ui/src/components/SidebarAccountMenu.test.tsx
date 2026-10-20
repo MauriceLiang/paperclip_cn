@@ -7,6 +7,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { SidebarAccountMenu } from "./SidebarAccountMenu";
 import { SidebarAccountMenu as ProductionSidebarAccountMenu } from "./SidebarAccountMenu.production";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { setLocale } from "@/i18n";
 
 const mockAuthApi = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -148,11 +149,12 @@ describe("SidebarAccountMenu", () => {
     mockGetCurrentBoardAccess.mockResolvedValue(boardAccess("owner"));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
     document.body.innerHTML = "";
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    await setLocale("en");
   });
 
   describe.each([SidebarAccountMenu, ProductionSidebarAccountMenu])("staging commit (%#)", (AccountMenu) => {
@@ -315,6 +317,34 @@ describe("SidebarAccountMenu", () => {
     expect(feedbackButton?.hasAttribute("title")).toBe(false);
 
     await act(async () => root.unmount());
+  });
+
+  it.each([
+    ["streamlined", SidebarAccountMenu],
+    ["production", ProductionSidebarAccountMenu],
+  ])("localizes the generated local board identity in Simplified Chinese (%s)", async (_shell, AccountMenu) => {
+    await setLocale("zh-CN");
+    mockAuthApi.getSession.mockResolvedValue({
+      session: { id: "session-local-board", userId: "local-board" },
+      user: { id: "local-board", name: "Board", email: null, image: null },
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider><AccountMenu deploymentMode="local_trusted" /></TooltipProvider>
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+
+    expect(container.textContent).toContain("看板");
+    expect(container.textContent).not.toContain("Board");
+
+    await act(() => root.unmount());
+    queryClient.clear();
   });
 
   it("keeps the classic feedback control visible beside the profile trigger", async () => {

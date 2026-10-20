@@ -1,4 +1,6 @@
 import type { ExecutionProjection } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
+import { statusLabel } from "@/i18n/status";
 import type {
   ReasoningMessagePart,
   TextMessagePart,
@@ -543,13 +545,13 @@ function authorNameForComment(
 ) {
   const authorAgentId = effectiveCommentAuthorAgentId(comment);
   if (authorAgentId) {
-    return agentMap?.get(authorAgentId)?.name ?? (options?.isSystemNotice ? "Paperclip" : authorAgentId.slice(0, 8));
+    return agentMap?.get(authorAgentId)?.name ?? (options?.isSystemNotice ? translate("issueChat.paperclip") : authorAgentId.slice(0, 8));
   }
   const authorUserId = comment.authorUserId ?? null;
-  if (!authorUserId) return options?.isSystemNotice ? "Paperclip" : "You";
+  if (!authorUserId) return options?.isSystemNotice ? translate("issueChat.paperclip") : translate("issueChat.you");
   const userLabel = userLabelMap?.get(authorUserId)?.trim();
   if (userLabel) return userLabel;
-  return formatAssigneeUserLabel(authorUserId, currentUserId, userLabelMap) ?? "You";
+  return formatAssigneeUserLabel(authorUserId, currentUserId, userLabelMap) ?? translate("issueChat.you");
 }
 
 function formatStatusLabel(status: string) {
@@ -654,30 +656,42 @@ function createTimelineEventMessage(args: {
   const actorName = event.actorType === "agent"
     ? (agentMap?.get(event.actorId)?.name ?? event.actorId.slice(0, 8))
     : event.actorType === "system"
-      ? "System"
-      : (formatAssigneeUserLabel(event.actorId, currentUserId, userLabelMap) ?? "Board");
+      ? translate("issueChat.system")
+      : (formatAssigneeUserLabel(event.actorId, currentUserId, userLabelMap) ?? translate("issueChat.board"));
 
   const lines: string[] = [
-    event.followUpRequested ? `${actorName} requested follow-up` : `${actorName} updated this issue`,
+    translate(
+      event.followUpRequested
+        ? "issueChat.timelineFollowUpRequested"
+        : "issueChat.timelineTaskUpdated",
+      { actor: actorName },
+    ),
   ];
   if (event.statusChange) {
+    const from = event.statusChange.from
+      ? statusLabel(event.statusChange.from, translate)
+      : translate("issuesPage.chat.none");
+    const to = event.statusChange.to
+      ? statusLabel(event.statusChange.to, translate)
+      : translate("issuesPage.chat.none");
     lines.push(
-      `Status: ${event.statusChange.from ?? "none"} -> ${event.statusChange.to ?? "none"}`,
+      translate("issueChat.timelineStatusChanged", { from, to }),
     );
   }
   if (event.assigneeChange) {
     const from = event.assigneeChange.from.agentId
       ? (agentMap?.get(event.assigneeChange.from.agentId)?.name ?? event.assigneeChange.from.agentId.slice(0, 8))
-      : (formatAssigneeUserLabel(event.assigneeChange.from.userId, currentUserId, userLabelMap) ?? "Unassigned");
+      : (formatAssigneeUserLabel(event.assigneeChange.from.userId, currentUserId, userLabelMap) ?? translate("issueChat.unassigned"));
     const to = event.assigneeChange.to.agentId
       ? (agentMap?.get(event.assigneeChange.to.agentId)?.name ?? event.assigneeChange.to.agentId.slice(0, 8))
-      : (formatAssigneeUserLabel(event.assigneeChange.to.userId, currentUserId, userLabelMap) ?? "Unassigned");
-    lines.push(`Assignee: ${from} -> ${to}`);
+      : (formatAssigneeUserLabel(event.assigneeChange.to.userId, currentUserId, userLabelMap) ?? translate("issueChat.unassigned"));
+    lines.push(translate("issueChat.timelineAssigneeChanged", { from, to }));
   }
   if (event.workspaceChange) {
-    lines.push(
-      `Workspace: ${event.workspaceChange.from.label ?? "none"} -> ${event.workspaceChange.to.label ?? "none"}`,
-    );
+    lines.push(translate("issueChat.timelineWorkspaceChanged", {
+      from: event.workspaceChange.from.label ?? translate("issuesPage.chat.none"),
+      to: event.workspaceChange.to.label ?? translate("issuesPage.chat.none"),
+    }));
   }
 
   const message: ThreadSystemMessage = {
@@ -810,24 +824,24 @@ function runDurationLabel(run: {
   const stopReason = typeof run.resultJson?.stopReason === "string" ? run.resultJson.stopReason : null;
   switch (run.status) {
     case "succeeded":
-      return durationText ? `Worked for ${durationText}` : "Finished work";
+      return durationText ? translate("issueChat.workedFor", { duration: durationText }) : translate("issueChat.finishedWork");
     case "failed":
     case "error":
-      return durationText ? `Failed after ${durationText}` : "Run failed";
+      return durationText ? translate("issueChat.failedAfter", { duration: durationText }) : translate("issueChat.runFailed");
     case "timed_out":
-      return durationText ? `Timed out after ${durationText}` : "Run timed out";
+      return durationText ? translate("issueChat.timedOutAfter", { duration: durationText }) : translate("issueChat.runTimedOut");
     case "cancelled":
       if (isOperatorInterruptedRun(run.resultJson, run.errorCode)) {
-        return durationText ? `Interrupted by board after ${durationText}` : "Interrupted by board";
+        return durationText ? translate("issueChat.interruptedAfter", { duration: durationText }) : translate("issueChat.interrupted");
       }
       if (stopReason === "paused") {
-        return durationText ? `Paused by board after ${durationText}` : "Paused by board";
+        return durationText ? translate("issueChat.pausedAfter", { duration: durationText }) : translate("issueChat.paused");
       }
-      return durationText ? `Cancelled after ${durationText}` : "Run cancelled";
+      return durationText ? translate("issueChat.cancelledAfter", { duration: durationText }) : translate("issueChat.runCancelled");
     case "queued":
-      return "Queued";
+      return translate("issueChat.queued");
     case "running":
-      return "Working...";
+      return translate("issueChat.working");
     default:
       return formatStatusLabel(run.status);
   }
@@ -866,7 +880,7 @@ function createHistoricalTranscriptMessage(args: {
   const agentName = run.agentName ?? agentMap?.get(run.agentId)?.name ?? run.agentId.slice(0, 8);
   const compactedTranscript = compactIssueChatTranscript(transcript, issueChatTranscriptMaxVisibleEntries(run.adapterType));
   const { parts, notices, segments } = buildAssistantPartsFromTranscript(compactedTranscript);
-  const waitingText = hasOutput ? "" : "Run finished";
+  const waitingText = hasOutput ? "" : translate("issueChat.runFinished");
   const content = parts.length > 0
     ? parts
     : waitingText
@@ -939,7 +953,7 @@ export function buildAssistantPartsFromTranscript(entries: readonly IssueChatTra
         family: entry.family ?? "provider_notice",
         eventType: entry.eventType ?? "provider.notice.recorded",
         status: entry.status ?? "informational",
-        title: entry.title ?? "Provider activity",
+        title: entry.title ?? translate("issueChat.providerActivity"),
         summary: entry.summary ?? "",
         payload: entry.payload ?? {},
       });
@@ -1110,7 +1124,7 @@ function createLiveRunMessage(args: {
   const { parts, notices, segments } = buildAssistantPartsFromTranscript(compactedTranscript);
   const waitingText =
     run.status === "queued"
-      ? "Queued..."
+      ? translate("issueChat.queuedEllipsis")
       : parts.length > 0
         ? ""
         : "Working...";
@@ -1152,7 +1166,7 @@ export function isRedundantAiRecoveryNotice(
   interactions: readonly IssueThreadInteraction[] = [],
 ): boolean {
   return comment.presentation?.kind === "system_notice"
-    && ["AI connection needs attention", "Configuration incomplete"].includes(comment.presentation.title ?? "")
+    && [translate("issueChat.aiConnectionNeedsAttention"), translate("issueChat.configurationIncomplete")].includes(comment.presentation.title ?? "")
     && Boolean(comment.metadata?.sourceRunId)
     && interactions.some((interaction) => interaction.kind === "connection_intent"
       && interaction.payload.purpose === "ai"

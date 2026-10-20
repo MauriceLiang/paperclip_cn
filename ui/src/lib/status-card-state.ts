@@ -1,3 +1,4 @@
+import { t as translate } from "@/i18n";
 import type { StatusCard, StatusCardRefreshPolicy } from "@paperclipai/shared";
 
 /**
@@ -46,6 +47,17 @@ export interface StatusCardLifecyclePresentation {
   /** Whether the last-good summary should stay visible under a banner. */
   keepsLastSummary: boolean;
 }
+
+const LIFECYCLE_KEYS: Record<StatusCardLifecycle, string> = {
+  compiling: "compiling",
+  fresh: "fresh",
+  stale: "stale",
+  updating: "updating",
+  error: "error",
+  paused_budget: "pausedBudget",
+  paused_hours: "pausedHours",
+  archived: "archived",
+};
 
 export const STATUS_CARD_LIFECYCLE_PRESENTATION: Record<
   StatusCardLifecycle,
@@ -111,6 +123,19 @@ export const STATUS_CARD_LIFECYCLE_PRESENTATION: Record<
   },
 };
 
+export function statusCardLifecyclePresentation(
+  lifecycle: StatusCardLifecycle,
+  t: (key: string) => string = translate,
+): StatusCardLifecyclePresentation {
+  const base = STATUS_CARD_LIFECYCLE_PRESENTATION[lifecycle];
+  const key = LIFECYCLE_KEYS[lifecycle];
+  return {
+    ...base,
+    label: t(`statusCardLifecycle.labels.${key}`),
+    description: t(`statusCardLifecycle.descriptions.${key}`),
+  };
+}
+
 /** Compact token count, e.g. `1.1k`, `950`, `12.4k`. */
 export function formatTokens(tokens: number): string {
   if (tokens < 1000) return `${tokens}`;
@@ -125,19 +150,27 @@ export function formatUsdFromCents(cents: number): string {
 }
 
 /** A one-line, human summary of a card's refresh policy for chips and footers. */
-export function describeRefreshPolicy(policy: StatusCardRefreshPolicy): string {
+export function describeRefreshPolicy(
+  policy: StatusCardRefreshPolicy,
+  t?: (key: string, options?: Record<string, unknown>) => string,
+): string {
   switch (policy.mode) {
     case "manual":
-      return "manual";
+      return t ? t("statusCardLifecycle.refresh.manual") : "manual";
     case "interval":
-      return policy.intervalMinutes
-        ? `every ${policy.intervalMinutes}m if changed`
-        : "on a schedule if changed";
+      if (policy.intervalMinutes) {
+        return t
+          ? t("statusCardLifecycle.refresh.intervalEvery", { minutes: policy.intervalMinutes })
+          : `every ${policy.intervalMinutes}m if changed`;
+      }
+      return t ? t("statusCardLifecycle.refresh.intervalSchedule") : "on a schedule if changed";
     case "reactive": {
       const debounce = policy.debounceSeconds ?? 60;
-      return `on change (${debounce}s)`;
+      return t
+        ? t("statusCardLifecycle.refresh.reactive", { seconds: debounce })
+        : `on change (${debounce}s)`;
     }
     default:
-      return "manual";
+      return t ? t("statusCardLifecycle.refresh.manual") : "manual";
   }
 }

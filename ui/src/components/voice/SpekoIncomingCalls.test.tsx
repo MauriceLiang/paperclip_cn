@@ -4,7 +4,10 @@ import {createRoot, type Root} from "react-dom/client";
 import {MemoryRouter} from "react-router-dom";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
-import {SpekoIncomingCalls} from "./SpekoIncomingCalls";
+import type {VoiceInboundCall} from "@paperclipai/shared";
+import {setLocale} from "@/i18n";
+import {SpekoIncomingCallCard, SpekoIncomingCalls} from "./SpekoIncomingCalls";
+import {SpekoPhoneLineForm} from "./SpekoPhoneLine";
 const mocks = vi.hoisted(() => ({incoming: vi.fn(), list: vi.fn(), decide: vi.fn()}));
 vi.mock("@/api/voicePhone", () => ({voicePhoneApi: {incoming: mocks.incoming, decide: mocks.decide}}));
 vi.mock("@/api/issues", () => ({issuesApi: {list: mocks.list}}));
@@ -16,7 +19,7 @@ describe("incoming call task selection", () => {
     root = createRoot(container); client = new QueryClient({defaultOptions: {queries: {retry: false}}});
     mocks.incoming.mockResolvedValue([{id: "call", state: "awaiting_approval", approvalCode: "123456"}]);
   });
-  afterEach(async () => {await act(async () => root.unmount()); client.clear(); container.remove(); vi.useRealTimers();});
+  afterEach(async () => {await act(async () => root.unmount()); client.clear(); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals(); await setLocale("en");});
   async function render() {await act(async () => root.render(<MemoryRouter><QueryClientProvider client={client}><SpekoIncomingCalls companyId="company" endpointId="endpoint" agentId="agent" /></QueryClientProvider></MemoryRouter>));}
   it("shows task request failures and lets callers retry the existing task inventory", async () => {
     mocks.list.mockRejectedValueOnce(new Error("Offline")).mockResolvedValue(tasks); await render();
@@ -53,5 +56,29 @@ describe("incoming call task selection", () => {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 5100)); });
     expect(container.textContent).not.toContain('Call approved');
   }, 10000);
+
+  it("renders incoming calls and phone-line settings in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    const call = {
+      id: "call-zh",
+      state: "guest_intake",
+      approvalCode: "123456",
+      createdAt: "2026-10-20T00:00:00.000Z",
+      expiresAt: "2026-10-20T00:05:00.000Z",
+      sessionId: null,
+    } satisfies VoiceInboundCall;
+
+    await act(async () => root.render(<>
+      <SpekoIncomingCallCard call={call} error="provider error" onDecide={vi.fn()} />
+      <SpekoPhoneLineForm configuration={{number: null, inventory: []}} onRefresh={vi.fn()} onSave={vi.fn()} />
+    </>));
+
+    expect(container.textContent).toContain("来电对话");
+    expect(container.textContent).toContain("结束通话");
+    expect(container.textContent).toContain("provider error");
+    expect(container.textContent).toContain("没有可用号码。");
+    expect(container.textContent).toContain("保存来电设置");
+  });
 
 });

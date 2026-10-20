@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Issue } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { IssueRow } from "./IssueRow";
 import { StatusIcon } from "./StatusIcon";
 import { TooltipProvider } from "./ui/tooltip";
@@ -91,12 +92,13 @@ function createIssue(overrides: Partial<Issue> = {}): Issue {
 describe("IssueRow", () => {
   let container: HTMLDivElement;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
     vi.unstubAllGlobals();
   });
@@ -124,6 +126,25 @@ describe("IssueRow", () => {
     act(() => {
       root.unmount();
     });
+  });
+
+  it("localizes archive and unread actions", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<IssueRow
+        issue={createIssue()}
+        presentation="task"
+        unreadState="visible"
+        onMarkRead={() => undefined}
+        onArchive={() => undefined}
+      />);
+    });
+
+    expect(container.querySelector('button[aria-label="归档"]')?.textContent).toContain("归档");
+    expect(container.querySelector('button[aria-label="标记为已读"]')).not.toBeNull();
+    act(() => root.unmount());
   });
 
   it("uses stable canonical identifier and timestamp columns at the trailing edge", () => {

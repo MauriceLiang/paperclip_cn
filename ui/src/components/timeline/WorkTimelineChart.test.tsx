@@ -7,6 +7,8 @@ import type { WorkTimelineResult } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkTimelineChart } from "./WorkTimelineChart";
 import { computeLayout } from "@/lib/timeline/layout";
+import { setLocale } from "@/i18n";
+import { act } from "react";
 
 vi.mock("@/lib/router", () => ({
   useLocation: () => ({ pathname: "/PAP/timeline" }),
@@ -18,16 +20,18 @@ vi.mock("@/lib/router", () => ({
 let container: HTMLDivElement;
 let root: Root;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await setLocale("en");
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
 });
 
-afterEach(() => {
+afterEach(async () => {
   flushSync(() => root.unmount());
   container.remove();
   vi.restoreAllMocks();
+  await setLocale("en");
 });
 
 function renderChart(
@@ -154,6 +158,37 @@ describe("WorkTimelineChart", () => {
     });
 
     expect(container.querySelector("[data-testid='work-timeline-actor-gutter']")?.textContent).toContain("CodexCoder");
+  });
+
+  it("localizes the run tooltip in Simplified Chinese", async () => {
+    await act(async () => setLocale("zh-CN"));
+    const data = timelineSample();
+    data.actors.push({ id: "user:board", type: "user", name: "Ada" });
+    data.spans[0]!.end = null;
+    data.spans[0]!.status = "running";
+    data.spans[0]!.retryOfRunId = "run-0";
+    data.edges = [{
+      fromActorId: "user:board",
+      toActorId: "agent:codex",
+      issueId: "issue-1",
+      at: "2026-07-02T08:55:00.000Z",
+      kind: "delegation",
+    }];
+    renderChart(data);
+
+    const bar = container.querySelector<SVGGElement>("[data-run-id='run-1']")!;
+    await act(async () => {
+      flushSync(() => {
+        bar.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: 100, clientY: 100 }));
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(container.textContent).toContain("现在");
+    expect(container.textContent).toContain("运行中");
+    expect(container.textContent).toContain("发起者：Ada");
+    expect(container.textContent).toContain("重试");
+    expect(container.textContent).toContain("小时");
   });
 
   it("reports the currently visible time window when the chart scrolls", async () => {
@@ -388,6 +423,17 @@ describe("WorkTimelineChart", () => {
     expect(rightHandle.getAttribute("class")).toContain("cursor-grab");
     expect(leftHandle.querySelectorAll("line")).toHaveLength(3);
     expect(leftHandle.textContent).toContain("Drag left edge");
+  });
+
+  it("localizes minimap resize labels in Simplified Chinese", async () => {
+    await act(async () => setLocale("zh-CN"));
+    renderChart(timelineSample(), { onZoomScaleChange: vi.fn() });
+
+    const leftHandle = container.querySelector<SVGGElement>("[data-testid='timeline-minimap-left-handle']")!;
+    const rightHandle = container.querySelector<SVGGElement>("[data-testid='timeline-minimap-right-handle']")!;
+
+    expect(leftHandle.textContent).toContain("拖动左边缘");
+    expect(rightHandle.textContent).toContain("拖动右边缘");
   });
 
   it("cleans up chart drag listeners when unmounted mid-drag", () => {

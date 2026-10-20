@@ -1,6 +1,7 @@
 import { AlertTriangle, Info, PauseCircle, User, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AgentAvatar, type AvatarAgent } from "../AgentAvatar";
+import { useTranslation } from "@/i18n";
 import {
   classifyAssigneeHandoff,
   resolveRunStatusPresentation,
@@ -36,10 +37,10 @@ function agentIcon(agentId: string, resolvers: HandoffChipResolvers): string | n
   return resolvers.agentMap?.get(agentId)?.icon ?? null;
 }
 
-function userLabel(userId: string, resolvers: HandoffChipResolvers): string {
+function userLabel(userId: string, resolvers: HandoffChipResolvers, boardLabel: string, youLabel: string): string {
   const label = resolvers.resolveUserLabel?.(userId) ?? null;
-  const base = label ?? "Board";
-  return resolvers.currentUserId && resolvers.currentUserId === userId ? `${base} (you)` : base;
+  const base = label ?? boardLabel;
+  return resolvers.currentUserId && resolvers.currentUserId === userId ? `${base} (${youLabel})` : base;
 }
 
 const CHIP_CLASS =
@@ -56,10 +57,11 @@ export function AssigneeChip({
   resolvers: HandoffChipResolvers;
   className?: string;
 }) {
+  const { t } = useTranslation();
   if (assignee.agentId) {
     return (
       <span className={cn(CHIP_CLASS, className)} data-testid="handoff-assignee-chip" data-kind="agent">
-        <span className="sr-only">Agent </span>
+        <span className="sr-only">{t("issueComponents.taskChat.handoff.agent")} </span>
         <AgentAvatar agent={{ ...resolvers.agentMap?.get(assignee.agentId), id: assignee.agentId }} size={16} />
         <span className="max-w-(--sz-12rem) truncate">{agentName(assignee.agentId, resolvers)}</span>
       </span>
@@ -68,9 +70,9 @@ export function AssigneeChip({
   if (assignee.userId) {
     return (
       <span className={cn(CHIP_CLASS, className)} data-testid="handoff-assignee-chip" data-kind="user">
-        <span className="sr-only">User </span>
+        <span className="sr-only">{t("issueComponents.taskChat.handoff.user")} </span>
         <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="max-w-(--sz-12rem) truncate">{userLabel(assignee.userId, resolvers)}</span>
+        <span className="max-w-(--sz-12rem) truncate">{userLabel(assignee.userId, resolvers, t("issueComponents.taskChat.handoff.board"), t("issueComponents.taskChat.handoff.you"))}</span>
       </span>
     );
   }
@@ -80,8 +82,8 @@ export function AssigneeChip({
       data-testid="handoff-assignee-chip"
       data-kind="unassigned"
     >
-      <span className="sr-only">No responsible — </span>
-      Unassigned
+      <span className="sr-only">{t("issueComponents.taskChat.handoff.noResponsible")} — </span>
+      {t("issueComponents.taskChat.handoff.unassigned")}
     </span>
   );
 }
@@ -97,6 +99,7 @@ export function HandoffWakeRow({
   resolvers: HandoffChipResolvers;
   interruptedRunAttached?: boolean;
 }) {
+  const { t } = useTranslation();
   const info = classifyAssigneeHandoff(to, {
     agentName: to.agentId ? agentName(to.agentId, resolvers) : null,
     interruptedRunAttached,
@@ -107,9 +110,13 @@ export function HandoffWakeRow({
       data-testid="handoff-wake-row"
       data-kind={info.kind}
     >
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Wake</span>
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("issueComponents.taskChat.handoff.wake")}</span>
       <span className={cn(info.kind === "agent_wake" ? "text-foreground" : "text-muted-foreground")}>
-        {info.wakeText}
+        {info.kind === "agent_wake"
+          ? t(interruptedRunAttached ? "issueComponents.taskChat.handoff.wakeState.queuedWithInterruptedRun" : "issueComponents.taskChat.handoff.wakeState.queuedFor", { agent: to.agentId ? agentName(to.agentId, resolvers) : "" })
+          : info.kind === "user_handoff"
+            ? t("issueComponents.taskChat.handoff.wakeState.userHandoff")
+            : t("issueComponents.taskChat.handoff.wakeState.unassigned")}
       </span>
     </div>
   );
@@ -126,15 +133,23 @@ export function RunStatusBadge({
   operatorInterrupted?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const p = resolveRunStatusPresentation(status, { operatorInterrupted });
+  const label = operatorInterrupted && status === "cancelled"
+    ? t("issueComponents.taskChat.handoff.runStatus.interrupted")
+    : status === "timed_out"
+      ? t("issueComponents.taskChat.handoff.runStatus.timedOut")
+      : ["queued", "running", "succeeded", "failed", "cancelled", "interrupted"].includes(status)
+        ? t(`issueComponents.taskChat.handoff.runStatus.${status}`)
+        : p.label;
   return (
     <span
       className={cn("font-medium", p.className, className)}
       data-testid="run-status-badge"
       data-interrupted={operatorInterrupted ? "true" : "false"}
     >
-      {p.label}
-      {p.srHint ? <span className="sr-only"> — {p.srHint}</span> : null}
+      {label}
+      {p.srHint ? <span className="sr-only"> — {t("issueComponents.taskChat.handoff.runStatus.interruptedByBoardComment")}</span> : null}
     </span>
   );
 }
@@ -162,7 +177,27 @@ export function ComposerHandoffPreviewRow({
   preview: ComposerHandoffPreview;
   resolvers: HandoffChipResolvers;
 }) {
+  const { t } = useTranslation();
   if (preview.kind === "none") return null;
+  const prefix = preview.kind === "interrupt_handoff_agent"
+    ? t("issueComponents.taskChat.handoff.preview.interruptCurrentRun")
+    : preview.kind === "wake_agent"
+      ? t("issueComponents.taskChat.handoff.preview.wake")
+      : preview.kind === "user_handoff"
+        ? t("issueComponents.taskChat.handoff.preview.handOffTo")
+        : preview.kind === "notify_agent"
+          ? t("issueComponents.taskChat.handoff.preview.notify")
+          : null;
+  const standalone = preview.kind === "clear_assignee"
+    ? t("issueComponents.taskChat.handoff.preview.clearResponsible")
+    : preview.kind === "plain_text_only"
+      ? t("issueComponents.taskChat.handoff.preview.plainTextOnly")
+      : null;
+  const suffix = preview.kind === "user_handoff"
+    ? t("issueComponents.taskChat.handoff.preview.noAgentNotified")
+    : preview.kind === "notify_agent" && !preview.chip
+      ? t("issueComponents.taskChat.handoff.preview.mentionedAgent")
+      : null;
   return (
     <div
       className={cn(
@@ -174,9 +209,9 @@ export function ComposerHandoffPreviewRow({
       role="status"
       aria-live="polite"
     >
-      <span>{preview.text}</span>
+      <span>{standalone ?? prefix}</span>
       {preview.chip ? <PreviewChip chip={preview.chip} resolvers={resolvers} /> : null}
-      {preview.suffix ? <span>{preview.suffix}</span> : null}
+      {suffix ? <span>{suffix}</span> : null}
     </div>
   );
 }
@@ -194,6 +229,7 @@ export function ComposerMentionCoach({
   onInsert: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="flex items-center gap-2 rounded-md border border-amber-300/40 bg-amber-50/70 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
@@ -203,22 +239,21 @@ export function ComposerMentionCoach({
     >
       <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">
-        Did you mean <span className="font-medium">@{candidate.matchedText}</span>? Plain text won't
-        notify or assign an agent.
+        {t("issueComponents.taskChat.handoff.didYouMean")} <span className="font-medium">@{candidate.matchedText}</span>{t("issueComponents.taskChat.handoff.plainTextWillNotNotify")}
       </span>
       <button
         type="button"
         onClick={onInsert}
         className="shrink-0 rounded border border-amber-400/50 px-1.5 py-0.5 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20"
-        aria-label={`Insert mention for ${agentDisplayName} into your comment`}
+        aria-label={t("issueComponents.taskChat.handoff.insertMentionFor", { name: agentDisplayName })}
       >
-        Insert mention
+        {t("issueComponents.taskChat.handoff.insertMention")}
       </button>
       <button
         type="button"
         onClick={onDismiss}
         className="shrink-0 rounded p-0.5 hover:bg-amber-100/60 dark:hover:bg-amber-500/20"
-        aria-label="Dismiss suggestion"
+        aria-label={t("issueComponents.taskChat.handoff.dismissSuggestion")}
       >
         <X className="h-3.5 w-3.5" aria-hidden />
       </button>
@@ -235,6 +270,7 @@ export function AssigneeRunningBanner({
   copy: ReassignInterruptCopy;
   className?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       role="status"
@@ -246,7 +282,7 @@ export function AssigneeRunningBanner({
       )}
     >
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1">{copy.banner}</span>
+      <span className="min-w-0 flex-1">{t("issueComponents.taskChat.handoff.interruptBanner", { agent: copy.runningAgentName })}</span>
     </div>
   );
 }
@@ -267,6 +303,7 @@ export function InterruptAssignConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       data-testid="interrupt-assign-confirm"
@@ -275,9 +312,9 @@ export function InterruptAssignConfirm({
       <div className="flex items-start gap-1.5">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-medium">{copy.confirmTitle}</p>
+          <p className="font-medium">{t("issueComponents.taskChat.handoff.interruptConfirm")}</p>
           <p className="flex flex-wrap items-center gap-1 text-amber-700/90 dark:text-amber-300/90">
-            <span>Hand off to</span>
+            <span>{t("issueComponents.taskChat.handoff.handOffTo")}</span>
             <AssigneeChip assignee={to} resolvers={resolvers} />
           </p>
         </div>
@@ -288,7 +325,7 @@ export function InterruptAssignConfirm({
           onClick={onCancel}
           className="rounded border border-amber-400/50 px-2 py-0.5 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20"
         >
-          {copy.cancelAction}
+          {t("issueComponents.taskChat.handoff.cancelAction")}
         </button>
         <button
           type="button"
@@ -296,7 +333,7 @@ export function InterruptAssignConfirm({
           data-testid="interrupt-assign-confirm-action"
           className="rounded bg-amber-600 px-2 py-0.5 font-medium text-white hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-400"
         >
-          {copy.confirmAction}
+          {t("issueComponents.taskChat.handoff.interruptAction")}
         </button>
       </div>
     </div>
@@ -311,7 +348,30 @@ export function PauseAffectsSummaryView({
   summary: PauseAffectsSummary;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const visibleBuckets = summary.buckets.filter((bucket) => bucket.count > 0);
+  const bucketCopy = {
+    live_runs: {
+      label: t("issueComponents.taskChat.handoff.pause.buckets.liveRuns.label"),
+      detail: t("issueComponents.taskChat.handoff.pause.buckets.liveRuns.detail"),
+    },
+    queued_wakes: {
+      label: t("issueComponents.taskChat.handoff.pause.buckets.queuedWakes.label"),
+      detail: t("issueComponents.taskChat.handoff.pause.buckets.queuedWakes.detail"),
+    },
+    agent_owned: {
+      label: t("issueComponents.taskChat.handoff.pause.buckets.agentOwned.label"),
+      detail: t("issueComponents.taskChat.handoff.pause.buckets.agentOwned.detail"),
+    },
+    human_owned: {
+      label: t("issueComponents.taskChat.handoff.pause.buckets.humanOwned.label"),
+      detail: t("issueComponents.taskChat.handoff.pause.buckets.humanOwned.detail"),
+    },
+    static: {
+      label: t("issueComponents.taskChat.handoff.pause.buckets.static.label"),
+      detail: t("issueComponents.taskChat.handoff.pause.buckets.static.detail"),
+    },
+  };
   return (
     <div
       data-testid="pause-affects-summary"
@@ -319,12 +379,11 @@ export function PauseAffectsSummaryView({
     >
       <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         <PauseCircle className="h-3.5 w-3.5" aria-hidden />
-        What this affects
+        {t("issueComponents.taskChat.handoff.whatThisAffects")}
       </div>
       {summary.nothingLive ? (
         <p role="status" className="text-xs text-muted-foreground" data-testid="pause-nothing-live">
-          Nothing live to pause — no agent run is in flight or queued. This records a hold so new work
-          won't start until you resume.
+          {t("issueComponents.taskChat.handoff.pause.nothingLive")}
         </p>
       ) : null}
       {visibleBuckets.length > 0 ? (
@@ -335,14 +394,14 @@ export function PauseAffectsSummaryView({
               data-bucket={bucket.key}
               className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs"
             >
-              <span className="font-medium text-foreground">{bucket.label}:</span>
+              <span className="font-medium text-foreground">{bucketCopy[bucket.key].label}:</span>
               <span className="tabular-nums text-foreground">{bucket.count}</span>
-              <span className="text-muted-foreground">— {bucket.detail}</span>
+              <span className="text-muted-foreground">— {bucketCopy[bucket.key].detail}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground">No tasks are affected.</p>
+        <p className="text-xs text-muted-foreground">{t("issueComponents.taskChat.handoff.noTasksAffected")}</p>
       )}
     </div>
   );

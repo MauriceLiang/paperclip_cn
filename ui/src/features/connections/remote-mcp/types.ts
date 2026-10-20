@@ -23,9 +23,14 @@ export interface RemoteMcpSetupState {
   agentIds: string[];
   permissions: Record<string, ToolPermission>;
   tools: RemoteMcpTool[];
-  notice: string | null;
+  notice: string | { translationKey: RemoteMcpNoticeKey } | null;
   refreshing: boolean;
 }
+
+export type RemoteMcpNoticeKey =
+  | "toolsPage.connectFlow.remoteMcp.production.savedCredentialsHint"
+  | "toolsPage.connectFlow.remoteMcp.production.openSignInFailed"
+  | "toolsPage.connectFlow.remoteMcp.production.connectFailed";
 
 export interface RemoteMcpSetupActions {
   edit: (patch: Partial<RemoteMcpSetupState>) => void;

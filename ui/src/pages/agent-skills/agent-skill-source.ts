@@ -12,6 +12,18 @@ type SourceSkill = Pick<
   "sourceBadge" | "sourceLabel" | "sourceLocator" | "sourceType"
 >;
 
+export interface AgentSkillSourceLabels {
+  localFolder: string;
+  catalog: string;
+  paperclipManaged: string;
+}
+
+const DEFAULT_SOURCE_LABELS: AgentSkillSourceLabels = {
+  localFolder: "Local folder",
+  catalog: "Catalog",
+  paperclipManaged: "Paperclip managed",
+};
+
 function cleanRepoName(repo: string) {
   return repo.replace(/\.git$/i, "");
 }
@@ -76,19 +88,22 @@ function isFilesystemLikeLabel(value: string) {
   );
 }
 
-function displayLocalSourceLabel(label: string | null | undefined) {
+function displayLocalSourceLabel(label: string | null | undefined, fallback: string) {
   const trimmed = label?.trim();
-  if (!trimmed || isFilesystemLikeLabel(trimmed)) return "Local folder";
+  if (!trimmed || isFilesystemLikeLabel(trimmed)) return fallback;
   return trimmed;
 }
 
-function displayCatalogSourceLabel(label: string | null | undefined) {
+function displayCatalogSourceLabel(label: string | null | undefined, fallback: string) {
   const trimmed = label?.trim();
-  if (!trimmed || isFilesystemLikeLabel(trimmed)) return "Catalog";
+  if (!trimmed || isFilesystemLikeLabel(trimmed)) return fallback;
   return trimmed;
 }
 
-export function buildAgentSkillSourceMeta(skill: SourceSkill): AgentSkillSourceMeta {
+export function buildAgentSkillSourceMeta(
+  skill: SourceSkill,
+  labels: AgentSkillSourceLabels = DEFAULT_SOURCE_LABELS,
+): AgentSkillSourceMeta {
   if (skill.sourceBadge === "github" || skill.sourceType === "github") {
     const repo = githubRepoLabel(skill.sourceLabel) ?? githubRepoLabel(skill.sourceLocator);
     return { icon: GithubIcon, label: repo ? `GitHub · ${repo}` : "GitHub" };
@@ -104,16 +119,16 @@ export function buildAgentSkillSourceMeta(skill: SourceSkill): AgentSkillSourceM
   }
 
   if (skill.sourceBadge === "paperclip") {
-    return { icon: Paperclip, label: skill.sourceLabel?.trim() || "Paperclip managed" };
+    return { icon: Paperclip, label: skill.sourceLabel?.trim() || labels.paperclipManaged };
   }
 
   if (skill.sourceBadge === "catalog" || skill.sourceType === "catalog") {
-    return { icon: Boxes, label: displayCatalogSourceLabel(skill.sourceLabel) };
+    return { icon: Boxes, label: displayCatalogSourceLabel(skill.sourceLabel, labels.catalog) };
   }
 
   if (skill.sourceBadge === "local" || skill.sourceType === "local_path") {
-    return { icon: Folder, label: displayLocalSourceLabel(skill.sourceLabel) };
+    return { icon: Folder, label: displayLocalSourceLabel(skill.sourceLabel, labels.localFolder) };
   }
 
-  return { icon: Boxes, label: displayCatalogSourceLabel(skill.sourceLabel) };
+  return { icon: Boxes, label: displayCatalogSourceLabel(skill.sourceLabel, labels.catalog) };
 }

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { SmokeLabTab } from "./SmokeLabTab";
 
 const getExperimentalMock = vi.hoisted(() => vi.fn());
@@ -125,10 +126,11 @@ describe("SmokeLabTab", () => {
     createRunMock.mockResolvedValue({ run: { ...RUN, id: "run-2", status: "running" } });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     flushSync(() => root?.unmount());
     container.remove();
     vi.clearAllMocks();
+    await setLocale("en");
   });
 
   async function render() {
@@ -174,6 +176,15 @@ describe("SmokeLabTab", () => {
     expect(container.textContent).toContain("failing: P7");
     // Step drill-down shows the raw scenario step.
     expect(container.textContent).toContain("oauth-login");
+  });
+
+  it("renders Smoke Lab matrix labels in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    await render();
+
+    expect(container.textContent).toContain("远程 HTTP · OAuth");
+    expect(container.textContent).toContain("治理界面");
+    expect(container.textContent).toContain("架构变更隔离");
   });
 
   it("starts a manual run when 'Run browser smoke now' is clicked", async () => {

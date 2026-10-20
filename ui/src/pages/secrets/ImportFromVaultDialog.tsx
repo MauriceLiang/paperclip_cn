@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import {
   AlertCircle,
   AlertTriangle,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "../../components/EmptyState";
 import { cn } from "../../lib/utils";
+import { t as translate, useTranslation } from "@/i18n";
 
 type Step = "select" | "review" | "result";
 
@@ -112,15 +114,15 @@ function statusToneClasses(status: RemoteSecretImportCandidate["status"]) {
   }
 }
 
-function statusBadgeLabel(status: RemoteSecretImportCandidate["status"]) {
+function statusBadgeKey(status: RemoteSecretImportCandidate["status"]) {
   switch (status) {
     case "duplicate":
-      return "Imported";
+      return "miscSettingsPage.vaultImport.statusBadge.imported";
     case "conflict":
-      return "Conflict";
+      return "miscSettingsPage.vaultImport.statusBadge.conflict";
     case "ready":
     default:
-      return "Ready";
+      return "miscSettingsPage.vaultImport.statusBadge.ready";
   }
 }
 
@@ -129,6 +131,7 @@ function StatusBadge({
 }: {
   status: RemoteSecretImportCandidate["status"];
 }) {
+  const { t } = useTranslation();
   const Icon =
     status === "conflict"
       ? AlertTriangle
@@ -138,12 +141,13 @@ function StatusBadge({
   return (
     <Badge variant="outline" className={cn("gap-1 px-1.5 py-0 font-normal", statusToneClasses(status))}>
       <Icon className="h-3 w-3" />
-      {statusBadgeLabel(status)}
+      {t(statusBadgeKey(status))}
     </Badge>
   );
 }
 
 function RowResultBadge({ status }: { status: RemoteSecretImportRowResult["status"] }) {
+  const { t } = useTranslation();
   switch (status) {
     case "imported":
       return (
@@ -151,7 +155,7 @@ function RowResultBadge({ status }: { status: RemoteSecretImportRowResult["statu
           variant="outline"
           className="gap-1 px-1.5 py-0 font-normal text-emerald-600 border-emerald-500/40 dark:text-emerald-400"
         >
-          <CheckCircle2 className="h-3 w-3" /> Created
+          <CheckCircle2 className="h-3 w-3" /> {t("miscSettingsPage.vaultImport.rowResult.created")}
         </Badge>
       );
     case "skipped":
@@ -160,7 +164,7 @@ function RowResultBadge({ status }: { status: RemoteSecretImportRowResult["statu
           variant="outline"
           className="gap-1 px-1.5 py-0 font-normal text-muted-foreground border-border/60"
         >
-          <Link2 className="h-3 w-3" /> Skipped
+          <Link2 className="h-3 w-3" /> {t("miscSettingsPage.vaultImport.rowResult.skipped")}
         </Badge>
       );
     case "error":
@@ -170,7 +174,7 @@ function RowResultBadge({ status }: { status: RemoteSecretImportRowResult["statu
           variant="outline"
           className="gap-1 px-1.5 py-0 font-normal text-destructive border-destructive/40"
         >
-          <XCircle className="h-3 w-3" /> Failed
+          <XCircle className="h-3 w-3" /> {t("status.failed")}
         </Badge>
       );
   }
@@ -190,22 +194,23 @@ function formatRelativeShort(value: string | null | undefined): string {
   const diff = Date.now() - date.getTime();
   if (diff < 0) return date.toLocaleDateString();
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 60) return translate("miscSettingsPage.relative.seconds", { count: seconds });
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return translate("miscSettingsPage.relative.minutes", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h ago`;
+  if (hours < 48) return translate("miscSettingsPage.relative.hours", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return translate("miscSettingsPage.relative.days", { count: days });
   return date.toLocaleDateString();
 }
 
 function readableErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    return error.message || `Request failed: ${error.status}`;
+    return error.message
+      || translate("settingsPage.secrets.requestFailed", { status: error.status });
   }
   if (error instanceof Error) return error.message;
-  return "Unexpected error";
+  return translate("settingsPage.secrets.unexpectedError");
 }
 
 function apiErrorCode(error: ApiError): string | null {
@@ -269,35 +274,38 @@ function validateDraftRow(
   draft: DraftSelection,
   existing: CompanySecret[],
   otherDrafts: DraftSelection[],
+  t: TFunction,
 ): string | null {
-  if (!draft.name.trim()) return "Name is required.";
-  if (draft.name.length > 160) return "Name must be 160 characters or fewer.";
-  if (!draft.key.trim()) return "Key is required.";
+  if (!draft.name.trim()) return t("miscSettingsPage.vaultImport.validation.nameRequired");
+  if (draft.name.length > 160) return t("miscSettingsPage.vaultImport.validation.nameTooLong");
+  if (!draft.key.trim()) return t("miscSettingsPage.vaultImport.validation.keyRequired");
   if (!KEY_PATTERN.test(draft.key)) {
-    return "Key may only contain lowercase letters, numbers, dot, underscore, or hyphen.";
+    return t("miscSettingsPage.vaultImport.validation.keyInvalid");
   }
-  if (draft.key.length > 120) return "Key must be 120 characters or fewer.";
-  if (draft.description.length > 500) return "Description must be 500 characters or fewer.";
+  if (draft.key.length > 120) return t("miscSettingsPage.vaultImport.validation.keyTooLong");
+  if (draft.description.length > 500) {
+    return t("miscSettingsPage.vaultImport.validation.descriptionTooLong");
+  }
 
   const lowerName = draft.name.trim().toLowerCase();
   const lowerKey = draft.key.trim().toLowerCase();
 
   for (const existingSecret of existing) {
     if (existingSecret.name.trim().toLowerCase() === lowerName) {
-      return "A Paperclip secret already uses this name.";
+      return t("miscSettingsPage.vaultImport.validation.nameExists");
     }
     if (existingSecret.key.trim().toLowerCase() === lowerKey) {
-      return "A Paperclip secret already uses this key.";
+      return t("miscSettingsPage.vaultImport.validation.keyExists");
     }
   }
 
   for (const other of otherDrafts) {
     if (other === draft) continue;
     if (other.name.trim().toLowerCase() === lowerName) {
-      return "Another row in this batch already uses this name.";
+      return t("miscSettingsPage.vaultImport.validation.batchNameExists");
     }
     if (other.key.trim().toLowerCase() === lowerKey) {
-      return "Another row in this batch already uses this key.";
+      return t("miscSettingsPage.vaultImport.validation.batchKeyExists");
     }
   }
 
@@ -338,6 +346,7 @@ export function ImportFromVaultDialog({
   onImportComplete,
   onManageVaults,
 }: ImportFromVaultDialogProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToastActions();
   const awsVaults = useMemo(() => awsVaultOptions(providerConfigs), [providerConfigs]);
@@ -457,11 +466,11 @@ export function ImportFromVaultDialog({
   const reviewErrors = useMemo<Map<string, string>>(() => {
     const errors = new Map<string, string>();
     for (const draft of draftList) {
-      const error = validateDraftRow(draft, existingSecrets, draftList);
+      const error = validateDraftRow(draft, existingSecrets, draftList, t);
       if (error) errors.set(draft.candidate.externalRef, error);
     }
     return errors;
-  }, [draftList, existingSecrets]);
+  }, [draftList, existingSecrets, t]);
 
   const blockedReviewCount = reviewErrors.size;
   const readyReviewCount = draftList.length - blockedReviewCount;
@@ -477,21 +486,27 @@ export function ImportFromVaultDialog({
         awsVaults.find((vault) => vault.id === vaultId)?.displayName ?? "AWS";
       if (result.errorCount === draftList.length && result.errorCount > 0) {
         toast.pushToast({
-          title: "Import failed",
-          body: `No secrets were imported from ${vaultName}.`,
+          title: t("miscSettingsPage.vaultImport.toast.importFailedTitle"),
+          body: t("miscSettingsPage.vaultImport.toast.noneImported", { vault: vaultName }),
           tone: "error",
         });
       } else {
         toast.pushToast({
-          title: result.errorCount > 0 ? "Import completed with errors" : "Import complete",
-          body: `${result.importedCount} created · ${result.skippedCount} skipped · ${result.errorCount} failed`,
+          title: result.errorCount > 0
+            ? t("miscSettingsPage.vaultImport.toast.completedWithErrors")
+            : t("miscSettingsPage.vaultImport.toast.importComplete"),
+          body: t("miscSettingsPage.vaultImport.toast.importSummary", {
+            imported: result.importedCount,
+            skipped: result.skippedCount,
+            failed: result.errorCount,
+          }),
           tone: result.errorCount > 0 ? "warn" : "success",
         });
       }
     },
     onError: (error) => {
       toast.pushToast({
-        title: "Import failed",
+        title: t("miscSettingsPage.vaultImport.toast.importFailedTitle"),
         body: readableErrorMessage(error),
         tone: "error",
       });
@@ -552,7 +567,7 @@ export function ImportFromVaultDialog({
       })
       .catch((error) => {
         toast.pushToast({
-          title: "Could not load more results",
+          title: t("miscSettingsPage.vaultImport.toast.loadMoreFailedTitle"),
           body: readableErrorMessage(error),
           tone: "error",
         });
@@ -614,7 +629,7 @@ export function ImportFromVaultDialog({
     if (importMutation.isPending) return;
     if (!force && step !== "result" && selection.size > 0 && !importResult) {
       const ok = window.confirm(
-        `Discard ${selection.size} pending import${selection.size === 1 ? "" : "s"}?`,
+        t("miscSettingsPage.vaultImport.confirmDiscard", { count: selection.size }),
       );
       if (!ok) return;
     }
@@ -655,10 +670,10 @@ export function ImportFromVaultDialog({
         <header className="flex items-start justify-between gap-3 border-b border-border/60 px-5 py-4">
           <div className="flex flex-col gap-1">
             <DialogTitle className="text-base font-semibold">
-              Import from AWS Secrets Manager
+              {t("miscSettingsPage.vaultImport.dialogTitle")}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Bring AWS-managed secrets into Paperclip as external references.
+              {t("miscSettingsPage.vaultImport.dialogDescription")}
             </DialogDescription>
             <Stepper step={step} />
           </div>
@@ -666,7 +681,7 @@ export function ImportFromVaultDialog({
             type="button"
             className="rounded-sm text-muted-foreground transition-opacity hover:opacity-100 opacity-70"
             onClick={() => handleClose()}
-            aria-label="Close import dialog"
+            aria-label={t("miscSettingsPage.vaultImport.closeAria")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -730,7 +745,7 @@ export function ImportFromVaultDialog({
           <div className="flex items-center gap-2">
             {step !== "result" && (
               <Button variant="ghost" size="sm" onClick={() => handleClose()}>
-                Cancel
+                {t("common.actions.cancel")}
               </Button>
             )}
             {step === "review" && (
@@ -740,7 +755,7 @@ export function ImportFromVaultDialog({
                 onClick={() => setStep("select")}
                 disabled={importMutation.isPending}
               >
-                Back
+                {t("miscSettingsPage.vaultImport.back")}
               </Button>
             )}
             {step === "select" && (
@@ -749,7 +764,7 @@ export function ImportFromVaultDialog({
                 onClick={() => setStep("review")}
                 disabled={totalSelected === 0}
               >
-                Continue → Review
+                {t("miscSettingsPage.vaultImport.continueToReview")}
               </Button>
             )}
             {step === "review" && (
@@ -764,16 +779,17 @@ export function ImportFromVaultDialog({
               >
                 {importMutation.isPending ? (
                   <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Importing…
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {t("miscSettingsPage.vaultImport.importing")}
                   </>
                 ) : (
-                  `Import ${draftList.length}`
+                  t("miscSettingsPage.vaultImport.importCount", { count: draftList.length })
                 )}
               </Button>
             )}
             {step === "result" && (
               <Button size="sm" onClick={() => handleClose(true)}>
-                Done
+                {t("common.done")}
               </Button>
             )}
           </div>
@@ -784,10 +800,11 @@ export function ImportFromVaultDialog({
 }
 
 function Stepper({ step }: { step: Step }) {
+  const { t } = useTranslation();
   const steps: { id: Step; label: string }[] = [
-    { id: "select", label: "Select" },
-    { id: "review", label: "Review" },
-    { id: "result", label: "Result" },
+    { id: "select", label: t("miscSettingsPage.vaultImport.steps.select") },
+    { id: "review", label: t("miscSettingsPage.vaultImport.steps.review") },
+    { id: "result", label: t("miscSettingsPage.vaultImport.steps.result") },
   ];
   const activeIndex = steps.findIndex((s) => s.id === step);
   return (
@@ -878,14 +895,15 @@ function SelectStep(props: SelectStepProps) {
     noEligibleVaults,
     onManageVaults,
   } = props;
+  const { t } = useTranslation();
 
   if (noEligibleVaults) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-6" data-testid="select-empty-vaults">
         <EmptyState
           icon={Cloud}
-          message="No AWS provider vault configured. Add one to import secrets."
-          action={onManageVaults ? "Manage vaults" : undefined}
+          message={t("miscSettingsPage.vaultImport.select.noVault")}
+          action={onManageVaults ? t("miscSettingsPage.vaultImport.select.manageVaults") : undefined}
           onAction={onManageVaults}
         />
       </div>
@@ -897,7 +915,9 @@ function SelectStep(props: SelectStepProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-5 py-3">
-        <label className="text-xs uppercase tracking-wide text-muted-foreground">Vault</label>
+        <label className="text-xs uppercase tracking-wide text-muted-foreground">
+          {t("miscSettingsPage.vaultImport.select.vaultLabel")}
+        </label>
         {awsVaults.length === 1 && eligible.length === 1 ? (
           <span className="text-xs font-medium" data-testid="vault-static-label">
             {eligible[0].displayName}
@@ -907,8 +927,12 @@ function SelectStep(props: SelectStepProps) {
             value={vaultId ?? undefined}
             onValueChange={onVaultChange}
           >
-            <SelectTrigger size="sm" className="text-xs" aria-label="Select AWS vault">
-              <SelectValue placeholder="Select an AWS vault" />
+            <SelectTrigger
+              size="sm"
+              className="text-xs"
+              aria-label={t("miscSettingsPage.vaultImport.select.selectVaultAria")}
+            >
+              <SelectValue placeholder={t("miscSettingsPage.vaultImport.select.selectVaultPlaceholder")} />
             </SelectTrigger>
             <SelectContent>
               {awsVaults.map((vault) => {
@@ -923,14 +947,20 @@ function SelectStep(props: SelectStepProps) {
                     <span className="flex items-center gap-2">
                       <span>{vault.displayName}</span>
                       {vault.isDefault && (
-                        <Badge variant="outline" className="px-1 py-0 text-(length:--text-nano)">default</Badge>
+                        <Badge variant="outline" className="px-1 py-0 text-(length:--text-nano)">
+                          {t("miscSettingsPage.vaultImport.select.defaultBadge")}
+                        </Badge>
                       )}
                       {vault.status === "warning" && (
-                        <Badge variant="outline" className="px-1 py-0 text-(length:--text-nano) text-amber-500 border-amber-500/40">warning</Badge>
+                        <Badge variant="outline" className="px-1 py-0 text-(length:--text-nano) text-amber-500 border-amber-500/40">
+                          {t("miscSettingsPage.vaultImport.select.warningBadge")}
+                        </Badge>
                       )}
                       {blocked && (
                         <Badge variant="outline" className="px-1 py-0 text-(length:--text-nano) text-muted-foreground">
-                          {vault.status === "coming_soon" ? "coming soon" : vault.status}
+                          {vault.status === "coming_soon"
+                            ? t("settingsPage.secrets.vaultStatus.comingSoon")
+                            : vault.status}
                         </Badge>
                       )}
                     </span>
@@ -946,9 +976,9 @@ function SelectStep(props: SelectStepProps) {
           <Input
             value={searchInput}
             onChange={(event) => onSearchInput(event.target.value)}
-            placeholder="Search by name, ARN, tag"
+            placeholder={t("miscSettingsPage.vaultImport.select.searchPlaceholder")}
             className="pl-7 pr-7 text-xs"
-            aria-label="Search remote secrets"
+            aria-label={t("miscSettingsPage.vaultImport.select.searchAria")}
             data-testid="vault-search"
           />
           {showSearchSpinner && (
@@ -961,7 +991,7 @@ function SelectStep(props: SelectStepProps) {
           size="sm"
           onClick={onRefresh}
           disabled={previewLoading || !vaultId}
-          aria-label="Refresh remote secrets"
+          aria-label={t("miscSettingsPage.vaultImport.select.refreshAria")}
         >
           <RefreshCw className={cn("h-3.5 w-3.5", previewLoading && "animate-spin")} />
         </Button>
@@ -970,7 +1000,10 @@ function SelectStep(props: SelectStepProps) {
       {selectedNotVisible > 0 && (
         <div className="flex items-center justify-between border-b border-border/60 bg-muted/20 px-5 py-1.5 text-xs text-muted-foreground">
           <span>
-            {selection.size} selected · {selectedNotVisible} not visible with current search
+            {t("miscSettingsPage.vaultImport.select.selectedHidden", {
+              selected: selection.size,
+              hidden: selectedNotVisible,
+            })}
           </span>
           <Button
             variant="ghost"
@@ -978,7 +1011,9 @@ function SelectStep(props: SelectStepProps) {
             className="h-6 px-2 text-xs"
             onClick={() => onShowOnlySelectedChange(!showOnlySelected)}
           >
-            {showOnlySelected ? "Show all" : "Show selected"}
+            {showOnlySelected
+              ? t("miscSettingsPage.vaultImport.select.showAll")
+              : t("miscSettingsPage.vaultImport.select.showSelected")}
           </Button>
         </div>
       )}
@@ -998,15 +1033,27 @@ function SelectStep(props: SelectStepProps) {
                   <Checkbox
                     checked={headerCheckboxState}
                     onCheckedChange={() => toggleAllLoaded()}
-                    aria-label={`Select all loaded (${selectableInLoaded.length})`}
+                    aria-label={t("miscSettingsPage.vaultImport.select.selectAllLoaded", {
+                      count: selectableInLoaded.length,
+                    })}
                     disabled={selectableInLoaded.length === 0}
                   />
                 </th>
-                <th className="px-2 py-2 text-left font-medium">Remote name</th>
-                <th className="px-2 py-2 text-left font-medium">Reference</th>
-                <th className="px-2 py-2 text-left font-medium">Last changed</th>
-                <th className="px-2 py-2 text-left font-medium">Suggested name</th>
-                <th className="px-2 py-2 text-left font-medium">State</th>
+                <th className="px-2 py-2 text-left font-medium">
+                  {t("miscSettingsPage.vaultImport.select.table.remoteName")}
+                </th>
+                <th className="px-2 py-2 text-left font-medium">
+                  {t("miscSettingsPage.vaultImport.select.table.reference")}
+                </th>
+                <th className="px-2 py-2 text-left font-medium">
+                  {t("miscSettingsPage.vaultImport.select.table.lastChanged")}
+                </th>
+                <th className="px-2 py-2 text-left font-medium">
+                  {t("miscSettingsPage.vaultImport.select.table.suggestedName")}
+                </th>
+                <th className="px-2 py-2 text-left font-medium">
+                  {t("miscSettingsPage.vaultImport.select.table.state")}
+                </th>
               </tr>
             </thead>
             <tbody data-testid="vault-table-body">
@@ -1038,7 +1085,9 @@ function SelectStep(props: SelectStepProps) {
                         checked={isSelected}
                         onCheckedChange={() => toggleRow(candidate)}
                         disabled={!candidate.importable}
-                        aria-label={`Select ${candidate.remoteName}`}
+                        aria-label={t("miscSettingsPage.vaultImport.select.selectRow", {
+                          name: candidate.remoteName,
+                        })}
                       />
                     </td>
                     <td className="px-2 py-2.5">
@@ -1062,7 +1111,7 @@ function SelectStep(props: SelectStepProps) {
                         {candidate.status === "duplicate" &&
                           candidate.conflicts.find((c) => c.type === "exact_reference")?.existingSecretId && (
                             <span className="text-(length:--text-micro) text-muted-foreground">
-                              Already imported
+                              {t("miscSettingsPage.vaultImport.select.alreadyImported")}
                             </span>
                           )}
                       </div>
@@ -1089,9 +1138,16 @@ function SelectStep(props: SelectStepProps) {
         {hasNextPage && !previewError && (
           <div className="flex items-center justify-between border-t border-border/60 px-5 py-2 text-xs text-muted-foreground">
             <span>
-              {candidates.length} loaded
+              {t("miscSettingsPage.vaultImport.select.loadedCount", {
+                count: candidates.length,
+              })}
               {selectableInLoaded.length > 0 && (
-                <span> · {selectableInLoaded.length} selectable</span>
+                <span>
+                  {" · "}
+                  {t("miscSettingsPage.vaultImport.select.selectableCount", {
+                    count: selectableInLoaded.length,
+                  })}
+                </span>
               )}
             </span>
             <Button
@@ -1103,10 +1159,11 @@ function SelectStep(props: SelectStepProps) {
             >
               {pageLoading ? (
                 <>
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Loading…
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  {t("common.loading")}
                 </>
               ) : (
-                `Load ${PAGE_SIZE} more`
+                t("miscSettingsPage.vaultImport.select.loadMore", { count: PAGE_SIZE })
               )}
             </Button>
           </div>
@@ -1117,6 +1174,7 @@ function SelectStep(props: SelectStepProps) {
 }
 
 function PreviewErrorBanner({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const { t } = useTranslation();
   const isPermission = isPermissionError(error);
   const isThrottling = isThrottlingError(error);
   const message = readableErrorMessage(error);
@@ -1130,19 +1188,19 @@ function PreviewErrorBanner({ error, onRetry }: { error: unknown; onRetry: () =>
       <div className="flex-1">
         <div className="font-medium">
           {isPermission
-            ? "AWS denied list access"
+            ? t("miscSettingsPage.vaultImport.previewError.accessDeniedTitle")
             : isThrottling
-              ? "AWS throttled the listing request"
-              : "Could not load remote secrets"}
+              ? t("miscSettingsPage.vaultImport.previewError.throttledTitle")
+              : t("miscSettingsPage.vaultImport.previewError.loadFailedTitle")}
         </div>
         <div className="mt-1 text-xs leading-relaxed text-destructive/80">
           {isPermission
-            ? "The AWS principal behind this vault is missing secretsmanager:ListSecrets. Update IAM and try again."
+            ? t("miscSettingsPage.vaultImport.previewError.accessDeniedBody")
             : message}
         </div>
         <div className="mt-2 flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onRetry}>
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> {t("common.actions.retry")}
           </Button>
           {isPermission && (
             <a
@@ -1151,7 +1209,8 @@ function PreviewErrorBanner({ error, onRetry }: { error: unknown; onRetry: () =>
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs font-medium underline"
             >
-              IAM reference <ExternalLink className="h-3 w-3" />
+              {t("miscSettingsPage.vaultImport.previewError.iamReference")}{" "}
+              <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>
@@ -1171,18 +1230,19 @@ function SkeletonRows({ rows }: { rows: number }) {
 }
 
 function EmptyCandidates({ query }: { query: string }) {
+  const { t } = useTranslation();
   if (query) {
     return (
       <EmptyState
         icon={Search}
-        message={`No remote secrets match "${query}".`}
+        message={t("miscSettingsPage.vaultImport.empty.noMatch", { query })}
       />
     );
   }
   return (
     <EmptyState
       icon={Database}
-      message="No secrets visible to this vault."
+      message={t("miscSettingsPage.vaultImport.empty.noSecrets")}
     />
   );
 }
@@ -1196,12 +1256,13 @@ interface ReviewStepProps {
 }
 
 function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing }: ReviewStepProps) {
+  const { t } = useTranslation();
   if (drafts.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
         <EmptyState
           icon={Info}
-          message="No secrets selected. Go back to pick remote secrets to import."
+          message={t("miscSettingsPage.vaultImport.empty.noSelection")}
         />
       </div>
     );
@@ -1213,10 +1274,12 @@ function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-border/60 bg-muted/20 px-5 py-3 text-xs">
-        <span className="font-medium">{ready} secrets ready to import</span>
+        <span className="font-medium">
+          {t("miscSettingsPage.vaultImport.review.readyToImport", { count: ready })}
+        </span>
         {blocked > 0 && (
           <span className="text-amber-600 dark:text-amber-400">
-            {blocked} need attention before import
+            {t("miscSettingsPage.vaultImport.review.needAttention", { count: blocked })}
           </span>
         )}
       </div>
@@ -1245,7 +1308,9 @@ function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing 
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <label className="flex flex-col gap-1 text-xs">
-                      <span className="text-muted-foreground">Paperclip name</span>
+                      <span className="text-muted-foreground">
+                        {t("miscSettingsPage.vaultImport.review.paperclipName")}
+                      </span>
                       <Input
                         value={draft.name}
                         onChange={(e) =>
@@ -1258,7 +1323,9 @@ function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing 
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-xs">
-                      <span className="text-muted-foreground">Key</span>
+                      <span className="text-muted-foreground">
+                        {t("miscSettingsPage.vaultImport.review.key")}
+                      </span>
                       <Input
                         value={draft.key}
                         onChange={(e) =>
@@ -1276,7 +1343,9 @@ function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing 
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-xs">
-                      <span className="text-muted-foreground">Description (optional)</span>
+                      <span className="text-muted-foreground">
+                        {t("miscSettingsPage.vaultImport.review.descriptionOptional")}
+                      </span>
                       <Input
                         value={draft.description}
                         onChange={(e) =>
@@ -1305,7 +1374,9 @@ function ReviewStep({ drafts, reviewErrors, updateDraft, removeDraft, importing 
                   variant="ghost"
                   size="icon"
                   onClick={() => removeDraft(draft.candidate.externalRef)}
-                  aria-label={`Remove ${draft.candidate.remoteName}`}
+                  aria-label={t("miscSettingsPage.vaultImport.review.removeRow", {
+                    name: draft.candidate.remoteName,
+                  })}
                   className="h-7 w-7"
                   disabled={importing}
                 >
@@ -1326,6 +1397,7 @@ interface ResultStepProps {
 }
 
 function ResultStep({ result, draftList }: ResultStepProps) {
+  const { t } = useTranslation();
   const grouped = useMemo(() => {
     const created: RemoteSecretImportRowResult[] = [];
     const skipped: RemoteSecretImportRowResult[] = [];
@@ -1346,30 +1418,50 @@ function ResultStep({ result, draftList }: ResultStepProps) {
 
   const heading =
     result.errorCount === result.results.length && result.errorCount > 0
-      ? "Import failed"
+      ? t("miscSettingsPage.vaultImport.result.importFailed")
       : result.errorCount === 0 && result.skippedCount === 0
-        ? `All ${result.importedCount} secrets imported`
-        : "Import complete";
+        ? t("miscSettingsPage.vaultImport.result.allImported", {
+            count: result.importedCount,
+          })
+        : t("miscSettingsPage.vaultImport.result.importComplete");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b border-border/60 px-5 py-3" data-testid="result-summary">
         <h3 className="text-sm font-semibold">{heading}</h3>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="text-emerald-600 dark:text-emerald-400">✓ {result.importedCount} created</span>
-          <span>⊘ {result.skippedCount} skipped</span>
-          <span className="text-destructive">⨯ {result.errorCount} failed</span>
+          <span className="text-emerald-600 dark:text-emerald-400">
+            ✓ {t("miscSettingsPage.vaultImport.counts.created", { count: result.importedCount })}
+          </span>
+          <span>
+            ⊘ {t("miscSettingsPage.vaultImport.counts.skipped", { count: result.skippedCount })}
+          </span>
+          <span className="text-destructive">
+            ⨯ {t("miscSettingsPage.vaultImport.counts.failed", { count: result.errorCount })}
+          </span>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {grouped.created.length > 0 && (
-          <ResultGroup label="Created" rows={grouped.created} draftLookup={draftLookup} />
+          <ResultGroup
+            label={t("miscSettingsPage.vaultImport.result.groupCreated")}
+            rows={grouped.created}
+            draftLookup={draftLookup}
+          />
         )}
         {grouped.skipped.length > 0 && (
-          <ResultGroup label="Skipped" rows={grouped.skipped} draftLookup={draftLookup} />
+          <ResultGroup
+            label={t("miscSettingsPage.vaultImport.result.groupSkipped")}
+            rows={grouped.skipped}
+            draftLookup={draftLookup}
+          />
         )}
         {grouped.failed.length > 0 && (
-          <ResultGroup label="Failed" rows={grouped.failed} draftLookup={draftLookup} />
+          <ResultGroup
+            label={t("miscSettingsPage.vaultImport.result.groupFailed")}
+            rows={grouped.failed}
+            draftLookup={draftLookup}
+          />
         )}
       </div>
     </div>
@@ -1451,22 +1543,26 @@ function FooterStatus({
   blockedReviewCount,
   result,
 }: FooterStatusProps) {
+  const { t } = useTranslation();
   if (step === "select") {
     return (
       <div className="text-xs text-muted-foreground">
         {totalSelected === 0
-          ? "Select remote secrets to import"
-          : `${totalSelected} selected`}
+          ? t("miscSettingsPage.vaultImport.footer.selectPrompt")
+          : t("miscSettingsPage.vaultImport.counts.selected", { count: totalSelected })}
       </div>
     );
   }
   if (step === "review") {
     return (
       <div className="text-xs text-muted-foreground">
-        {readyReviewCount} ready
+        {t("miscSettingsPage.vaultImport.counts.ready", { count: readyReviewCount })}
         {blockedReviewCount > 0 && (
           <span className="ml-2 text-amber-600 dark:text-amber-400">
-            · {blockedReviewCount} blocked
+            {" · "}
+            {t("miscSettingsPage.vaultImport.counts.blocked", {
+              count: blockedReviewCount,
+            })}
           </span>
         )}
       </div>
@@ -1475,9 +1571,15 @@ function FooterStatus({
   if (result) {
     return (
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>{result.importedCount} created</span>
-        <span>{result.skippedCount} skipped</span>
-        <span>{result.errorCount} failed</span>
+        <span>
+          {t("miscSettingsPage.vaultImport.counts.created", { count: result.importedCount })}
+        </span>
+        <span>
+          {t("miscSettingsPage.vaultImport.counts.skipped", { count: result.skippedCount })}
+        </span>
+        <span>
+          {t("miscSettingsPage.vaultImport.counts.failed", { count: result.errorCount })}
+        </span>
       </div>
     );
   }

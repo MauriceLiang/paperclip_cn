@@ -442,6 +442,7 @@ export interface CompanyPortabilityImportResult {
 
 export interface CompanyPortabilityExportRequest {
   include?: Partial<CompanyPortabilityInclude>;
+  readmeLocale?: "en" | "zh-CN";
   agents?: string[];
   skills?: string[];
   projects?: string[];

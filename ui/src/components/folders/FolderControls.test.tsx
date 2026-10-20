@@ -3,6 +3,7 @@
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import type { FolderListResult } from "@paperclipai/shared";
 import {
   AllUnfiledBanner,
@@ -135,7 +136,7 @@ describe("FolderControls", () => {
     root = null;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     if (root) {
       act(() => {
         root?.unmount();
@@ -143,6 +144,7 @@ describe("FolderControls", () => {
     }
     container.remove();
     document.body.innerHTML = "";
+    await setLocale("en");
   });
 
   it("normalizes URL selection values for folder persistence", () => {
@@ -346,6 +348,24 @@ describe("FolderControls", () => {
       submit?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
     expect(onSubmit).toHaveBeenCalledWith({ name: "Reporting", color: expect.any(String) });
+  });
+
+  it("localizes the folder dialog cancel action", async () => {
+    await setLocale("zh-CN");
+    root = createRoot(container);
+    act(() => {
+      root?.render(
+        <FolderFormDialog
+          open
+          kind="routine"
+          folder={null}
+          onOpenChange={vi.fn()}
+          onSubmit={vi.fn()}
+        />,
+      );
+    });
+
+    expect(Array.from(document.querySelectorAll("button")).some((button) => button.textContent === "取消")).toBe(true);
   });
 
   it("states the forgiving delete behavior and confirms", () => {

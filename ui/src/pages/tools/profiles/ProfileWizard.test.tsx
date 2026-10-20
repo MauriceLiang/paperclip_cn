@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ToolCatalogEntry, ToolProfileWithDetails } from "@paperclipai/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 
 const navigate = vi.hoisted(() => vi.fn());
 const api = vi.hoisted(() => ({
@@ -120,6 +121,35 @@ describe("ProfileWizard", () => {
     expect(input.name).toBe("Everyday work");
     // Step 2 is now visible.
     expect(container.textContent).toContain("New tools that appear later");
+  });
+
+  it("localizes template and capability labels in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    try {
+      setData([]);
+      await render({});
+      expect(container.textContent).toContain("只读");
+      expect(container.textContent).toContain("日常工作");
+
+      const nameInput = container.querySelector("#profile-name") as HTMLInputElement;
+      await act(async () => {
+        setNativeValue(nameInput, "中文访问配置");
+        await Promise.resolve();
+      });
+      const continueBtn = [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.trim() === "继续");
+      await act(async () => {
+        continueBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(container.textContent).toContain("只读");
+      expect(container.textContent).toContain("可修改");
+      expect(container.textContent).toContain("破坏性操作");
+    } finally {
+      await i18n.changeLanguage("en");
+    }
   });
 
   it("resumes a draft at the first unfinished step", async () => {

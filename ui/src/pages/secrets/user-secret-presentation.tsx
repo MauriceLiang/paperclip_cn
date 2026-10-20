@@ -1,5 +1,6 @@
 import type { SecretStatus, UserSecretCoverageSummary } from "@paperclipai/shared";
 import { UserRound } from "lucide-react";
+import { useTranslation, t } from "@/i18n";
 import { cn } from "../../lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,7 +14,8 @@ export const USER_SECRET_ACCENT_BORDER = "border-violet-500/30";
 export const USER_SECRET_ACCENT_BG = "bg-violet-500/10";
 
 /** Small pill used to mark user-scoped rows and headers. */
-export function UserSecretChip({ className, label = "User secret" }: { className?: string; label?: string }) {
+export function UserSecretChip({ className, label }: { className?: string; label?: string }) {
+  const { t: translate } = useTranslation();
   return (
     <Badge variant="outline"
       className={cn(
@@ -25,9 +27,23 @@ export function UserSecretChip({ className, label = "User secret" }: { className
       )}
     >
       <UserRound className="h-3 w-3" />
-      {label}
+      {label ?? translate("settingsPage.secrets.events.userSecret")}
     </Badge>
   );
+}
+
+/** Translate a stored secret status without changing its API value. */
+export function secretStatusKey(status: SecretStatus): string {
+  switch (status) {
+    case "active":
+      return "settingsPage.secrets.status.active";
+    case "disabled":
+      return "settingsPage.secrets.status.disabled";
+    case "archived":
+      return "settingsPage.secrets.status.archived";
+    case "deleted":
+      return "settingsPage.secrets.status.deleted";
+  }
 }
 
 /** Tone for a secret/definition status badge. */
@@ -61,11 +77,11 @@ export function myValueTone(state: MyValueState): string {
 export function myValueLabel(state: MyValueState): string {
   switch (state) {
     case "set":
-      return "Value set";
+      return t("settingsPage.secrets.mySecretsTab.valueSet");
     case "not_set":
-      return "Not set";
+      return t("settingsPage.secrets.mySecretsTab.valueNotSet");
     case "inactive":
-      return "Disabled";
+      return t("settingsPage.secrets.status.disabled");
   }
 }
 

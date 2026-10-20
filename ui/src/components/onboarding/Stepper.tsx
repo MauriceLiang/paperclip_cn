@@ -1,4 +1,12 @@
 import { cn } from "../../lib/utils";
+import { useTranslation } from "@/i18n";
+
+const STEP_LABEL_KEYS: Record<string, string> = {
+  "Name your organization": "onboardingExtra.stepNameOrganization",
+  "Create your first agent": "onboardingExtra.stepCreateFirstAgent",
+  "Connect a model": "onboardingExtra.stepConnectModel",
+  Review: "onboardingExtra.stepReview",
+};
 
 /**
  * The agent arc — create the agent, connect it, review — is the part of the
@@ -107,15 +115,18 @@ export function Stepper({
   canJumpToStep?: (target: number) => boolean;
   onJumpToStep?: (target: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-11 flex items-center justify-center gap-2">
       {Array.from({ length: total }, (_, index) => index + 1).map((segment) => {
         const jumpable = Boolean(canJumpToStep?.(segment) && onJumpToStep);
+        const label = labels[segment - 1];
+        const labelKey = label ? STEP_LABEL_KEYS[label] : undefined;
         return (
           <button
             key={segment}
             type="button"
-            aria-label={labels[segment - 1] ?? `Step ${segment}`}
+            aria-label={labelKey ? t(labelKey) : label ?? t("onboardingExtra.stepLabel", { step: segment })}
             aria-current={segment === step ? "step" : undefined}
             disabled={!jumpable}
             onClick={() => jumpable && onJumpToStep?.(segment)}
@@ -134,7 +145,7 @@ export function Stepper({
       })}
       {/* Out of flow, so it neither takes a row nor picks up the gap. */}
       <span className="sr-only">
-        Step {step} of {total}
+        {t("onboardingExtra.stepCount", { step, total })}
       </span>
     </div>
   );

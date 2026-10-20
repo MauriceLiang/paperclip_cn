@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n";
 import {
   canSubmitGenericConnect,
   customHeaderError,
@@ -76,6 +77,10 @@ describe("defaultGenericMcpName", () => {
 });
 
 describe("genericConnectGuidance", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("names the URL as the thing to fix for invalid, unsafe and unreachable endpoints", () => {
     for (const code of [
       "mcp_remote_url_invalid",
@@ -99,22 +104,29 @@ describe("genericConnectGuidance", () => {
 
   it("does not ask the operator to resolve an internal name conflict", () => {
     const guidance = genericConnectGuidance("tool_access_name_conflict", null);
-    expect(guidance).toMatchObject({ title: "Paperclip couldn’t name this connection", focus: "none" });
+    expect(guidance).toMatchObject({ title: "Paperclip could not name this connection", focus: "none" });
     expect(guidance.body).not.toContain("different name");
   });
 
-  it("passes a rejected header's own message through", () => {
+  it("uses localized guidance for a rejected header", () => {
     const guidance = genericConnectGuidance(
       "mcp_header_rejected",
       'Paperclip manages the "Host" header and cannot send a custom value for it.',
     );
-    expect(guidance.body).toContain('"Host"');
+    expect(guidance.body).toContain("Review the custom header names and values");
+    expect(guidance.body).not.toContain('"Host"');
     expect(guidance.focus).toBe("credentials");
+  });
+
+  it("localizes recognized guidance and header validation in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+    expect(genericConnectGuidance("mcp_remote_url_invalid", null).title).toBe("检查 MCP 服务器 URL");
+    expect(customHeaderError([{ id: "a", name: "", value: "token" }])).toBe("请输入标头名称。");
   });
 
   it("falls back to the server's message for an unrecognised code", () => {
     expect(genericConnectGuidance("something_new", "Upstream said no.").body).toBe("Upstream said no.");
-    expect(genericConnectGuidance(null, null).body).toContain("Check it and try again");
+    expect(genericConnectGuidance(null, null).body).toContain("Check the URL and try again");
   });
 });
 
@@ -128,21 +140,21 @@ describe("customHeaderError", () => {
 
   it("rejects headers Paperclip refuses to send", () => {
     expect(customHeaderError([{ id: "a", name: "Host", value: "evil.example" }]))
-      .toContain('Paperclip manages the "Host" header');
+      .toContain("Paperclip manages the Host header");
   });
 
   it("rejects a value that would split the request", () => {
     expect(customHeaderError([{ id: "a", name: "X-Api-Key", value: "abc\r\nX-Injected: 1" }]))
-      .toContain("line breaks");
+      .toContain("control characters");
   });
 
   it("asks for a value on a half-filled row and flags duplicates", () => {
     expect(customHeaderError([{ id: "a", name: "X-Api-Key", value: "" }]))
-      .toContain('Add a value for "X-Api-Key"');
+      .toContain("Add a value for X-Api-Key.");
     expect(customHeaderError([
       { id: "a", name: "X-Api-Key", value: "one" },
       { id: "b", name: "x-api-key", value: "two" },
-    ])).toContain("listed twice");
+    ])).toContain("listed more than once");
   });
 });
 

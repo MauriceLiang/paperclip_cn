@@ -66,14 +66,23 @@ import { useBreadcrumbs } from "@/context/BreadcrumbContext";
 import { useToast } from "@/context/ToastContext";
 import { formatDateTime } from "@/lib/utils";
 import { queryKeys } from "@/lib/queryKeys";
+import { Trans } from "react-i18next";
+import { useTranslation, t as translate } from "@/i18n";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "@/lib/router";
 
 const tabs = ["settings", "access", "reviews", "conversations", "activity"] as const;
 type ChatTab = (typeof tabs)[number];
+const TAB_LABEL_KEYS: Record<ChatTab, string> = {
+  settings: "appsPage.chatDetail.tabSettings",
+  access: "appsPage.chatDetail.tabAccess",
+  reviews: "appsPage.chatDetail.tabReviews",
+  conversations: "appsPage.chatDetail.tabConversations",
+  activity: "appsPage.chatDetail.tabActivity",
+};
 const tabItems = tabs.map((value) => ({
   value,
-  label: value[0].toUpperCase() + value.slice(1),
+  labelKey: TAB_LABEL_KEYS[value],
 }));
 const providerNames: Record<ChatProvider, string> = {
   speko: "Speko",
@@ -91,52 +100,42 @@ const providerLifecycleGuidance: Record<
   { reconnect: string; remove: string }
 > = {
   speko: {
-    reconnect: "Reverify this voice persona and update its signed session tools. Existing task assignments stay attached to their history.",
-    remove: "Stop this connection from accepting voice requests. Accepted work and task history remain in Paperclip.",
+    reconnect: "appsPage.chatDetail.lifecycle.spekoReconnect",
+    remove: "appsPage.chatDetail.lifecycle.spekoRemove",
   },
-  agentmail: { reconnect: "Reconnect the same email inbox.", remove: "Disconnect email and retain task history." },
+  agentmail: { reconnect: "appsPage.chatDetail.lifecycle.agentmailReconnect", remove: "appsPage.chatDetail.lifecycle.agentmailRemove" },
   slack: {
-    reconnect:
-      "Reconnect verifies or replaces credentials for this same Slack app. It does not reinstall the app or change its workspace or channel membership.",
-    remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved Slack credentials. It does not uninstall the Slack app: the app remains installed, and its bot remains in channels, until you remove them in Slack.",
+    reconnect: "appsPage.chatDetail.lifecycle.slackReconnect",
+    remove: "appsPage.chatDetail.lifecycle.slackRemove",
   },
   github: {
-    reconnect:
-      "Reconnect verifies this same App and installation, then updates its webhook URL, secret, and secure delivery settings. It does not reinstall the App or change repository access.",
-    remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved App key and webhook secret. It does not uninstall the GitHub App: the App, its installations, and its webhook settings remain until you remove or update them on GitHub.",
+    reconnect: "appsPage.chatDetail.lifecycle.githubReconnect",
+    remove: "appsPage.chatDetail.lifecycle.githubRemove",
   },
   discord: {
-    reconnect:
-      "Reconnect verifies this same Discord application and server installation. It does not add or remove the bot from the server.",
-    remove:
-      "Paperclip archives the endpoint, stops its Paperclip Gateway connection, and retires its saved bot token. It does not uninstall the bot: the bot remains in the Discord server, and the application remains in the Developer Portal, until you remove them there.",
+    reconnect: "appsPage.chatDetail.lifecycle.discordReconnect",
+    remove: "appsPage.chatDetail.lifecycle.discordRemove",
   },
   "microsoft-teams": {
-    reconnect:
-      "Reconnect verifies this same Microsoft app, tenant, and bot identity. It does not upload or reinstall the Teams app.",
-    remove:
-      "Paperclip archives the endpoint, stops new ingress, and retires its saved client secret. It does not uninstall the Teams app: the Entra app registration, Azure Bot, custom Teams app, and Teams installations remain until you remove them in Microsoft.",
+    reconnect: "appsPage.chatDetail.lifecycle.teamsReconnect",
+    remove: "appsPage.chatDetail.lifecycle.teamsRemove",
   },
   "imessage-photon": {
-    reconnect: "Reconnect verifies the same Photon project and line allocation, then recovers eligible missed messages.",
-    remove: "Disconnect archives this channel and removes its saved secret. Your Photon project, number, subscription, and Messages history remain in Photon.",
+    reconnect: "appsPage.chatDetail.lifecycle.photonReconnect",
+    remove: "appsPage.chatDetail.lifecycle.photonRemove",
   },
   telegram: {
-    reconnect:
-      "Reconnect verifies this same BotFather bot and automatically refreshes its Paperclip webhook and command menu.",
-    remove:
-      "Paperclip archives the endpoint and queues durable removal of its Telegram webhook and command menu. After Telegram confirms that cleanup, Paperclip retires the saved token. The BotFather bot and its chat memberships remain until you remove them in Telegram.",
+    reconnect: "appsPage.chatDetail.lifecycle.telegramReconnect",
+    remove: "appsPage.chatDetail.lifecycle.telegramRemove",
   },
 };
 
 const activityKindLabels: Record<ChatActivityItem["kind"], string> = {
-  delivery: "Inbound delivery",
-  publication: "Outbound publication",
-  action: "Provider action",
-  health: "Connection health",
-  repair: "Connection repair",
+  delivery: "appsPage.chatDetail.kindDelivery",
+  publication: "appsPage.chatDetail.kindPublication",
+  action: "appsPage.chatDetail.kindAction",
+  health: "appsPage.chatDetail.kindHealth",
+  repair: "appsPage.chatDetail.kindRepair",
 };
 
 const replayableFailureStates = new Set(["failed"]);
@@ -188,12 +187,12 @@ export function activityResolutionActions(item: ChatActivityItem) {
 export function activityResolutionDescription(item: ChatActivityItem): string {
   const phase = item.fileTransfer?.phase;
   if (phase === "file_info_unknown")
-    return "The file upload was confirmed, but its Teams notification was not. Check Teams first. Retrying sends only that notification, not the file bytes, and may create a duplicate card.";
+    return translate("appsPage.chatDetail.resolutionFileInfoUnknown");
   if (phase === "consent_unknown")
-    return "The consent card may have reached Teams. File delivery is not confirmed. Cancelling here does not remove any card already sent.";
+    return translate("appsPage.chatDetail.resolutionConsentUnknown");
   if (phase)
-    return "The file may already exist in OneDrive. Cancelling stops this Paperclip transfer; it does not delete remote bytes. Uploads cannot be marked delivered or retried from this uncertain state.";
-  return "Paperclip lost confirmation after sending. Check the provider conversation first. Retrying can create a duplicate message.";
+    return translate("appsPage.chatDetail.resolutionFileOther");
+  return translate("appsPage.chatDetail.resolutionLostConfirmation");
 }
 
 export function isResolutionEligible(item: ChatActivityItem): boolean {
@@ -215,20 +214,20 @@ export function isIndividuallyToggleableResource(
 }
 
 function activityDetailLabel(item: ChatActivityItem): string {
-  return replayableFailureStates.has(item.status) ? "Reason" : "Details";
+  return replayableFailureStates.has(item.status) ? translate("appsPage.chatDetail.reason") : translate("appsPage.chatDetail.details");
 }
 
 export function connectionHealthPresentation(
   endpoint: Pick<ChatEndpoint, "status" | "healthMessage" | "lastError">,
 ) {
   // Health events outlive pause/removal. They are history, not lifecycle state.
-  const lifecycleMessages = {
-    draft: "Connection setup is incomplete.",
-    verifying: "Connection verification is in progress.",
-    paused: "Connection is paused. Resume it to receive new messages.",
-    attention: "Connection needs attention.",
-    revoked: "Connection access is revoked. Reconnect to verify access.",
-    archived: "Connection has been removed from Paperclip.",
+  const lifecycleMessages: Record<string, string> = {
+    draft: translate("appsPage.chatDetail.healthDraft"),
+    verifying: translate("appsPage.chatDetail.healthVerifying"),
+    paused: translate("appsPage.chatDetail.healthPaused"),
+    attention: translate("appsPage.chatDetail.healthAttention"),
+    revoked: translate("appsPage.chatDetail.healthRevoked"),
+    archived: translate("appsPage.chatDetail.healthArchived"),
   };
   const lifecycleMessage =
     endpoint.status === "active" ? null : lifecycleMessages[endpoint.status];
@@ -237,8 +236,8 @@ export function connectionHealthPresentation(
     previousHealth: lifecycleMessage ? (endpoint.healthMessage ?? null) : null,
     error: endpoint.lastError ?? null,
     errorLabel: ["active", "attention", "revoked"].includes(endpoint.status)
-      ? "Reason"
-      : "Last reported error",
+      ? translate("appsPage.chatDetail.reason")
+      : translate("appsPage.chatDetail.lastReportedError"),
   };
 }
 
@@ -251,6 +250,7 @@ export function ChatEndpointDetail() {
   const tab = reviewId ? "reviews" : (routeTab ?? "settings");
   const activeTab = tabs.includes(tab as ChatTab) ? (tab as ChatTab) : null;
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const location = useLocation();
   const heading = useRef<HTMLHeadingElement>(null);
   const completion = (location.state as GitHubConnectionCompleteLocationState | null)?.githubConnectionComplete;
@@ -281,19 +281,17 @@ export function ChatEndpointDetail() {
   useEffect(() => {
     if (!endpoint || !activeTab) return;
     setBreadcrumbs([
-      { label: "Connectors", href: "/apps" },
+      { label: t("nav.connectors"), href: "/apps" },
       {
         label: `${endpoint.assignedAgentName} · ${providerNames[endpoint.provider]}`,
         href: `/apps/chat/${endpoint.id}/settings`,
       },
-      ...(reviewId ? [{ label: "Reviews", href: `/apps/chat/${endpoint.id}/reviews` }, { label: "Review" }] : [{
-        label:
-          tabItems.find((item) => item.value === activeTab)?.label ??
-          "Settings",
+      ...(reviewId ? [{ label: t("appsPage.chatDetail.breadcrumbReviews"), href: `/apps/chat/${endpoint.id}/reviews` }, { label: t("appsPage.review.title") }] : [{
+        label: t(tabItems.find((item) => item.value === activeTab)?.labelKey ?? "appsPage.chatDetail.tabSettings"),
       }]),
     ]);
     return () => setBreadcrumbs([]);
-  }, [activeTab, endpoint, reviewId, setBreadcrumbs]);
+  }, [activeTab, endpoint, reviewId, setBreadcrumbs, t]);
 
   if (!activeTab)
     return <Navigate replace to={`/apps/chat/${endpointId}/settings`} />;
@@ -301,17 +299,17 @@ export function ChatEndpointDetail() {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading connection…
+        {t("appsPage.appDetail.loadingConnection")}
       </div>
     );
   if (endpointQuery.isError || !endpoint)
     return (
       <div className="space-y-3">
         <p className="text-sm text-destructive">
-          This chat connection could not be loaded.
+          {t("appsPage.chatDetail.loadFailed")}
         </p>
         <Button variant="outline" onClick={() => endpointQuery.refetch()}>
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     );
@@ -334,10 +332,10 @@ export function ChatEndpointDetail() {
           <div className="min-w-0">
           <h1 ref={heading} tabIndex={-1} className={endpoint.provider === "speko" ? "flex items-center gap-3 text-xl font-bold" : "text-xl font-bold"}>
             {endpoint.provider === "speko" && <AppLogo name="Speko" brandKey="speko" size={36} />}
-            {endpoint.provider === "github" ? (endpoint.botLabel ?? endpoint.assignedAgentName) : endpoint.assignedAgentName}{endpoint.provider === "speko" ? " in Speko" : ""}
+            {endpoint.provider === "github" ? (endpoint.botLabel ?? endpoint.assignedAgentName) : endpoint.assignedAgentName}{endpoint.provider === "speko" ? t("appsPage.chatDetail.inSpeko") : ""}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {endpoint.provider === "github" ? <><AppLogo name="GitHub" brandKey="github" compact className="size-4! rounded-sm bg-transparent" /><Link to={`/agents/${endpoint.assignedAgentId}`} className="hover:underline">{endpoint.assignedAgentName}</Link>{endpoint.providerAccountLabel && <span>· {endpoint.providerAccountLabel}</span>}</> : endpoint.providerAccountLabel ?? (endpoint.provider === "agentmail" ? endpoint.botExternalId ?? "Email connection" : "Chat connection")}
+            {endpoint.provider === "github" ? <><AppLogo name="GitHub" brandKey="github" compact className="size-4! rounded-sm bg-transparent" /><Link to={`/agents/${endpoint.assignedAgentId}`} className="hover:underline">{endpoint.assignedAgentName}</Link>{endpoint.providerAccountLabel && <span>· {endpoint.providerAccountLabel}</span>}</> : endpoint.providerAccountLabel ?? (endpoint.provider === "agentmail" ? endpoint.botExternalId ?? t("appsPage.chatDetail.emailConnection") : t("appsPage.chatDetail.chatConnection"))}
           </p>
           {endpoint.provider === "github" && <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
             <GitHubBotMention endpoint={endpoint} />
@@ -346,18 +344,18 @@ export function ChatEndpointDetail() {
           {endpoint.provider === "imessage-photon" && endpoint.botExternalId && endpoint.photonAllocation !== "shared" && (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
               <span>{endpoint.botExternalId}</span>
-              <Button variant="ghost" size="sm" aria-label="Copy dedicated number" onClick={async () => {
-                try { await copyTextToClipboard(endpoint.botExternalId!); setCopyStatus("Number copied"); }
-                catch { setCopyStatus("Could not copy the number. Select and copy it manually."); }
-              }}><Copy className="size-4" />Copy number</Button>
+              <Button variant="ghost" size="sm" aria-label={t("appsPage.chatDetail.copyNumberAria")} onClick={async () => {
+                try { await copyTextToClipboard(endpoint.botExternalId!); setCopyStatus(t("appsPage.chatDetail.numberCopied")); }
+                catch { setCopyStatus(t("appsPage.chatDetail.numberCopyFailed")); }
+              }}><Copy className="size-4" />{t("appsPage.chatDetail.copyNumber")}</Button>
               <span role="status" className="text-muted-foreground">{copyStatus}</span>
             </div>
           )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {endpoint.provider === "speko" && <a href="https://platform.speko.ai/agents" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary underline">Open Speko<ExternalLink className="size-3.5" aria-hidden="true" /></a>}
-          {slackUrl && <Button asChild variant="outline"><a href={slackUrl} target="_blank" rel="noopener noreferrer">Open Slack configuration <ExternalLink className="size-4" /></a></Button>}
+          {endpoint.provider === "speko" && <a href="https://platform.speko.ai/agents" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary underline">{t("appsPage.chatDetail.openSpeko")}<ExternalLink className="size-3.5" aria-hidden="true" /></a>}
+          {slackUrl && <Button asChild variant="outline"><a href={slackUrl} target="_blank" rel="noopener noreferrer">{t("appsPage.chatDetail.openSlackConfiguration")} <ExternalLink className="size-4" /></a></Button>}
           {setupIncomplete ? (
             <Button
               variant="outline"
@@ -367,7 +365,7 @@ export function ChatEndpointDetail() {
                 )
               }
             >
-              Continue setup
+              {t("appsPage.common.continueSetup")}
             </Button>
           ) : null}
           {endpoint.status !== "active" && <StatusBadge status={endpoint.status} className={endpoint.provider === "speko" ? "text-foreground" : undefined} />}
@@ -384,9 +382,9 @@ export function ChatEndpointDetail() {
       {activeTab === "reviews" && endpoint.provider === "github" && <GitHubReviews endpointId={endpoint.id} reviewId={reviewId} />}
       {activeTab === "access" && endpoint.provider === "speko" && (
         <section className="max-w-3xl space-y-3">
-          <h2 className="text-lg font-semibold">Private voice access</h2>
-          <p className="text-sm text-muted-foreground">Browser calls use the signed-in Paperclip user’s current company access. Each call stays bound to its selected agent and task.</p>
-          <p className="text-sm text-muted-foreground">Outgoing calls use your saved callback number and opt-in. For a private incoming call, enter the code spoken on the phone in signed-in Paperclip and select a task to approve that live call. Incoming calls can start a new conversation task without sign-in, under a task-scoped low-trust policy. Private mode is optional and requires approval before accessing existing tasks.</p>
+          <h2 className="text-lg font-semibold">{t("appsPage.chatDetail.privateVoiceAccess")}</h2>
+          <p className="text-sm text-muted-foreground">{t("appsPage.chatDetail.privateVoiceDescription")}</p>
+          <p className="text-sm text-muted-foreground">{t("appsPage.chatDetail.privateVoiceDetails")}</p>
         </section>
       )}
 {activeTab === "access" && endpoint.provider === "agentmail" && <EmailAccess endpoint={endpoint} />}
@@ -434,6 +432,7 @@ function EndpointExecutionDefaults({ endpoint }: { endpoint: ChatEndpoint }) {
 }
 
 function EmailAccess({ endpoint }: { endpoint: ChatEndpoint }) {
+  const { t } = useTranslation();
   const connection = useQuery({
     queryKey: queryKeys.tools.connection(endpoint.connectionId ?? ""),
     queryFn: () => toolsApi.getConnection(endpoint.connectionId!),
@@ -445,16 +444,16 @@ function EmailAccess({ endpoint }: { endpoint: ChatEndpoint }) {
   });
   if (!endpoint.connectionId || agents.isError || connection.isError) return (
     <div className="space-y-3">
-      <p role="alert" className="text-sm text-destructive">Connection access could not be loaded.</p>
-      <Button variant="outline" onClick={() => { void agents.refetch(); void connection.refetch(); }}>Try again</Button>
+      <p role="alert" className="text-sm text-destructive">{t("appsPage.chatDetail.accessLoadFailed")}</p>
+      <Button variant="outline" onClick={() => { void agents.refetch(); void connection.refetch(); }}>{t("common.tryAgain")}</Button>
     </div>
   );
-  if (agents.isPending || connection.isPending) return <p role="status" className="text-sm text-muted-foreground">Loading access…</p>;
+  if (agents.isPending || connection.isPending) return <p role="status" className="text-sm text-muted-foreground">{t("appsPage.chatDetail.loadingAccess")}</p>;
   const sourceId = connection.data.config?.credentialConnectionId;
   const credentialId = typeof sourceId === "string" ? sourceId : endpoint.connectionId;
   return <section className="max-w-3xl space-y-4">
-    <h2 className="text-lg font-semibold">Access</h2>
-    {credentialId !== endpoint.connectionId && <p className="text-sm text-muted-foreground">These settings apply to the saved AgentMail account and all inboxes using it.</p>}
+    <h2 className="text-lg font-semibold">{t("appsPage.chatDetail.tabAccess")}</h2>
+    {credentialId !== endpoint.connectionId && <p className="text-sm text-muted-foreground">{t("appsPage.chatDetail.emailAccessNote")}</p>}
     <EmailConnectionAccess key={credentialId} companyId={endpoint.companyId} connectionId={credentialId} agents={agents.data} />
   </section>;
 }
@@ -466,6 +465,7 @@ function Settings({
   endpointId: string;
   endpoint: Awaited<ReturnType<typeof chatEndpointsApi.get>>;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const resourcesQuery = useQuery({
@@ -484,8 +484,8 @@ function Settings({
       ),
     onError: (error) =>
       pushToast({
-        title: "Couldn't update destination",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.destinationUpdateFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -498,8 +498,8 @@ function Settings({
       ),
     onError: (error) =>
       pushToast({
-        title: "Couldn't update settings",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.settingsUpdateFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -513,10 +513,10 @@ function Settings({
     saveResources.mutate({ id: resource.id, enabled });
   return (
     <section className="max-w-3xl space-y-7">
-      {endpoint.provider === "imessage-photon" && <p className="text-sm text-muted-foreground">{endpoint.photonAllocation === "shared" ? "Shared Photon project · direct messages only. Enroll senders in Photon and link their Messages identities in Access. Groups cannot be enabled." : "Enable each group individually. Agent replies are visible to everyone in that group; only authorized senders can start work."}</p>}
+      {endpoint.provider === "imessage-photon" && <p className="text-sm text-muted-foreground">{endpoint.photonAllocation === "shared" ? t("appsPage.chatDetail.photonSharedNote") : t("appsPage.chatDetail.photonDedicatedNote")}</p>}
       {endpoint.provider === "telegram" && (
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold">Telegram group command</h2>
+          <h2 className="text-lg font-semibold">{t("appsPage.chatDetail.telegramCommand")}</h2>
           <div className="rounded-lg border border-border p-3 text-sm">
             <code>
               /task@
@@ -524,20 +524,18 @@ function Settings({
               &lt;request&gt;
             </code>
             <p className="mt-2 text-muted-foreground">
-              Telegram&apos;s default privacy mode does not deliver ordinary
-              mentions to bots. Use this command to start or continue group
-              work, or reply directly to a message from the bot.
+              {t("appsPage.chatDetail.telegramPrivacyNote")}
             </p>
           </div>
         </div>
       )}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold">{endpoint.provider === "slack" ? "Allowed Channels" : "Destinations"}</h3>
-        {resourcesQuery.isError ? <p role="alert" className="text-sm text-destructive">Couldn't load channels. <button className="underline" onClick={() => void resourcesQuery.refetch()}>Try again</button></p> : resourcesQuery.isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading destinations…</p>
+        <h3 className="text-sm font-semibold">{endpoint.provider === "slack" ? t("appsPage.chatDetail.allowedChannels") : t("appsPage.chatDetail.destinations")}</h3>
+        {resourcesQuery.isError ? <p role="alert" className="text-sm text-destructive">{t("appsPage.chatDetail.channelsLoadFailed")} <button className="underline" onClick={() => void resourcesQuery.refetch()}>{t("common.tryAgain")}</button></p> : resourcesQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">{t("appsPage.chatDetail.loadingDestinations")}</p>
         ) : destinationResources.length === 0 && endpoint.provider !== "slack" ? (
           <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-            No destinations yet.
+            {t("appsPage.chatDetail.noDestinations")}
           </p>
         ) : (
           <div className={endpoint.provider === "slack" ? "space-y-1" : "divide-y divide-border border-y border-border"}>
@@ -551,12 +549,12 @@ function Settings({
                   {(resource.availability !== "available" || resource.detail) && <p className="text-xs text-muted-foreground">
                     {resource.availability === "available"
                       ? resource.detail
-                      : "Unavailable at the provider"}
+                      : t("appsPage.chatDetail.unavailableAtProvider")}
                   </p>}
-                  {resource.participants?.length ? <p className="mt-1 break-words text-xs text-muted-foreground">Participants: {resource.participants.join(", ")}</p> : null}
+                  {resource.participants?.length ? <p className="mt-1 break-words text-xs text-muted-foreground">{t("appsPage.chatDetail.participants", { list: resource.participants.join(", ") })}</p> : null}
                 </div>
                 <ToggleSwitch
-                  aria-label={`Enable ${resource.label}`}
+                  aria-label={t("appsPage.chatDetail.enableAria", { label: resource.label })}
                   checked={resource.enabled}
                   disabled={
                     endpoint.photonAllocation === "shared" ||
@@ -569,7 +567,7 @@ function Settings({
                 />
               </div>
               <details className="text-sm">
-                <summary className="cursor-pointer text-muted-foreground">Task defaults</summary>
+                <summary className="cursor-pointer text-muted-foreground">{t("appsPage.executionDefaults.title")}</summary>
                 <div className="pt-3"><ChatExecutionDefaults
                   companyId={endpoint.companyId}
                   value={resource.executionDefaults}
@@ -584,7 +582,7 @@ function Settings({
             ))}
             {endpoint.provider === "slack" && (
               <p className="py-3 text-sm text-muted-foreground">
-                Invite {endpoint.assignedAgentName} to a channel to add it
+                {t("appsPage.chatDetail.inviteToChannel", { name: endpoint.assignedAgentName })}
               </p>
             )}
           </div>
@@ -593,10 +591,10 @@ function Settings({
       {endpoint.provider !== "github" && (
         <div className="space-y-3">
           <SettingToggle
-            label="Allow direct messages"
+            label={t("appsPage.chatDetail.allowDirectMessages")}
             detail={
               endpoint.provider === "discord"
-                ? "People must also enable Direct Messages in their shared Discord server’s Privacy Settings."
+                ? t("appsPage.chatDetail.allowDirectMessagesDiscord")
                 : undefined
             }
             checked={endpoint.allowDirectMessages ?? false}
@@ -607,8 +605,8 @@ function Settings({
           />
           {endpoint.provider === "slack" && (
             <SettingToggle
-              label="Require at-mention"
-              detail="In channels, only respond to messages that @mention this bot, including thread replies. Direct messages never require an @mention and must be allowed above."
+              label={t("appsPage.chatDetail.requireAtMention")}
+              detail={t("appsPage.chatDetail.requireAtMentionDetail")}
               checked={endpoint.requireAtMention ?? false}
               pending={updateEndpoint.isPending}
               onChange={(requireAtMention) =>
@@ -618,8 +616,8 @@ function Settings({
           )}
           {endpoint.provider === "microsoft-teams" && (
             <SettingToggle
-              label="Allow group chats"
-              detail="The bot may participate in group chats where it is installed."
+              label={t("appsPage.chatDetail.allowGroupChats")}
+              detail={t("appsPage.chatDetail.allowGroupChatsDetail")}
               checked={endpoint.allowGroupChats ?? false}
               pending={updateEndpoint.isPending}
               onChange={(allowGroupChats) =>
@@ -637,7 +635,7 @@ function Settings({
           queryClient.setQueryData(queryKeys.chatEndpoints.detail(endpointId), next);
         }}
       />}
-      {endpoint.provider === "slack" && <SlackSetupAdvanced label="Slack tools"><SlackToolsSettings companyId={endpoint.companyId} endpointId={endpointId} /></SlackSetupAdvanced>}
+      {endpoint.provider === "slack" && <SlackSetupAdvanced label={t("appsPage.chatDetail.slackTools")}><SlackToolsSettings companyId={endpoint.companyId} endpointId={endpointId} /></SlackSetupAdvanced>}
     </section>
   );
 }
@@ -680,6 +678,7 @@ function Access({
   allowUnlinked: boolean;
   endpoint: ChatEndpoint;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const [confirmationUrl, setConfirmationUrl] = useState<string | null>(null);
@@ -700,7 +699,7 @@ function Access({
         queryKeys.chatEndpoints.detail(endpointId),
         next,
       ),
-    onError: (error) => pushToast({ title: "Couldn’t update access", body: error instanceof Error ? error.message : "Try again.", tone: "error" }),
+    onError: (error) => pushToast({ title: t("appsPage.chatDetail.accessUpdateFailed"), body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"), tone: "error" }),
   });
   const createIntent = useMutation({
     mutationFn: (principalId: string) =>
@@ -713,8 +712,8 @@ function Access({
     },
     onError: (error) =>
       pushToast({
-        title: "Couldn't create identity link",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.identityLinkFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -722,45 +721,45 @@ function Access({
     mutationFn: (principalId: string) =>
       chatEndpointsApi.revokeLink(endpointId, principalId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.chatEndpoints.principals(endpointId) }),
-    onError: (error) => pushToast({ title: "Couldn't disconnect account", body: error instanceof Error ? error.message : "Try again.", tone: "error" }),
+    onError: (error) => pushToast({ title: t("appsPage.chatDetail.disconnectAccountFailed"), body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"), tone: "error" }),
   });
   const links = linksQuery.data ?? [];
   return (
     <section className="max-w-3xl space-y-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">People</h2>
+        <h2 className="text-lg font-semibold">{t("appsPage.chatDetail.people")}</h2>
         {endpoint.provider === "slack" && <Dialog>
-          <DialogTrigger asChild><Button>Invite people</Button></DialogTrigger>
+          <DialogTrigger asChild><Button>{t("appsPage.chatDetail.invitePeople")}</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Invite people to talk to {endpoint.assignedAgentName}</DialogTitle>
-              <DialogDescription>Share these instructions with someone in your Slack workspace.</DialogDescription>
+              <DialogTitle>{t("appsPage.chatDetail.invitePeopleTitle", { name: endpoint.assignedAgentName })}</DialogTitle>
+              <DialogDescription>{t("appsPage.chatDetail.invitePeopleDescription")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 text-sm">
               <ol className="list-decimal space-y-3 pl-5">
-                <li>Send <code className="font-mono">{joinCommand}</code> in Slack.</li>
-                <li>Open the bot’s private link and sign in to Paperclip to confirm your Slack account.</li>
-                <li>If you’re new to this organization, request access and wait for an admin to approve.</li>
+                <li><Trans i18nKey="appsPage.chatDetail.inviteStep1" values={{ command: joinCommand }} components={{ code: <code className="font-mono" /> }} /></li>
+                <li>{t("appsPage.chatDetail.inviteStep2")}</li>
+                <li>{t("appsPage.chatDetail.inviteStep3")}</li>
               </ol>
-              <p className="text-muted-foreground">The confirmation link is personal and expires after 15 minutes.</p>
+              <p className="text-muted-foreground">{t("appsPage.chatDetail.inviteLinkNote")}</p>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button variant="ghost" onClick={() => {
-                  void copyTextToClipboard(joinCommand).then(() => setJoinCommandCopied(true), () => pushToast({ title: "Couldn't copy the command", tone: "error" }));
-                }}>{joinCommandCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{joinCommandCopied ? "Copied" : "Copy command"}</Button>
+                  void copyTextToClipboard(joinCommand).then(() => setJoinCommandCopied(true), () => pushToast({ title: t("appsPage.chatDetail.copyCommandFailed"), tone: "error" }));
+                }}>{joinCommandCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{joinCommandCopied ? t("appsPage.assistant.copied") : t("appsPage.slackIdentity.copyCommand")}</Button>
                 <Button onClick={() => {
                   const workspace = endpoint.providerAccountId ? `https://app.slack.com/client/${encodeURIComponent(endpoint.providerAccountId)}` : "https://app.slack.com/";
-                  void copyTextToClipboard(`Talk to ${endpoint.assignedAgentName} in Slack: ${workspace}\nSend ${joinCommand}, then open the bot’s private link and sign in to Paperclip to confirm your account. If you’re new to the organization, request access for an admin to approve.`).then(() => setInviteCopied(true), () => pushToast({ title: "Couldn't copy invitation", tone: "error" }));
-                }}>{inviteCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{inviteCopied ? "Invitation copied" : "Copy invitation"}</Button>
+                  void copyTextToClipboard(t("appsPage.chatDetail.invitationText", { name: endpoint.assignedAgentName, workspace, command: joinCommand })).then(() => setInviteCopied(true), () => pushToast({ title: t("appsPage.chatDetail.copyInvitationFailed"), tone: "error" }));
+                }}>{inviteCopied ? <Check className="size-4" /> : <Copy className="size-4" />}{inviteCopied ? t("appsPage.chatDetail.invitationCopied") : t("appsPage.chatDetail.copyInvitation")}</Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>}
       </div>
-      <p className="text-sm text-muted-foreground">People with linked accounts use their own Paperclip permissions. <Link className="underline underline-offset-4" to="/company/settings/members">Manage members</Link></p>
+      <p className="text-sm text-muted-foreground">{t("appsPage.chatDetail.peopleDescription")} <Link className="underline underline-offset-4" to="/company/settings/members">{t("appsPage.chatDetail.manageMembers")}</Link></p>
       {confirmationUrl && (
         <div className="space-y-2 border-y border-border py-3">
-          <p className="text-sm font-medium">Confirm {confirmationFor ?? "this account"}</p>
-          <p className="text-xs text-muted-foreground">Share only with this person. They must sign in and confirm their own account.</p>
+          <p className="text-sm font-medium">{t("appsPage.chatDetail.confirmAccount", { name: confirmationFor ?? t("appsPage.chatDetail.thisAccount") })}</p>
+          <p className="text-xs text-muted-foreground">{t("appsPage.chatDetail.shareConfirmNote")}</p>
           <p className="break-all text-xs text-muted-foreground">
             {confirmationUrl}
           </p>
@@ -771,30 +770,30 @@ function Access({
               void copyTextToClipboard(confirmationUrl).then(
                 () =>
                   pushToast({
-                    title: "Confirmation link copied",
+                    title: t("appsPage.chatDetail.confirmationLinkCopied"),
                     tone: "success",
                   }),
                 () =>
                   pushToast({
-                    title: "Couldn't copy the link",
-                    body: "Select and copy it manually.",
+                    title: t("appsPage.chatDetail.copyLinkFailed"),
+                    body: t("appsPage.chatDetail.selectCopyManually"),
                     tone: "error",
                   }),
               );
             }}
           >
             <Copy />
-            Copy link
+            {t("appsPage.chatDetail.copyLink")}
           </Button>
         </div>
       )}
       <div className="space-y-2">
-        {linksQuery.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading people…</p> : linksQuery.isError ? <p role="alert" className="text-sm text-destructive">Couldn't load people. <button className="underline" onClick={() => void linksQuery.refetch()}>Try again</button></p> : links.length === 0 ? (
+        {linksQuery.isPending ? <p role="status" className="text-sm text-muted-foreground">{t("appsPage.chatDetail.loadingPeople")}</p> : linksQuery.isError ? <p role="alert" className="text-sm text-destructive">{t("appsPage.chatDetail.peopleLoadFailed")} <button className="underline" onClick={() => void linksQuery.refetch()}>{t("common.tryAgain")}</button></p> : links.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-            No linked accounts yet. Invite someone to connect.
+            {t("appsPage.chatDetail.noLinkedAccounts")}
           </p>
         ) : (
-          <div role="list" aria-label="People" className="divide-y divide-border border-y border-border">
+          <div role="list" aria-label={t("appsPage.chatDetail.people")} className="divide-y divide-border border-y border-border">
             {links.map((link) => (
               <div
                 key={link.id}
@@ -809,9 +808,9 @@ function Access({
                   <div className="min-w-0">
                     <p className="truncate text-sm" title={link.paperclipUserLabel ?? link.externalLabel}>{link.paperclipUserLabel ?? link.externalLabel}</p>
                     {(link.status !== "linked" || link.externalLabel !== link.paperclipUserLabel) && <p className="text-xs text-muted-foreground">
-                      {link.status === "revoked" ? "Disconnected" : link.status === "linked"
+                      {link.status === "revoked" ? t("appsPage.chatDetail.disconnected") : link.status === "linked"
                         ? link.externalLabel
-                        : "Waiting for account confirmation"}
+                        : t("appsPage.chatDetail.waitingAccountConfirmation")}
                     </p>}
                   </div>
                 </div>
@@ -823,7 +822,7 @@ function Access({
                     onClick={() => revoke.mutate(link.principalId)}
                   >
                     <Unlink />
-                    Disconnect
+                    {t("appsPage.chatDetail.disconnect")}
                   </Button>
                 ) : (
                   <Button
@@ -832,7 +831,7 @@ function Access({
                     disabled={createIntent.isPending}
                     onClick={() => { setConfirmationUrl(null); setConfirmationFor(link.externalLabel); createIntent.mutate(link.principalId); }}
                   >
-                    Create confirmation link
+                    {t("appsPage.chatDetail.createConfirmationLink")}
                   </Button>
                 )}
               </div>
@@ -840,12 +839,12 @@ function Access({
           </div>
         )}
       </div>
-      <SlackSetupAdvanced label="Guest access">
-        <SettingToggle label="Allow unlinked people"
-          detail="People without linked accounts can start isolated tasks. They cannot approve actions, spend, or manage access. Requests are refused when isolation is unavailable."
+      <SlackSetupAdvanced label={t("appsPage.chatDetail.guestAccess")}>
+        <SettingToggle label={t("appsPage.chatDetail.allowUnlinked")}
+          detail={t("appsPage.chatDetail.allowUnlinkedDetail")}
           checked={allowUnlinked} pending={updatePolicy.isPending} onChange={value => updatePolicy.mutate(value)} />
       </SlackSetupAdvanced>
-      {endpoint.provider === "slack" && <SlackSetupAdvanced label="Personal Slack search"><SlackSearchAccess companyId={endpoint.companyId} endpointId={endpointId} /></SlackSetupAdvanced>}
+      {endpoint.provider === "slack" && <SlackSetupAdvanced label={t("appsPage.chatDetail.personalSlackSearch")}><SlackSearchAccess companyId={endpoint.companyId} endpointId={endpointId} /></SlackSetupAdvanced>}
     </section>
   );
 }
@@ -857,6 +856,7 @@ function Conversations({
   endpointId: string;
   provider: ChatProvider;
 }) {
+  const { t } = useTranslation();
   const query = useQuery({
     queryKey: queryKeys.chatEndpoints.conversations(endpointId),
     queryFn: () => chatEndpointsApi.listConversations(endpointId),
@@ -864,10 +864,10 @@ function Conversations({
   });
   return (
     <section className="space-y-4">
-      {query.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading conversations…</p> : query.isError ? (
+      {query.isPending ? <p role="status" className="text-sm text-muted-foreground">{t("appsPage.chatDetail.loadingConversations")}</p> : query.isError ? (
         <div className="space-y-3">
-          <p role="alert" className="text-sm text-destructive">Conversations could not be loaded.</p>
-          <Button variant="outline" onClick={() => void query.refetch()}>Try again</Button>
+          <p role="alert" className="text-sm text-destructive">{t("appsPage.chatDetail.conversationsLoadFailed")}</p>
+          <Button variant="outline" onClick={() => void query.refetch()}>{t("common.tryAgain")}</Button>
         </div>
       ) : <ChatConversationList rows={query.data ?? []} provider={provider} />}
     </section>
@@ -881,6 +881,7 @@ function Activity({
   endpointId: string;
   endpoint: Awaited<ReturnType<typeof chatEndpointsApi.get>>;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pushToast } = useToast();
@@ -908,14 +909,14 @@ function Activity({
         queryKey: queryKeys.chatEndpoints.activity(endpointId),
       });
       pushToast({
-        title: `${item.kind === "publication" ? "Publication" : "Delivery"} queued for replay`,
+        title: t("appsPage.chatDetail.replayQueued", { kind: item.kind === "publication" ? t("appsPage.chatDetail.publication") : t("appsPage.chatDetail.delivery") }),
         tone: "success",
       });
     },
     onError: (error) =>
       pushToast({
-        title: "Couldn't replay activity",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.replayFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -952,29 +953,29 @@ function Activity({
         title:
           input.item.actionType === "slash_task_start" &&
           input.action === "retry_anyway"
-            ? "Task start retried"
+            ? t("appsPage.chatDetail.taskStartRetried")
             : input.item.actionType === "slash_task_start"
-              ? "Task start cancelled"
+              ? t("appsPage.chatDetail.taskStartCancelled")
               : input.item.actionType === "provider_effect" &&
                   input.action === "mark_delivered"
-                ? "Provider reply marked delivered"
+                ? t("appsPage.chatDetail.providerReplyDelivered")
                 : input.item.actionType === "provider_effect" &&
                     input.action === "retry_anyway"
-                  ? "Provider reply retried"
+                  ? t("appsPage.chatDetail.providerReplyRetried")
                   : input.item.actionType === "provider_effect"
-                    ? "Provider reply cancelled"
+                    ? t("appsPage.chatDetail.providerReplyCancelled")
                     : input.action === "mark_delivered"
-                      ? "Publication marked delivered"
+                      ? t("appsPage.chatDetail.publicationDelivered")
                       : input.action === "retry_anyway"
-                        ? "Publication queued for retry"
-                        : "Publication cancelled",
+                        ? t("appsPage.chatDetail.publicationRetried")
+                        : t("appsPage.chatDetail.publicationCancelled"),
         tone: "success",
       });
     },
     onError: (error) =>
       pushToast({
-        title: "Couldn't resolve activity",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.resolveFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -999,14 +1000,14 @@ function Activity({
       }
       if (endpoint.provider !== "agentmail") queryClient.setQueryData(queryKeys.chatEndpoints.detail(endpointId), next);
       pushToast({
-        title: action === "pause" ? "Connection paused" : "Connection resumed",
+        title: action === "pause" ? t("appsPage.chatDetail.connectionPaused") : t("appsPage.chatDetail.connectionResumed"),
         tone: "success",
       });
     },
     onError: (error) =>
       pushToast({
-        title: "Couldn't update connection",
-        body: error instanceof Error ? error.message : "Try again.",
+        title: t("appsPage.chatDetail.connectionUpdateFailed"),
+        body: error instanceof Error ? error.message : t("appsPage.chatDetail.tryAgain"),
         tone: "error",
       }),
   });
@@ -1024,14 +1025,14 @@ function Activity({
   const lifecycleAction = lifecycle.variables;
   const callbackSurfaceRows = endpoint.setup?.callbackSurfaces
     ? ([
-        ["Events API", endpoint.setup.callbackSurfaces.events],
-        ["Interactivity", endpoint.setup.callbackSurfaces.interactivity],
-        ["Slash command", endpoint.setup.callbackSurfaces.slashCommands],
+        [t("appsPage.chatDetail.surfaceEvents"), endpoint.setup.callbackSurfaces.events],
+        [t("appsPage.chatDetail.surfaceInteractivity"), endpoint.setup.callbackSurfaces.interactivity],
+        [t("appsPage.chatDetail.surfaceSlashCommand"), endpoint.setup.callbackSurfaces.slashCommands],
       ] as const)
     : [];
   return (
-    <section className="space-y-5" aria-label="Connection activity">
-      <h2 className="text-lg font-semibold">Connection activity</h2>
+    <section className="space-y-5" aria-label={t("appsPage.chatDetail.connectionActivity")}>
+      <h2 className="text-lg font-semibold">{t("appsPage.chatDetail.connectionActivity")}</h2>
       {((status !== "active" && health.message) || health.error) && (
         <div
           className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${status === "attention" || status === "revoked" ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-border bg-muted/30 text-foreground"}`}
@@ -1043,7 +1044,7 @@ function Activity({
             {health.message && <p>{health.message}</p>}
             {health.previousHealth && (
               <p className="mt-1 text-xs opacity-80">
-                <span className="font-medium">Last reported health:</span>{" "}
+                <span className="font-medium">{t("appsPage.chatDetail.lastReportedHealth")}</span>{" "}
                 {health.previousHealth}
               </p>
             )}
@@ -1058,9 +1059,9 @@ function Activity({
       )}
       <details className="group rounded-lg border border-border">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-medium chat-connection-health-summary">
-          <span>Connection health and controls</span>
+          <span>{t("appsPage.chatDetail.healthAndControls")}</span>
           <span className="flex items-center gap-2">
-            {endpoint.setup?.callbacksNeedUpdate && <span className="text-xs text-(--status-task-blocked)">Callback URLs need attention</span>}
+            {endpoint.setup?.callbacksNeedUpdate && <span className="text-xs text-(--status-task-blocked)">{t("appsPage.chatDetail.callbackAttention")}</span>}
             <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </span>
         </summary>
@@ -1069,11 +1070,11 @@ function Activity({
         <div
           className="space-y-3 text-sm"
         >
-          <p className="font-medium">Slack callback health</p>
+          <p className="font-medium">{t("appsPage.chatDetail.slackCallbackHealth")}</p>
           <p className="text-xs text-muted-foreground">
             {endpoint.setup?.callbacksNeedUpdate
-              ? "Slack callback URLs need an update. Save the current App Manifest, then exercise Events, Interactivity, and the registered command again."
-              : "Paperclip records each callback surface independently after Slack successfully calls it."}
+              ? t("appsPage.chatDetail.slackCallbackUpdate")
+              : t("appsPage.chatDetail.slackCallbackRecorded")}
           </p>
           <div className="divide-y divide-border border-y border-border">
             {callbackSurfaceRows.map(([label, surface]) => (
@@ -1081,14 +1082,14 @@ function Activity({
                 <p className="text-xs font-medium">{label}</p>
                 <p className="text-xs text-muted-foreground">
                   {surface.status === "current"
-                    ? "Current"
+                    ? t("appsPage.chatDetail.callbackCurrent")
                     : surface.status === "stale"
-                      ? "Stale URL"
-                      : "Not observed"}
+                      ? t("appsPage.chatDetail.callbackStale")
+                      : t("appsPage.chatDetail.callbackNotObserved")}
                 </p>
                 {surface.observedAt && (
                   <p className="text-xs text-muted-foreground">
-                    Last observed{" "}
+                    {t("appsPage.chatDetail.lastObserved")}{" "}
                     <time
                       dateTime={surface.observedAt}
                       title={surface.observedAt}
@@ -1119,7 +1120,7 @@ function Activity({
                 ) : (
                   <Pause />
                 )}
-                Pause
+                {t("appsPage.chatDetail.pauseConnection")}
               </Button>
             )}
             {status === "paused" && (
@@ -1133,7 +1134,7 @@ function Activity({
                 ) : (
                   <Play />
                 )}
-                Resume
+                {t("agentActions.resume")}
               </Button>
             )}
             {[
@@ -1157,8 +1158,8 @@ function Activity({
               >
                 <RefreshCw />
                 {status === "draft" || status === "verifying"
-                  ? "Finish setup"
-                  : "Reconnect"}
+                  ? t("appsPage.common.finishSetup")
+                  : t("appsPage.browse.reconnect")}
               </Button>
             )}
             <Button
@@ -1168,12 +1169,12 @@ function Activity({
               onClick={() => setRemoveOpen(true)}
             >
               <Trash2 />
-              Remove connection
+              {t("appsPage.common.removeConnection")}
             </Button>
           </div>
           {status !== "draft" && status !== "verifying" && (
             <p className="text-xs text-muted-foreground">
-              {providerLifecycleGuidance[endpoint.provider].reconnect}
+              {t(providerLifecycleGuidance[endpoint.provider].reconnect)}
             </p>
           )}
         </div>
@@ -1182,41 +1183,40 @@ function Activity({
       </details>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold">Recent activity</h3>
-          {endpoint.provider === "speko" && !cursor && <Button size="sm" variant="ghost" onClick={() => { void query.refetch(); calls.onRetry(); }} disabled={query.isFetching || calls.loading}>Refresh</Button>}
+          <h3 className="text-sm font-semibold">{t("appsPage.activity.title")}</h3>
+          {endpoint.provider === "speko" && !cursor && <Button size="sm" variant="ghost" onClick={() => { void query.refetch(); calls.onRetry(); }} disabled={query.isFetching || calls.loading}>{t("appsPage.aggregatorAppManager.refresh")}</Button>}
         </div>
         {endpoint.provider === "agentmail" && rows.some((item) => item.kind === "publication" && item.status === "delivery_unknown") && (
           <p className="text-sm text-muted-foreground">
-            Review unconfirmed email delivery in the{" "}
-            <Link to={`/apps/chat/${endpointId}/conversations`} className="underline underline-offset-4">conversation’s task</Link>.
+            <Trans i18nKey="appsPage.chatDetail.reviewUnconfirmedDelivery" components={{ lnk: <Link to={`/apps/chat/${endpointId}/conversations`} className="underline underline-offset-4" /> }} />
           </p>
         )}
         <div className="divide-y divide-border border-y border-border">
           {(query.isLoading || calls.loading) && (
             <div className="flex items-center gap-2 py-5 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading activity…
+              {t("appsPage.chatDetail.loadingActivity")}
             </div>
           )}
           {query.isError && (
             <div className="flex flex-wrap items-center justify-between gap-3 py-4">
               <p className="text-sm text-destructive" role="alert">
-                Connection activity could not be loaded.
+                {t("appsPage.chatDetail.activityLoadFailed")}
               </p>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => query.refetch()}
               >
-                Try again
+                {t("common.tryAgain")}
               </Button>
             </div>
           )}
           {endpoint.provider === "speko" && !cursor && [
-            calls.error && `Call activity could not be loaded. ${calls.error}`,
-            calls.incomingError && `Unapproved calls could not be loaded. ${calls.incomingError}`,
-            calls.endError && `The call could not be ended. ${calls.endError}`,
-          ].filter(Boolean).map((message) => <div key={String(message)} className="flex flex-wrap items-center justify-between gap-3 py-4"><p role="alert" className="text-sm text-destructive">{message}</p><Button size="sm" variant="outline" onClick={calls.onRetry}>Retry calls</Button></div>)}
+            calls.error && t("appsPage.chatDetail.callActivityLoadFailed", { error: calls.error }),
+            calls.incomingError && t("appsPage.chatDetail.unapprovedCallsLoadFailed", { error: calls.incomingError }),
+            calls.endError && t("appsPage.chatDetail.callEndFailed", { error: calls.endError }),
+          ].filter(Boolean).map((message) => <div key={String(message)} className="flex flex-wrap items-center justify-between gap-3 py-4"><p role="alert" className="text-sm text-destructive">{message}</p><Button size="sm" variant="outline" onClick={calls.onRetry}>{t("appsPage.chatDetail.retryCalls")}</Button></div>)}
           {activityEntries.map(entry => {
             if (entry.kind === "call") return <SpekoCallActivityItem key={entry.id} entry={entry.entry} presentation="activity" onEnd={calls.onEnd} ending={calls.endingSessionId === entry.entry.session.id} />;
             if (entry.kind === "unapproved_call") return <SpekoUnapprovedCallActivityItem key={entry.id} call={entry.call} presentation="activity" />;
@@ -1238,7 +1238,7 @@ function Activity({
                       {formatDateTime(item.createdAt, { includeSeconds: true })}
                     </time>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{activityKindLabels[item.kind]}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t(activityKindLabels[item.kind])}</p>
                   {item.fileTransfer && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.fileTransfer.filename} —{" "}
@@ -1258,7 +1258,7 @@ function Activity({
                   <Button
                     size="sm"
                     variant="outline"
-                    aria-label={`Replay failed ${item.kind}`}
+                    aria-label={t("appsPage.chatDetail.replayFailedAria", { kind: item.kind })}
                     disabled={replay.isPending}
                     onClick={() => replay.mutate(item)}
                   >
@@ -1267,7 +1267,7 @@ function Activity({
                     ) : (
                       <RefreshCw />
                     )}
-                    Replay
+                    {t("appsPage.chatDetail.replay")}
                   </Button>
                 )}
                 {endpoint.provider !== "agentmail" && isResolutionEligible(item) && (
@@ -1276,7 +1276,7 @@ function Activity({
                     variant="outline"
                     onClick={() => setResolutionItem(item)}
                   >
-                    Resolve
+                    {t("appsPage.chatDetail.resolve")}
                   </Button>
                 )}
               </div>
@@ -1284,16 +1284,16 @@ function Activity({
           })}
           {!query.isLoading && !query.isError && !calls.loading && !calls.error && !calls.incomingError && activityEntries.length === 0 && (
             <p className="py-5 text-sm text-muted-foreground">
-              No connection activity yet.
+              {t("appsPage.chatDetail.noConnectionActivity")}
             </p>
           )}
         </div>
       </div>
-      <nav aria-label="Activity pagination" className="flex items-center justify-between gap-3">
-        <span className="text-xs text-muted-foreground">Page {cursors.length}</span>
+      <nav aria-label={t("appsPage.chatDetail.paginationAria")} className="flex items-center justify-between gap-3">
+        <span className="text-xs text-muted-foreground">{t("appsPage.chatDetail.pageNumber", { page: cursors.length })}</span>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={cursors.length === 1 || query.isFetching} onClick={() => setCursors((pages) => pages.slice(0, -1))}>Previous</Button>
-          <Button size="sm" variant="outline" disabled={!query.data?.nextCursor || query.isFetching || query.isError} onClick={() => { if (query.data?.nextCursor) setCursors((pages) => [...pages, query.data.nextCursor!]); }}>Next</Button>
+          <Button size="sm" variant="outline" disabled={cursors.length === 1 || query.isFetching} onClick={() => setCursors((pages) => pages.slice(0, -1))}>{t("appsPage.browse.previous")}</Button>
+          <Button size="sm" variant="outline" disabled={!query.data?.nextCursor || query.isFetching || query.isError} onClick={() => { if (query.data?.nextCursor) setCursors((pages) => [...pages, query.data.nextCursor!]); }}>{t("appsPage.browse.next")}</Button>
         </div>
       </nav>
       <AlertDialog
@@ -1304,16 +1304,16 @@ function Activity({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {resolutionItem?.actionType === "slash_task_start"
-                ? "Resolve unconfirmed task start"
+                ? t("appsPage.chatDetail.resolveTaskStartTitle")
                 : resolutionItem?.actionType === "provider_effect"
-                  ? "Resolve unconfirmed provider reply"
-                  : "Resolve unconfirmed delivery"}
+                  ? t("appsPage.chatDetail.resolveProviderReplyTitle")
+                  : t("appsPage.chatDetail.resolveDeliveryTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {resolutionItem?.actionType === "slash_task_start"
-                ? "Paperclip lost confirmation after asking Slack to start the task. Check Slack first. Retrying can create a duplicate starter message and task."
+                ? t("appsPage.chatDetail.resolveTaskStartBody")
                 : resolutionItem?.actionType === "provider_effect"
-                  ? "Paperclip lost confirmation after sending this provider reply. Check the provider first. Marking it delivered applies any pending Paperclip state change; retrying can create a duplicate message."
+                  ? t("appsPage.chatDetail.resolveProviderReplyBody")
                   : resolutionItem
                     ? activityResolutionDescription(resolutionItem)
                     : ""}
@@ -1321,7 +1321,7 @@ function Activity({
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:flex-wrap">
             <AlertDialogCancel disabled={resolveActivity.isPending}>
-              Keep unresolved
+              {t("appsPage.chatDetail.keepUnresolved")}
             </AlertDialogCancel>
             {resolutionItem &&
               activityResolutionActions(resolutionItem).includes("cancel") && (
@@ -1337,12 +1337,12 @@ function Activity({
                   }
                 >
                   {resolutionItem.actionType === "slash_task_start"
-                    ? "Cancel task start"
+                    ? t("appsPage.chatDetail.cancelTaskStart")
                     : resolutionItem.actionType === "provider_effect"
-                      ? "Cancel provider reply"
+                      ? t("appsPage.chatDetail.cancelProviderReply")
                       : resolutionItem.fileTransfer
-                        ? "Cancel file transfer"
-                        : "Cancel publication"}
+                        ? t("appsPage.chatDetail.cancelFileTransfer")
+                        : t("appsPage.chatDetail.cancelPublication")}
                 </Button>
               )}
             {resolutionItem &&
@@ -1361,8 +1361,8 @@ function Activity({
                   }
                 >
                   {resolutionItem.fileTransfer
-                    ? "Retry file notification"
-                    : "Retry anyway"}
+                    ? t("appsPage.chatDetail.retryFileNotification")
+                    : t("appsPage.chatDetail.retryAnyway")}
                 </Button>
               )}
             {resolutionItem &&
@@ -1381,7 +1381,7 @@ function Activity({
                     }
                   }}
                 >
-                  Mark delivered
+                  {t("appsPage.chatDetail.markDelivered")}
                 </AlertDialogAction>
               )}
           </AlertDialogFooter>
@@ -1390,24 +1390,17 @@ function Activity({
       <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this connection?</AlertDialogTitle>
+            <AlertDialogTitle>{t("appsPage.chatDetail.removeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {endpoint.assignedAgentName} will stop receiving new work from
-              {` ${providerNames[endpoint.provider]}`}. Existing Paperclip tasks
-              remain available.{" "}
-              {providerLifecycleGuidance[endpoint.provider].remove}
+              {t("appsPage.chatDetail.removeBody", { name: endpoint.assignedAgentName, provider: providerNames[endpoint.provider] })}{" "}
+              {t(providerLifecycleGuidance[endpoint.provider].remove)}
               {endpoint.provider === "slack" && (
-                <> <a
-                  href={endpoint.setup?.slackRegistration?.managementUrl ?? "https://api.slack.com/apps"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4"
-                >Open Slack app settings</a> to manage or delete the Slack app.</>
+                <Trans i18nKey="appsPage.chatDetail.removeSlackSuffix" components={{ lnk: <a href={endpoint.setup?.slackRegistration?.managementUrl ?? "https://api.slack.com/apps"} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4" /> }} />
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.actions.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={lifecycle.isPending}
@@ -1416,7 +1409,7 @@ function Activity({
               {lifecycle.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
-              Remove connection
+              {t("appsPage.common.removeConnection")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

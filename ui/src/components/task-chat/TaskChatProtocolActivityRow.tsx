@@ -10,6 +10,8 @@ import {
 import { MarkdownBody } from "@/components/MarkdownBody";
 import { WorkspaceFileLink } from "@/components/WorkspaceFileLink";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
+import { statusLabel } from "@/i18n/status";
 import { useTaskChatShimmer } from "./TaskChatShimmer";
 import type {
   TaskChatProtocolDetail,
@@ -23,11 +25,77 @@ import {
   protocolActivityIsRunning,
   protocolActivityLabel,
   protocolActivityPresentation,
+  protocolActivityTranslationKey,
   providerNoticeSeverity,
 } from "./task-chat-activity-presentation";
 
 const COMPACT_RESEARCH_RESULT_LIMIT = 5;
 const COMPACT_WORKSPACE_FILE_LIMIT = 8;
+
+const DETAIL_LABEL_TRANSLATION_KEYS: Record<string, string> = {
+  Action: "taskChatPage.protocol.detailLabels.action",
+  Available: "taskChatPage.protocol.detailLabels.available",
+  Blocking: "taskChatPage.protocol.detailLabels.blocking",
+  Buffering: "taskChatPage.protocol.detailLabels.buffering",
+  "Byte Count": "taskChatPage.protocol.detailLabels.byteCount",
+  Category: "taskChatPage.protocol.detailLabels.category",
+  Complete: "taskChatPage.protocol.detailLabels.complete",
+  Decision: "taskChatPage.protocol.detailLabels.decision",
+  "Document Revision": "taskChatPage.protocol.detailLabels.documentRevision",
+  "Duration Ms": "taskChatPage.protocol.detailLabels.durationMs",
+  "Effective Model": "taskChatPage.protocol.detailLabels.effectiveModel",
+  "Elapsed Duration Ms": "taskChatPage.protocol.detailLabels.elapsedDurationMs",
+  Event: "taskChatPage.protocol.detailLabels.event",
+  "Exit Code": "taskChatPage.protocol.detailLabels.exitCode",
+  Failure: "taskChatPage.protocol.detailLabels.failure",
+  "From Model": "taskChatPage.protocol.detailLabels.fromModel",
+  "Input Class": "taskChatPage.protocol.detailLabels.inputClass",
+  Label: "taskChatPage.protocol.detailLabels.label",
+  "Media Type": "taskChatPage.protocol.detailLabels.mediaType",
+  Name: "taskChatPage.protocol.detailLabels.name",
+  Namespace: "taskChatPage.protocol.detailLabels.namespace",
+  Operation: "taskChatPage.protocol.detailLabels.operation",
+  Origin: "taskChatPage.protocol.detailLabels.origin",
+  "Output Bytes": "taskChatPage.protocol.detailLabels.outputBytes",
+  Pattern: "taskChatPage.protocol.detailLabels.pattern",
+  "Planned Duration Ms": "taskChatPage.protocol.detailLabels.plannedDurationMs",
+  "Post Tokens": "taskChatPage.protocol.detailLabels.postTokens",
+  "Pre Tokens": "taskChatPage.protocol.detailLabels.preTokens",
+  Progress: "taskChatPage.protocol.detailLabels.progress",
+  Provider: "taskChatPage.protocol.detailLabels.provider",
+  Query: "taskChatPage.protocol.detailLabels.query",
+  "Read Only": "taskChatPage.protocol.detailLabels.readOnly",
+  Reason: "taskChatPage.protocol.detailLabels.reason",
+  Recoverable: "taskChatPage.protocol.detailLabels.recoverable",
+  Reference: "taskChatPage.protocol.detailLabels.reference",
+  Registered: "taskChatPage.protocol.detailLabels.registered",
+  "Requested Model": "taskChatPage.protocol.detailLabels.requestedModel",
+  "Same Session": "taskChatPage.protocol.detailLabels.sameSession",
+  Scope: "taskChatPage.protocol.detailLabels.scope",
+  Severity: "taskChatPage.protocol.detailLabels.severity",
+  State: "taskChatPage.protocol.detailLabels.state",
+  Status: "taskChatPage.protocol.detailLabels.status",
+  Summary: "taskChatPage.protocol.detailLabels.summary",
+  "Sync Status": "taskChatPage.protocol.detailLabels.syncStatus",
+  Target: "taskChatPage.protocol.detailLabels.target",
+  "Target Execution Id": "taskChatPage.protocol.detailLabels.targetExecutionId",
+  Title: "taskChatPage.protocol.detailLabels.title",
+  "Transparent Background": "taskChatPage.protocol.detailLabels.transparentBackground",
+  Transport: "taskChatPage.protocol.detailLabels.transport",
+  Url: "taskChatPage.protocol.detailLabels.url",
+  "User Actionable": "taskChatPage.protocol.detailLabels.userActionable",
+};
+
+const WORKSPACE_OPERATION_TRANSLATION_KEYS: Record<
+  TaskChatWorkspaceChangeItem["files"][number]["operation"],
+  string
+> = {
+  create: "taskChatPage.protocol.operationCreate",
+  delete: "taskChatPage.protocol.operationDelete",
+  mode_change: "taskChatPage.protocol.operationModeChange",
+  modify: "taskChatPage.protocol.operationModify",
+  rename: "taskChatPage.protocol.operationRename",
+};
 
 function StatusIcon({ status }: { status: "running" | "completed" | "failed" | "interrupted" | "informational" }) {
   if (status === "running") return <Loader2 className="h-3.5 w-3.5 animate-spin text-(--status-agent-running)" aria-hidden />;
@@ -45,12 +113,13 @@ function stepStatusIcon(status: TaskChatProtocolStep["status"], neutral = false)
 }
 
 function DetailList({ details }: { details: readonly TaskChatProtocolDetail[] }) {
+  const { t } = useTranslation();
   if (details.length === 0) return null;
   return (
     <dl className="flex min-w-0 flex-col gap-1.5" data-testid="task-chat-provider-detail-list">
       {details.map((detail) => (
         <div className="grid min-w-0 grid-cols-1 gap-0.5 sm:grid-cols-(--gtc-task-chat-details) sm:gap-3" key={`${detail.label}:${detail.value}`}>
-          <dt className="text-muted-foreground">{detail.label}</dt>
+          <dt className="text-muted-foreground">{DETAIL_LABEL_TRANSLATION_KEYS[detail.label] ? t(DETAIL_LABEL_TRANSLATION_KEYS[detail.label]) : detail.label}</dt>
           <dd className={cn("min-w-0 break-words text-foreground", detail.mono && "font-mono")}>{detail.value}</dd>
         </div>
       ))}
@@ -67,6 +136,7 @@ function sourceHostname(href: string): string {
 }
 
 function ResearchDetails({ item }: { item: TaskChatProviderActivityItem }) {
+  const { t } = useTranslation();
   const [showAllResults, setShowAllResults] = useState(false);
   const query = item.details.find((detail) => detail.label.toLowerCase() === "query");
   const additionalDetails = item.details.filter((detail) => !["action", "query", "status"].includes(detail.label.toLowerCase()));
@@ -77,16 +147,16 @@ function ResearchDetails({ item }: { item: TaskChatProviderActivityItem }) {
     <div className="flex min-w-0 flex-col gap-2.5">
       {query ? (
         <div className="min-w-0 rounded-sm bg-muted/40 px-2.5 py-2" data-testid="task-chat-research-query">
-          <p className="text-(length:--text-nano) font-medium uppercase tracking-wide text-muted-foreground">Query</p>
+          <p className="text-(length:--text-nano) font-medium uppercase tracking-wide text-muted-foreground">{t("taskChatPage.protocol.query")}</p>
           <p className="mt-0.5 min-w-0 break-words font-mono text-(length:--text-micro) text-foreground">{query.value}</p>
         </div>
       ) : null}
       {item.links.length > 0 ? (
         <div className="min-w-0">
           <p className="mb-1 text-(length:--text-nano) font-medium uppercase tracking-wide text-muted-foreground">
-            {item.links.length} {item.links.length === 1 ? "result" : "results"}
+            {t("taskChatPage.protocol.resultCount", { count: item.links.length })}
           </p>
-          <ol className="divide-y divide-border/60" aria-label="Research sources">
+          <ol className="divide-y divide-border/60" aria-label={t("taskChatPage.protocol.researchSources")}>
             {visibleLinks.map((link, index) => (
               <li className="min-w-0 py-1.5 first:pt-0 last:pb-0" key={`${link.href}:${index}`}>
                 <a className="flex min-w-0 items-center gap-1 font-medium text-foreground hover:underline" href={link.href} target="_blank" rel="noreferrer">
@@ -106,7 +176,7 @@ function ResearchDetails({ item }: { item: TaskChatProviderActivityItem }) {
               className="mt-1.5 text-muted-foreground hover:text-foreground"
               onClick={() => setShowAllResults(true)}
             >
-              Show {hiddenResultCount} more {hiddenResultCount === 1 ? "result" : "results"}
+              {t("taskChatPage.protocol.showMoreResults", { count: hiddenResultCount })}
             </button>
           ) : showAllResults && item.links.length > COMPACT_RESEARCH_RESULT_LIMIT ? (
             <button
@@ -114,25 +184,26 @@ function ResearchDetails({ item }: { item: TaskChatProviderActivityItem }) {
               className="mt-1.5 text-muted-foreground hover:text-foreground"
               onClick={() => setShowAllResults(false)}
             >
-              Show fewer results
+              {t("taskChatPage.protocol.showFewerResults")}
             </button>
           ) : null}
         </div>
       ) : null}
       <DetailList details={additionalDetails} />
       {item.output || item.outputTruncated ? (
-        <p className="text-muted-foreground">Additional provider output is available in Runner Inspector.</p>
+        <p className="text-muted-foreground">{t("taskChatPage.protocol.additionalOutput")}</p>
       ) : null}
     </div>
   );
 }
 
 function ProviderDetails({ item, neutral = false }: { item: TaskChatProviderActivityItem; neutral?: boolean }) {
+  const { t } = useTranslation();
   if (item.family === "research") return <ResearchDetails item={item} />;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {item.steps.length > 0 ? (
-        <ol className="flex flex-col gap-1" aria-label="Plan steps">
+        <ol className="flex flex-col gap-1" aria-label={t("taskChatPage.protocol.planSteps")}>
           {item.steps.map((step) => (
             <li className="flex min-w-0 items-start gap-2" key={step.id}>
               <span className="mt-0.5 shrink-0">{stepStatusIcon(step.status, neutral)}</span>
@@ -142,7 +213,7 @@ function ProviderDetails({ item, neutral = false }: { item: TaskChatProviderActi
         </ol>
       ) : null}
       {item.links.length > 0 ? (
-        <ul className="flex flex-col gap-1.5" aria-label="Research sources">
+        <ul className="flex flex-col gap-1.5" aria-label={t("taskChatPage.protocol.researchSources")}>
           {item.links.map((link) => (
             <li key={link.href}>
               <a className="inline-flex min-w-0 items-center gap-1 font-medium text-primary hover:underline" href={link.href} target="_blank" rel="noreferrer">
@@ -155,12 +226,12 @@ function ProviderDetails({ item, neutral = false }: { item: TaskChatProviderActi
         </ul>
       ) : null}
       {item.children.length > 0 ? (
-        <ul className="flex flex-col gap-1.5" aria-label="Delegated agents">
+        <ul className="flex flex-col gap-1.5" aria-label={t("taskChatPage.protocol.delegatedAgents")}>
           {item.children.map((child) => (
             <li className="flex min-w-0 flex-col gap-0.5" key={child.id}>
               <span className="flex min-w-0 items-center gap-2">
                 <span className="font-medium text-foreground">{child.title}</span>
-                <span className="capitalize text-muted-foreground">{child.status}</span>
+                <span className="capitalize text-muted-foreground">{statusLabel(child.status, t)}</span>
                 {child.metadata ? <span className="min-w-0 truncate font-mono text-(length:--text-micro)">{child.metadata}</span> : null}
               </span>
               {child.summary ? <span className="text-muted-foreground">{child.summary}</span> : null}
@@ -174,24 +245,25 @@ function ProviderDetails({ item, neutral = false }: { item: TaskChatProviderActi
       {item.output ? (
         <pre className="max-h-(--sz-64) overflow-auto whitespace-pre-wrap rounded-sm bg-muted/50 p-2 font-mono text-(length:--text-micro) text-foreground">{item.output}</pre>
       ) : null}
-      {item.outputTruncated ? <p className="text-muted-foreground">Output truncated to 8 KiB.</p> : null}
+      {item.outputTruncated ? <p className="text-muted-foreground">{t("taskChatPage.protocol.outputTruncated")}</p> : null}
     </div>
   );
 }
 
 function WorkspaceChangeDetails({ item }: { item: TaskChatWorkspaceChangeItem }) {
-  if (item.files.length === 0) return <p className="text-muted-foreground">No changed-file details were reported.</p>;
+  const { t } = useTranslation();
+  if (item.files.length === 0) return <p className="text-muted-foreground">{t("taskChatPage.protocol.noChangedFileDetails")}</p>;
   const visibleFiles = item.files.slice(0, COMPACT_WORKSPACE_FILE_LIMIT);
   const hiddenFileCount = item.files.length - visibleFiles.length;
   return (
     <div className="min-w-0" data-testid="task-chat-workspace-change-details">
-      <ul className="flex min-w-0 flex-col divide-y divide-border/60" aria-label="Changed files">
+      <ul className="flex min-w-0 flex-col divide-y divide-border/60" aria-label={t("taskChatPage.protocol.changedFiles")}>
         {visibleFiles.map((file) => (
           <li className="flex min-w-0 items-center gap-2 py-1.5 first:pt-0 last:pb-0" key={`${file.operation}:${file.path}`}>
             <span className="min-w-0 flex-1 truncate font-mono text-foreground" title={file.previousPath ? `${file.previousPath} → ${file.path}` : file.path}>
               {file.previousPath ? `${file.previousPath} → ${file.path}` : file.path}
             </span>
-            <span className="shrink-0 capitalize text-muted-foreground">{file.operation.replaceAll("_", " ")}</span>
+            <span className="shrink-0 capitalize text-muted-foreground">{t(WORKSPACE_OPERATION_TRANSLATION_KEYS[file.operation])}</span>
             {file.additions != null || file.deletions != null ? (
               <span className="shrink-0 font-mono text-(length:--text-micro) text-muted-foreground">
                 {file.additions == null ? "" : `+${file.additions}`} {file.deletions == null ? "" : `−${file.deletions}`}
@@ -200,12 +272,13 @@ function WorkspaceChangeDetails({ item }: { item: TaskChatWorkspaceChangeItem })
           </li>
         ))}
       </ul>
-      {hiddenFileCount > 0 ? <p className="mt-1.5 text-muted-foreground">{hiddenFileCount} more {hiddenFileCount === 1 ? "file" : "files"} not shown</p> : null}
+      {hiddenFileCount > 0 ? <p className="mt-1.5 text-muted-foreground">{t("taskChatPage.protocol.moreFilesNotShown", { count: hiddenFileCount })}</p> : null}
     </div>
   );
 }
 
 function WorkspaceFileDetails({ item }: { item: TaskChatWorkspaceFileItem }) {
+  const { t } = useTranslation();
   const workspaceFileRef = {
     path: item.path,
     resourceKind: "file" as const,
@@ -222,8 +295,8 @@ function WorkspaceFileDetails({ item }: { item: TaskChatWorkspaceFileItem }) {
         ) : (
           <pre className="max-h-(--sz-64) overflow-auto whitespace-pre-wrap rounded-sm bg-muted/50 p-2 font-mono text-(length:--text-micro) text-foreground">{item.preview}</pre>
         )
-      ) : <p className="text-muted-foreground">Preview unavailable.</p>}
-      {item.previewTruncated ? <p className="text-muted-foreground">Preview truncated by the runner.</p> : null}
+      ) : <p className="text-muted-foreground">{t("taskChatPage.protocol.previewUnavailable")}</p>}
+      {item.previewTruncated ? <p className="text-muted-foreground">{t("taskChatPage.protocol.previewTruncated")}</p> : null}
     </div>
   );
 }
@@ -277,6 +350,7 @@ function itemStatus(item: TaskChatProtocolItem): "running" | "completed" | "fail
 }
 
 export function TaskChatProtocolActivityRow({ item }: { item: TaskChatProtocolItem }) {
+  const { t } = useTranslation();
   const shimmer = useTaskChatShimmer(item.id);
   const [open, setOpen] = useState(false);
   const detailId = `task-chat-protocol-activity-${useId().replaceAll(":", "")}`;
@@ -287,17 +361,21 @@ export function TaskChatProtocolActivityRow({ item }: { item: TaskChatProtocolIt
     const severity = providerNoticeSeverity(item);
     const summary = item.summary
       ?? item.details.find((entry) => entry.label === "Summary")?.value
-      ?? "The provider reported a notice without a message.";
+      ?? t("taskChatPage.protocol.providerNoticeNoMessage");
     return (
       <div className="flex min-w-0 flex-col gap-1.5 py-1 text-xs" data-testid="task-chat-protocol-activity-row" data-activity-family="provider_notice">
         <div className="flex items-center gap-2 text-muted-foreground">
           <NoticeIcon className="size-(--sz-protocol-notice-icon) shrink-0" aria-hidden data-testid="task-chat-protocol-activity-icon" />
-          <span className="font-medium">{severity === "error" ? "Error" : severity === "info" ? "Provider update" : "Warning"}</span>
+          <span className="font-medium">{t(severity === "error"
+            ? "taskChatPage.protocol.severityError"
+            : severity === "info"
+              ? "taskChatPage.protocol.severityInfo"
+              : "taskChatPage.protocol.severityWarning")}</span>
         </div>
         <p className="min-w-0 whitespace-pre-wrap break-words text-foreground">{summary}</p>
         {item.details.some(detail => detail.label !== "Summary") ? (
           <details className="text-muted-foreground">
-            <summary className="cursor-pointer">Details</summary>
+            <summary className="cursor-pointer">{t("taskChatPage.protocol.details")}</summary>
             <DetailList details={item.details.filter(detail => detail.label !== "Summary")} />
           </details>
         ) : null}
@@ -307,7 +385,13 @@ export function TaskChatProtocolActivityRow({ item }: { item: TaskChatProtocolIt
   const detail = detailContent(item);
   const expandable = detail !== null;
   const Icon = presentation.icon;
-  const label = protocolActivityLabel(item, presentation);
+  const labelKey = protocolActivityTranslationKey(item, presentation);
+  const label = labelKey ? t(labelKey) : protocolActivityLabel(item, presentation);
+  const presentationDetail = item.surface === "workspace_change" && presentation.detail
+    ? t("taskChatPage.activity.fileCount", {
+        count: item.totals.files || item.files.length,
+      })
+    : presentation.detail;
   const active = protocolActivityIsRunning(item);
   const status = itemStatus(item);
   const row = (

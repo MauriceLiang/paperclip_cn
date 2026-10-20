@@ -4,6 +4,7 @@ import { Select as SelectPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { useTranslation } from "@/i18n";
 
 export const nativeSelectClassName = "w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
@@ -26,7 +27,7 @@ export function SelectPopover({
   value,
   onValueChange,
   options = [],
-  placeholder = "Select…",
+  placeholder,
   displayValue,
   "aria-label": ariaLabel,
   "aria-busy": ariaBusy,
@@ -51,6 +52,8 @@ export function SelectPopover({
   onCloseAutoFocus?: React.ComponentProps<typeof PopoverContent>["onCloseAutoFocus"];
   children?: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+  const displayPlaceholder = placeholder ?? t("chatComponents.selectPopover.placeholder");
   const [localOpen, setLocalOpen] = React.useState(false);
   const open = controlledOpen ?? localOpen;
   const setOpen = (next: boolean) => {
@@ -73,7 +76,7 @@ export function SelectPopover({
             }
           }}
           className={cn(selectTriggerClassName, "w-full min-w-0", className)}>
-          <span className="min-w-0 truncate text-left">{displayValue ?? selected?.label ?? (value || placeholder)}</span>
+          <span className="min-w-0 truncate text-left">{displayValue ?? selected?.label ?? (value || displayPlaceholder)}</span>
           <ChevronDownIcon className="size-4 opacity-50" />
         </button>
       </PopoverTrigger>

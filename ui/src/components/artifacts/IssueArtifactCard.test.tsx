@@ -8,6 +8,7 @@ import {
 } from "./IssueArtifactCard";
 
 import { DocumentCard } from "./RichArtifactCards";
+import { setLocale } from "@/i18n";
 
 function product(overrides: Partial<IssueWorkProduct> = {}): IssueWorkProduct {
   return {
@@ -43,6 +44,18 @@ function render(wp: IssueWorkProduct) {
 }
 
 describe("production artifact cards", () => {
+  it("renders artifact controls in Simplified Chinese", async () => {
+    await setLocale("zh-CN");
+    try {
+      const html = render(product());
+      expect(html).toContain("拉取请求");
+      expect(html).toContain("无检查结果");
+      expect(html).toContain("打开拉取请求");
+    } finally {
+      await setLocale("en");
+    }
+  });
+
   it("renders supplied PR metadata without synthesizing missing counts, checks or branch names", () => {
     const sparse = render(product());
     expect(sparse).toContain("Actual artifact title");

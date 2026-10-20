@@ -19,6 +19,6 @@ export function isAppTabKey(value: string | undefined): value is AppTabKey {
   return APP_TABS.some((tab) => tab.key === value);
 }
 
-export function appTabLabel(tabKey: AppTabKey): string {
-  return APP_TABS.find((tab) => tab.key === tabKey)?.label ?? "Permissions";
+export function appTabLabel(tabKey: AppTabKey, t: (key: string) => string): string {
+  return t(`appsPage.appTabs.${tabKey}`);
 }

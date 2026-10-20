@@ -3,7 +3,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FileTree, buildFileTree } from "./FileTree";
+import { i18n } from "@/i18n";
+import { FileTree, buildFileTree, frontmatterFieldLabel } from "./FileTree";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -12,17 +13,25 @@ describe("FileTree", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     act(() => {
       root.unmount();
     });
     container.remove();
+    await i18n.changeLanguage("en");
+  });
+
+  it("localizes known frontmatter field labels", async () => {
+    await i18n.changeLanguage("zh-CN");
+    expect(frontmatterFieldLabel("reportsTo")).toBe("汇报对象");
+    expect(frontmatterFieldLabel("customField")).toBe("customField");
   });
 
   function row(path: string) {

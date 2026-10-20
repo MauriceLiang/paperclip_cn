@@ -21,22 +21,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { useTranslation } from "@/i18n";
+import type { TFunction } from "i18next";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
 /** Snooze presets shared with the row menu, resolved at click time. */
-const SNOOZE_PRESETS: ReadonlyArray<{ label: string; resolve: () => string }> = [
-  { label: "1 hour", resolve: () => new Date(Date.now() + HOUR_MS).toISOString() },
-  { label: "4 hours", resolve: () => new Date(Date.now() + 4 * HOUR_MS).toISOString() },
-  { label: "Tomorrow", resolve: () => {
+const SNOOZE_PRESETS: ReadonlyArray<{ labelKey: string; resolve: () => string }> = [
+  { labelKey: "chatComponents.snooze.oneHour", resolve: () => new Date(Date.now() + HOUR_MS).toISOString() },
+  { labelKey: "chatComponents.snooze.fourHours", resolve: () => new Date(Date.now() + 4 * HOUR_MS).toISOString() },
+  { labelKey: "chatComponents.snooze.tomorrow", resolve: () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(9, 0, 0, 0);
     return d.toISOString();
   } },
-  { label: "Next week", resolve: () => new Date(Date.now() + 7 * DAY_MS).toISOString() },
+  { labelKey: "chatComponents.snooze.nextWeek", resolve: () => new Date(Date.now() + 7 * DAY_MS).toISOString() },
 ];
+
+/** Localized labels for the decide-by presets; `date` is handled by the date input. */
+const DECIDE_BY_LABEL_KEYS: Record<DecideByPreset, string> = {
+  today: "chatComponents.decisionTriageStrip.decideToday",
+  this_week: "chatComponents.decisionTriageStrip.decideThisWeek",
+  whenever: "chatComponents.decisionTriageStrip.decideWhenever",
+};
 
 /** Slugify a queue title into a URL-safe kebab key the API will accept. */
 function toQueueKey(title: string): string {
@@ -49,16 +58,16 @@ function toQueueKey(title: string): string {
 }
 
 /** Compact countdown/overdue label for an expiry timestamp. */
-function expiryLabel(expiresAt: string): { text: string; overdue: boolean } {
+function expiryLabel(expiresAt: string, t: TFunction): { text: string; overdue: boolean } {
   const diff = new Date(expiresAt).getTime() - Date.now();
   if (!Number.isFinite(diff)) return { text: "", overdue: false };
-  if (diff <= 0) return { text: "Expired", overdue: true };
+  if (diff <= 0) return { text: t("chatComponents.decisionTriageStrip.expired"), overdue: true };
   const mins = Math.round(diff / 60000);
-  if (mins < 60) return { text: `Expires in ${mins}m`, overdue: false };
+  if (mins < 60) return { text: t("chatComponents.decisionTriageStrip.expiresInMinutes", { minutes: mins }), overdue: false };
   const hrs = Math.round(mins / 60);
-  if (hrs < 24) return { text: `Expires in ${hrs}h`, overdue: false };
+  if (hrs < 24) return { text: t("chatComponents.decisionTriageStrip.expiresInHours", { hours: hrs }), overdue: false };
   const days = Math.round(hrs / 24);
-  return { text: `Expires in ${days}d`, overdue: false };
+  return { text: t("chatComponents.decisionTriageStrip.expiresInDays", { days }), overdue: false };
 }
 
 interface DecisionTriageStripProps {
@@ -77,6 +86,7 @@ interface DecisionTriageStripProps {
  * expiry chip surfaces the underlying decision's TTL read-only.
  */
 export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageStripProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToastActions();
   const sourceKind = item.sourceKind;
@@ -92,10 +102,10 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
     queryClient.invalidateQueries({ queryKey: queryKeys.decisionQueues.triage(companyId, sourceKind, sourceId) });
   };
 
-  const onError = (verb: string) => (error: unknown) =>
+  const onError = (titleKey: string) => (error: unknown) =>
     pushToast({
-      title: `Could not ${verb}`,
-      body: error instanceof Error ? error.message : "Please try again.",
+      title: t(titleKey),
+      body: error instanceof Error ? error.message : t("chatComponents.decisionTriageStrip.tryAgain"),
       tone: "error",
     });
 
@@ -103,38 +113,44 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
     mutationFn: (decideBy: string | null) =>
       decisionQueuesApi.updateTriage(companyId, sourceKind, sourceId, { decideBy }),
     onSuccess: invalidate,
-    onError: onError("set when to decide"),
+    onError: onError("chatComponents.decisionTriageStrip.couldNotSetDecideBy"),
   });
   const setSnooze = useMutation({
     mutationFn: (snoozedUntil: string | null) =>
       decisionQueuesApi.updateTriage(companyId, sourceKind, sourceId, { snoozedUntil }),
     onSuccess: invalidate,
-    onError: onError("snooze"),
+    onError: onError("chatComponents.decisionTriageStrip.couldNotSnooze"),
   });
   const addToQueue = useMutation({
     mutationFn: (key: string) => decisionQueuesApi.addItem(companyId, key, sourceKind, sourceId),
     onSuccess: invalidate,
-    onError: onError("add to queue"),
+    onError: onError("chatComponents.decisionTriageStrip.couldNotAddToQueue"),
   });
   const removeFromQueue = useMutation({
     mutationFn: (key: string) => decisionQueuesApi.removeItem(companyId, key, sourceKind, sourceId),
     onSuccess: invalidate,
-    onError: onError("remove from queue"),
+    onError: onError("chatComponents.decisionTriageStrip.couldNotRemoveFromQueue"),
   });
   const routeToAgent = useMutation({
     mutationFn: (agent: Agent) => {
-      if (!relatedIssueId) throw new Error("This decision has no linked task to route from.");
+      if (!relatedIssueId) throw new Error(t("chatComponents.decisionTriageStrip.noLinkedTaskError"));
       const mention = `[@${agent.name}](${buildAgentMentionHref(agent.id)})`;
-      const body =
-        `${mention} — could you look at this decision${taskRef ? ` on ${taskRef.identifier}` : ""}, `
-        + `prepare a recommendation, and re-surface it on the decisions desk? (routed from the desk)`;
+      const body = taskRef
+        ? t("chatComponents.decisionTriageStrip.routeCommentWithTask", {
+            mention,
+            identifier: taskRef.identifier,
+          })
+        : t("chatComponents.decisionTriageStrip.routeComment", { mention });
       return issuesApi.addComment(relatedIssueId, body);
     },
     onSuccess: (_result, agent) => {
       invalidate();
-      pushToast({ title: `Asked ${agent.name} for a recommendation`, tone: "success" });
+      pushToast({
+        title: t("chatComponents.decisionTriageStrip.askedAgent", { name: agent.name }),
+        tone: "success",
+      });
     },
-    onError: onError("ask that agent for a recommendation"),
+    onError: onError("chatComponents.decisionTriageStrip.couldNotAskAgent"),
   });
 
   const pending = setDecideBy.isPending || setSnooze.isPending || addToQueue.isPending || removeFromQueue.isPending;
@@ -151,7 +167,7 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
     >
       {/* Expiry — read-only countdown so a dying confirmation is visible. */}
       {item.expiresAt && (() => {
-        const { text, overdue } = expiryLabel(item.expiresAt);
+        const { text, overdue } = expiryLabel(item.expiresAt, t);
         if (!text) return null;
         return (
           <div className="flex items-center gap-1.5 text-xs">
@@ -163,23 +179,25 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
 
       {/* When to decide — the importance signal that drives desk ordering. */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">When to decide</span>
-        <div className="flex flex-wrap items-center gap-1" role="group" aria-label="When to decide">
-          {DECIDE_BY_OPTIONS.map(([value, label]) => (
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("chatComponents.decisionTriageStrip.whenToDecide")}
+        </span>
+        <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t("chatComponents.decisionTriageStrip.whenToDecide")}>
+          {DECIDE_BY_OPTIONS.map(([value]) => (
             <SegmentButton
               key={value}
               active={decideBy === (value satisfies DecideByPreset)}
               disabled={pending}
               onClick={() => setDecideBy.mutate(decideBy === value ? null : value)}
             >
-              {label}
+              {t(DECIDE_BY_LABEL_KEYS[value])}
             </SegmentButton>
           ))}
           <Popover>
             <PopoverTrigger asChild>
               <SegmentButton active={isDatePreset} disabled={pending}>
                 <CalendarClock className="h-3.5 w-3.5" />
-                {isDatePreset ? decideByLabel(decideBy) : "Pick date"}
+                {isDatePreset ? decideByLabel(decideBy) : t("chatComponents.decisionTriageStrip.pickDate")}
               </SegmentButton>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-auto p-2">
@@ -201,7 +219,9 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
 
       {/* Queues — current membership as removable chips + add/create. */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">Queues</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          {t("chatComponents.decisionTriageStrip.queues")}
+        </span>
         {item.queues.map((queue) => (
           <span
             key={queue.key}
@@ -211,7 +231,7 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
             <button
               type="button"
               className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-              aria-label={`Remove from ${queue.title}`}
+              aria-label={t("chatComponents.decisionTriageStrip.removeFromQueue", { name: queue.title })}
               disabled={pending}
               onClick={() => removeFromQueue.mutate(queue.key)}
             >
@@ -232,14 +252,14 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
         {item.snoozedUntil ? (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <AlarmClock className="h-3.5 w-3.5" />
-            Snoozed until {new Date(item.snoozedUntil).toLocaleString()}
+            {t("chatComponents.snooze.snoozedUntil", { date: new Date(item.snoozedUntil).toLocaleString() })}
             <button
               type="button"
               className="text-muted-foreground hover:text-foreground"
               disabled={pending}
               onClick={() => setSnooze.mutate(null)}
             >
-              Clear
+              {t("chatComponents.snooze.clear")}
             </button>
           </span>
         ) : (
@@ -247,14 +267,14 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline" size="xs" className="h-7 gap-1" disabled={pending}>
                 <AlarmClock className="h-3.5 w-3.5" />
-                Snooze
+                {t("chatComponents.snooze.label")}
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {SNOOZE_PRESETS.map((preset) => (
-                <DropdownMenuItem key={preset.label} onClick={() => setSnooze.mutate(preset.resolve())}>
-                  {preset.label}
+                <DropdownMenuItem key={preset.labelKey} onClick={() => setSnooze.mutate(preset.resolve())}>
+                  {t(preset.labelKey)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -264,7 +284,7 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
         <AskAgentPicker
           agents={agents ?? []}
           disabled={routeToAgent.isPending || !relatedIssueId}
-          disabledReason={!relatedIssueId ? "No linked task to ask about" : undefined}
+          disabledReason={!relatedIssueId ? t("chatComponents.decisionTriageStrip.noLinkedTask") : undefined}
           onRoute={(agent) => routeToAgent.mutate(agent)}
         />
         {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
@@ -313,6 +333,7 @@ function QueuePicker({
   disabled?: boolean;
   onAdd: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToastActions();
   const [open, setOpen] = useState(false);
@@ -335,8 +356,8 @@ function QueuePicker({
     },
     onError: (error) =>
       pushToast({
-        title: "Could not create queue",
-        body: error instanceof Error ? error.message : "Please try again.",
+        title: t("chatComponents.decisionTriageStrip.couldNotCreateQueue"),
+        body: error instanceof Error ? error.message : t("chatComponents.decisionTriageStrip.tryAgain"),
         tone: "error",
       }),
   });
@@ -348,7 +369,7 @@ function QueuePicker({
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="xs" className="h-7 gap-1" disabled={disabled}>
           <Plus className="h-3.5 w-3.5" />
-          Queue
+          {t("chatComponents.decisionTriageStrip.queue")}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1">
@@ -362,23 +383,25 @@ function QueuePicker({
                 if (event.key === "Enter" && title.trim()) create.mutate(title);
                 if (event.key === "Escape") setCreating(false);
               }}
-              placeholder="New queue name…"
+              placeholder={t("chatComponents.decisionTriageStrip.newQueueName")}
               className="w-full rounded-sm border border-border bg-background px-2 py-1 text-xs"
             />
             <div className="flex justify-end gap-1">
               <Button type="button" variant="ghost" size="xs" onClick={() => setCreating(false)}>
-                Cancel
+                {t("common.actions.cancel")}
               </Button>
               <Button type="button" size="xs" disabled={!title.trim() || create.isPending} onClick={() => create.mutate(title)}>
                 {create.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
-                Create
+                {t("common.create")}
               </Button>
             </div>
           </div>
         ) : (
           <div className="max-h-64 space-y-0.5 overflow-y-auto">
             {available.length === 0 && (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground">No other queues yet.</p>
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                {t("chatComponents.decisionTriageStrip.noOtherQueues")}
+              </p>
             )}
             {available.map((queue) => (
               <button
@@ -405,7 +428,7 @@ function QueuePicker({
               onClick={() => setCreating(true)}
             >
               <Plus className="h-3.5 w-3.5" />
-              New queue…
+              {t("chatComponents.decisionTriageStrip.newQueue")}
             </button>
           </div>
         )}
@@ -435,6 +458,7 @@ function AskAgentPicker({
   disabledReason?: string;
   onRoute: (agent: Agent) => void;
 }) {
+  const { t } = useTranslation();
   const active = agents.filter((agent) => agent.status !== "terminated");
   return (
     <DropdownMenu>
@@ -448,7 +472,7 @@ function AskAgentPicker({
           title={disabledReason}
         >
           <UserPlus className="h-3.5 w-3.5" />
-          Ask agent for recommendation
+          {t("chatComponents.decisionTriageStrip.askAgent")}
           <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>

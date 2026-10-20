@@ -3,6 +3,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { ChatComposer, type ChatComposerProps } from "./ChatComposer";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -36,13 +37,15 @@ function typeInput(textarea: HTMLTextAreaElement, text: string) {
 describe("ChatComposer", () => {
   let container: HTMLDivElement;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     container = document.createElement("div");
     document.body.appendChild(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     container.remove();
+    await setLocale("en");
   });
 
   function input() {
@@ -74,6 +77,23 @@ describe("ChatComposer", () => {
       root.render(<Harness onAttachFiles={() => {}} />);
     });
     expect(attachButton()).toBeTruthy();
+    act(() => root.unmount());
+  });
+
+  it("localizes the shared composer defaults and attachment status", async () => {
+    await setLocale("zh-CN");
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Harness
+        onAttachFiles={() => {}}
+        attachments={[{id: "file", name: "report.pdf", status: "attached", inline: true}]}
+      />);
+    });
+
+    expect(input().placeholder).toBe("输入消息…");
+    expect(container.querySelector('button[aria-label="添加附件"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="发送消息"]')).not.toBeNull();
+    expect(container.textContent).toContain("已内联插入");
     act(() => root.unmount());
   });
 

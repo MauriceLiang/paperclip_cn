@@ -11,8 +11,11 @@ import { EmptyState } from "../EmptyState";
 import { RoutineHistoryTab } from "../RoutineHistoryTab";
 import { RoutineActivityRow } from "../RoutineActivityRow";
 import { useRoutineDetail } from "./context";
+import { useTranslation } from "@/i18n";
+import { getIntlLocale } from "@/i18n/formatters";
 
 export function RunsSection() {
+  const { t } = useTranslation();
   const { routine, companyId, agents, projects, hasLiveRun, activeIssueId } = useRoutineDetail();
   const queryClient = useQueryClient();
   const { pushToast } = useToastActions();
@@ -29,7 +32,7 @@ export function RunsSection() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.routines.detail(routine.id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.routines.runs(routine.id) });
     },
-    onError: (updateError) => pushToast({ title: "Failed to update task", body: updateError.message, tone: "error" }),
+    onError: (updateError) => pushToast({ title: t("agentSetupPage.routineSections.operate.updateTaskFailed"), body: updateError.message, tone: "error" }),
   });
 
   return (
@@ -51,6 +54,7 @@ export function RunsSection() {
 }
 
 export function ActivitySection({ isLoading = false, error }: { isLoading?: boolean; error?: Error | null } = {}) {
+  const { t, i18n } = useTranslation();
   const ctx = useRoutineDetail();
   const { activity } = ctx;
   const events = activity ?? [];
@@ -58,9 +62,9 @@ export function ActivitySection({ isLoading = false, error }: { isLoading?: bool
   const groups = useMemo(() => {
     const byDay = new Map<string, typeof events>();
     for (const event of events) {
-      let label = "Earlier";
+      let label = t("agentSetupPage.routineSections.operate.earlier");
       try {
-        label = new Date(event.createdAt).toLocaleDateString(undefined, {
+        label = new Date(event.createdAt).toLocaleDateString(getIntlLocale(), {
           weekday: "short",
           month: "short",
           day: "numeric",
@@ -73,13 +77,13 @@ export function ActivitySection({ isLoading = false, error }: { isLoading?: bool
       byDay.set(label, bucket);
     }
     return Array.from(byDay.entries());
-  }, [events]);
+  }, [events, i18n.language, t]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading activity…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground">{t("agentSetupPage.routineSections.operate.loadingActivity")}</p>;
   if (error) return <p role="alert" className="text-sm text-destructive">{error.message}</p>;
 
   if (events.length === 0) {
-    return <EmptyState icon={ActivityIcon} message="No activity yet." />;
+    return <EmptyState icon={ActivityIcon} message={t("agentSetupPage.routineSections.operate.noActivity")} />;
   }
 
   return (

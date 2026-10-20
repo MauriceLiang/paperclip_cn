@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ export function TaskViewsMenu({
   /** Unread count surfaced next to the My-work group, mirroring the nav badge. */
   badgeCount?: number;
 }) {
+  const { t } = useTranslation();
   const active = taskView(value);
   return (
     <DropdownMenu>
@@ -42,7 +44,7 @@ export function TaskViewsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-(--sz-260px)">
         {TASK_VIEW_GROUPS.map((group, groupIndex) => (
-          <div key={group.label}>
+          <div key={t(group.labelKey)}>
             {groupIndex > 0 ? <DropdownMenuSeparator /> : null}
             <DropdownMenuLabel className="flex items-center justify-between gap-2">
               <span>{group.label}</span>
@@ -66,8 +68,8 @@ export function TaskViewsMenu({
                     className={cn("mt-0.5 size-3.5 shrink-0", selected ? "opacity-100" : "opacity-0")}
                   />
                   <span className="min-w-0">
-                    <span className={cn("block truncate", selected && "font-medium")}>{view.label}</span>
-                    <span className="block text-(length:--text-nano) text-muted-foreground">{view.hint}</span>
+                    <span className={cn("block truncate", selected && "font-medium")}>{t(view.labelKey)}</span>
+                    <span className="block text-(length:--text-nano) text-muted-foreground">{t(view.hintKey)}</span>
                   </span>
                 </DropdownMenuItem>
               );

@@ -27,7 +27,7 @@ describe("AnnouncementCard", () => {
     expect(frame.srcdoc).toContain("Animated hero");
     expect(div.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe(announcementAnimationPreview.animation!.alt);
     expect(Array.from(div.querySelectorAll("button"), (button) => button.getAttribute("aria-label")))
-      .toEqual(["Dismiss announcement"]);
+      .toEqual(["Dismiss notification"]);
     expect(div.querySelectorAll("a")).toHaveLength(2);
     expect(dismiss).not.toHaveBeenCalled();
     await cleanup();
@@ -46,7 +46,7 @@ describe("AnnouncementCard", () => {
     const { div, dismiss, cleanup } = await animatedCard();
     expect(div.querySelector("iframe")).toBeNull();
     expect(div.querySelector("img")).not.toBeNull();
-    await act(async () => div.querySelector<HTMLButtonElement>('[aria-label="Dismiss announcement"]')!.click());
+    await act(async () => div.querySelector<HTMLButtonElement>('[aria-label="Dismiss notification"]')!.click());
     expect(dismiss).toHaveBeenCalledOnce();
     await cleanup();
   });

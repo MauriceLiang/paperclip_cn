@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PrimaryAgentPreference } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 import { agentsApi } from "@/api/agents";
 import { primaryAgentApi } from "@/api/primaryAgent";
 import { PrimaryAgentPresentationProvider } from "@/components/primary-agent/PrimaryAgentPresentation";
@@ -32,8 +33,8 @@ export function PrimaryAgentProvider({ children }: { children: ReactNode }) {
     onError: (error, choice, context) => {
       client.setQueryData(keyFor(choice), context?.previous);
       if (!isCurrentScope(choice)) return;
-      pushToast({ title: "Couldn't change your primary agent.", body: error.message, tone: "error",
-        action: { label: "Retry", onClick: () => { if (isCurrentScope(choice)) mutation.mutate(choice); } } });
+      pushToast({ title: translate("agentsPage.primaryAgent.changeFailed"), body: error.message, tone: "error",
+        action: { label: translate("agentsPage.primaryAgent.retryChange"), onClick: () => { if (isCurrentScope(choice)) mutation.mutate(choice); } } });
     },
     onSuccess: (data, choice) => client.setQueryData(keyFor(choice), data),
     onSettled: (_data, _error, choice) => {

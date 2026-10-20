@@ -3,6 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "@/i18n";
 import { ScrollToBottom } from "./ScrollToBottom";
 
 vi.mock("../context/SidebarContext", () => ({
@@ -22,7 +23,8 @@ describe("ScrollToBottom mobile composer docking", () => {
   let dock: HTMLDivElement;
   let root: Root;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await setLocale("en");
     Object.defineProperty(document.documentElement, "scrollHeight", {
       configurable: true,
       value: 1000,
@@ -48,10 +50,11 @@ describe("ScrollToBottom mobile composer docking", () => {
     root = createRoot(host);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     act(() => root.unmount());
     document.body.replaceChildren();
     vi.restoreAllMocks();
+    await setLocale("en");
   });
 
   it("moves with the active mobile composer dock", async () => {
@@ -90,5 +93,14 @@ describe("ScrollToBottom mobile composer docking", () => {
     expect(replacementButton).not.toBeNull();
     expect(replacementButton?.classList).toContain("absolute");
     expect(host.querySelector('button[aria-label="Scroll to bottom"]')).toBeNull();
+  });
+
+  it("localizes its accessible name", async () => {
+    await setLocale("zh-CN");
+    await act(async () => {
+      root.render(<ScrollToBottom />);
+    });
+
+    expect(dock.querySelector('button[aria-label="滚动到底部"]')).not.toBeNull();
   });
 });

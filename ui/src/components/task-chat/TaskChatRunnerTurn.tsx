@@ -14,6 +14,7 @@ import { formatTaskChatTimestamp } from "./task-chat-adapter";
 import { TaskChatRunnerActivityGroup } from "./TaskChatRunnerActivityGroup";
 import { TaskChatProtocolCard } from "./TaskChatProtocolCard";
 import { TaskChatPlanPreviewCard } from "./TaskChatPlanPreviewCard";
+import { useTranslation } from "@/i18n";
 import { TaskChatShimmerScope, useTaskChatShimmer } from "./TaskChatShimmer";
 import {
   buildTurnTimelineRows,
@@ -75,6 +76,7 @@ function RunnerTurnStatus({
   continuedAfterSteering?: boolean;
   waitingLabel?: string | null;
 }) {
+  const { t } = useTranslation();
   const terminal = isTerminalRunStatus(status);
   useSecondTick(!terminal && startedAtMs != null);
   const elapsedMs =
@@ -149,6 +151,7 @@ export function TaskChatRunnerTurn({
     decision: TaskChatRuntimeRequestDecision,
   ) => void | Promise<void>;
 }) {
+  const { t } = useTranslation();
   const terminal = isTerminalRunStatus(status);
   const waitingLabel = !terminal && execution?.phase === "waiting_for_provider" ? execution.label : null;
   const yielded = items.some(
@@ -233,7 +236,7 @@ export function TaskChatRunnerTurn({
           role="status"
           data-testid="task-chat-activity-unavailable"
         >
-          Live runner activity is temporarily unavailable. Retrying…
+          {t("taskChatPage.runner.activityUnavailable")}
         </div>
       ) : null}
       {timelineRows.length > 0 ? (

@@ -4,6 +4,7 @@ import type {
   IssueBlockedInboxReason,
   IssueBlockedInboxSeverity,
 } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 
 export type BlockedReasonVariant =
   | "needs_decision"
@@ -38,27 +39,27 @@ export const BLOCKED_REASON_VARIANT_ORDER: BlockedReasonVariant[] = [
 ];
 
 export const BLOCKED_VARIANT_LABELS: Record<BlockedReasonVariant, string> = {
-  needs_decision: "Needs decision",
-  stalled: "Blocked chain stalled",
-  needs_attention: "Needs attention",
-  recovery_required: "Recovery required",
-  external_wait: "External wait",
-  owner_paused: "Owner paused",
+  needs_decision: "blocked.variants.needsDecision",
+  stalled: "blocked.variants.stalled",
+  needs_attention: "blocked.variants.needsAttention",
+  recovery_required: "blocked.variants.recoveryRequired",
+  external_wait: "blocked.variants.externalWait",
+  owner_paused: "blocked.variants.ownerPaused",
 };
 
 const REASON_LABELS: Record<IssueBlockedInboxReason, string> = {
-  pending_board_decision: "Pending board decision",
-  pending_user_decision: "Pending user decision",
-  missing_successful_run_disposition: "Pick disposition",
-  blocked_chain_stalled: "Blocked chain stalled",
-  blocked_by_unassigned_issue: "Unassigned blocker",
-  blocked_by_assigned_backlog_issue: "Parked blocker",
-  blocked_by_cancelled_issue: "Cancelled blocker",
-  in_review_without_action_path: "Review without action path",
-  invalid_review_participant: "Invalid review participant",
-  open_recovery_issue: "Recovery in progress",
-  external_owner_action: "External owner action",
-  blocked_by_uninvokable_assignee: "Owner paused",
+  pending_board_decision: "blocked.reasons.pendingBoardDecision",
+  pending_user_decision: "blocked.reasons.pendingUserDecision",
+  missing_successful_run_disposition: "blocked.reasons.missingDisposition",
+  blocked_chain_stalled: "blocked.reasons.blockedChainStalled",
+  blocked_by_unassigned_issue: "blocked.reasons.unassignedBlocker",
+  blocked_by_assigned_backlog_issue: "blocked.reasons.parkedBlocker",
+  blocked_by_cancelled_issue: "blocked.reasons.cancelledBlocker",
+  in_review_without_action_path: "blocked.reasons.reviewWithoutActionPath",
+  invalid_review_participant: "blocked.reasons.invalidReviewParticipant",
+  open_recovery_issue: "blocked.reasons.recoveryInProgress",
+  external_owner_action: "blocked.reasons.externalOwnerAction",
+  blocked_by_uninvokable_assignee: "blocked.reasons.ownerPaused",
 };
 
 const SEVERITY_RANK: Record<IssueBlockedInboxSeverity, number> = {
@@ -75,11 +76,12 @@ export function blockedReasonVariant(reason: IssueBlockedInboxReason): BlockedRe
 }
 
 export function blockedReasonLabel(reason: IssueBlockedInboxReason): string {
-  return REASON_LABELS[reason] ?? "Stopped";
+  const key = REASON_LABELS[reason];
+  return key ? translate(key) : translate("blocked.stopped");
 }
 
 export function blockedVariantLabel(variant: BlockedReasonVariant): string {
-  return BLOCKED_VARIANT_LABELS[variant];
+  return translate(BLOCKED_VARIANT_LABELS[variant]);
 }
 
 export function blockedSeverityRank(severity: IssueBlockedInboxSeverity): number {
@@ -110,14 +112,14 @@ export type BlockedInboxGroupBy = "blocker_type" | "none";
 export type BlockedInboxSort = "urgency" | "most_recent" | "longest_stopped";
 
 export const BLOCKED_GROUP_OPTIONS: readonly [BlockedInboxGroupBy, string][] = [
-  ["blocker_type", "Blocker type"],
-  ["none", "None"],
+  ["blocker_type", "blocked.group.blockerType"],
+  ["none", "blocked.group.none"],
 ];
 
 export const BLOCKED_SORT_OPTIONS: readonly [BlockedInboxSort, string][] = [
-  ["urgency", "Most urgent"],
-  ["most_recent", "Most recent"],
-  ["longest_stopped", "Longest stopped"],
+  ["urgency", "blocked.sort.urgency"],
+  ["most_recent", "blocked.sort.mostRecent"],
+  ["longest_stopped", "blocked.sort.longestStopped"],
 ];
 
 export interface BlockedInboxGroup {

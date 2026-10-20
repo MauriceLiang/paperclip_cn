@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IssueFiltersPopover } from "./IssueFiltersPopover";
 import { defaultIssueFilterState } from "../lib/issue-filters";
+import { i18n } from "@/i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -48,8 +49,32 @@ describe("IssueFiltersPopover", () => {
     document.body.appendChild(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
     document.body.innerHTML = "";
+  });
+
+  it("localizes the filter button label and accessible name", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <IssueFiltersPopover
+          state={defaultIssueFilterState}
+          onChange={vi.fn()}
+          activeFilterCount={2}
+          agents={[]}
+          iconOnly
+        />,
+      );
+    });
+
+    const button = container.querySelector("button");
+    expect(button?.getAttribute("aria-label")).toBe("筛选：2");
+    expect(button?.getAttribute("title")).toBe("筛选：2");
+
+    act(() => root.unmount());
   });
 
   it("uses a scrollable popover and a three-column desktop grid", () => {

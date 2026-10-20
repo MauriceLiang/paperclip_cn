@@ -9,12 +9,13 @@ import {
   typeIcon,
   defaultTypeIcon,
   ApprovalPayloadRenderer,
-  typeLabel,
+  approvalTypeLabel,
 } from "./ApprovalPayload";
 import { timeAgo } from "../lib/timeAgo";
 import type { Approval, Agent } from "@paperclipai/shared";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { useTranslation } from "@/i18n";
 
 function statusIcon(status: string) {
   if (status === "approved") return <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />;
@@ -43,9 +44,10 @@ export function ApprovalCard({
   isPending?: boolean;
   pendingAction?: "approve" | "reject" | null;
 }) {
+  const { t } = useTranslation();
   const payload = approval.payload as Record<string, unknown> | null;
   const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
-  const kindLabel = typeLabel[approval.type] ?? approval.type;
+  const kindLabel = approvalTypeLabel(approval.type, t);
   const subject = approvalSubject(payload);
   const showResolutionButtons =
     Boolean(onApprove && onReject) &&
@@ -71,7 +73,7 @@ export function ApprovalCard({
                 </Badge>
                 {requesterAgent && (
                   <div className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                    <span>Requested by</span>
+                    <span>{t("issueComponents.approvalPayload.requestedBy")}</span>
                     <AgentIdentity agent={requesterAgent} size="sm" className="inline-flex" />
                   </div>
                 )}
@@ -81,7 +83,7 @@ export function ApprovalCard({
                   {subject ?? kindLabel}
                 </h3>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Approval request created {timeAgo(approval.createdAt)}
+                  {t("issueComponents.approvalPayload.requestCreated", { time: timeAgo(approval.createdAt) })}
                 </p>
               </div>
             </div>
@@ -105,7 +107,7 @@ export function ApprovalCard({
 
       {approval.decisionNote && (
         <div className="mt-4 rounded-lg border border-border/60 bg-muted/30 px-3.5 py-3 text-xs leading-5 text-muted-foreground">
-          <span className="font-medium text-foreground">Decision note.</span> {approval.decisionNote}
+          <span className="font-medium text-foreground">{t("issueComponents.approvalPayload.decisionNote")}</span> {approval.decisionNote}
         </div>
       )}
 
@@ -139,11 +141,11 @@ export function ApprovalCard({
                 to={detailLink}
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-auto px-2 text-xs text-muted-foreground")}
               >
-                View details
+                {t("issueComponents.dispositionRecoveryNotice.viewDetails")}
               </Link>
             ) : (
               <Button variant="ghost" size="sm" className="h-auto px-2 text-xs text-muted-foreground" onClick={onOpen}>
-                View details
+                {t("issueComponents.dispositionRecoveryNotice.viewDetails")}
               </Button>
             )
           ) : null}

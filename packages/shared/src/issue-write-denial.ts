@@ -10,9 +10,10 @@
  *   2. who *can* act,
  *   3. the sanctioned path forward.
  *
- * This module is the single source of truth for that copy, so the API error
- * body an agent reads and the notice a human sees in the UI are the same words.
- * It is the issue-write sibling of `responsible-user-denial.ts`: the two
+ * This module is the English API error-copy contract. The board UI renders
+ * equivalent localized copy by denial code while preserving the same boundary,
+ * actor, and sanctioned-path meaning. It is the issue-write sibling of
+ * `responsible-user-denial.ts`: the two
  * responsible-user ceiling codes delegate to that module's copy so terminology
  * ("on behalf of {user}", never "impersonate") stays consistent.
  */

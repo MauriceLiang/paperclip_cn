@@ -1,6 +1,6 @@
 import type { IssueExecutionPolicy, IssueExecutionStageParticipant, IssueExecutionStagePrincipal } from "@paperclipai/shared";
 import { issueExecutionPolicySchema } from "@paperclipai/shared";
-import { parseAssigneeValue } from "./assignees";
+import { parseAssigneeValue } from "./assignee-values";
 import { createUuid as newId } from "./uuid";
 
 type StageType = "review" | "approval";

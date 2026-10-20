@@ -15,6 +15,7 @@ import { SearchFilterChips } from "@/components/search/SearchFilterChips";
 import { ZeroResultsRecovery } from "@/components/search/ZeroResultsRecovery";
 import type { FilterChipLookups, SearchFilters } from "@/lib/search-filters";
 import { SEARCH_OPERATOR_QUICK_FILTERS, searchOperatorSuggestions } from "@/lib/search-query-parser";
+import { t } from "@/i18n";
 import { Tabs } from "@/components/ui/tabs";
 import {
   Bot,
@@ -387,7 +388,9 @@ function SearchOperatorInputPreview() {
               className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5"
             >
               <span className="font-mono text-(length:--text-micro)">{suggestion.token}</span>
-              <span className="hidden text-(length:--text-micro) sm:inline">{suggestion.description}</span>
+              <span className="hidden text-(length:--text-micro) sm:inline">
+                {t(`dashboardPage.search.operatorSuggestions.${suggestion.copyKey}`)}
+              </span>
             </span>
           ))}
         </div>

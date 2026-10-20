@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAnnouncementAnimation } from "@/hooks/useAnnouncementAnimation";
+import { useTranslation } from "@/i18n";
+import { announcementForDisplay } from "@/lib/announcement-copy";
 
 export interface AnnouncementCardProps {
   announcement: Announcement;
@@ -28,11 +30,13 @@ function Action({ action, primary, onClick }: { action: AnnouncementAction; prim
 }
 
 export function AnnouncementCard({ announcement, onDismiss, imageSrc, animationSrc, className }: AnnouncementCardProps) {
+  const { t } = useTranslation();
+  const displayAnnouncement = announcementForDisplay(announcement, t);
   const titleId = useId();
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  const src = imageSrc ?? `/api/announcements/${encodeURIComponent(announcement.id)}/image`;
-  const showImage = Boolean(announcement.image && failedImage !== src);
-  const animationDocument = useAnnouncementAnimation(announcement, animationSrc);
+  const src = imageSrc ?? `/api/announcements/${encodeURIComponent(displayAnnouncement.id)}/image`;
+  const showImage = Boolean(displayAnnouncement.image && failedImage !== src);
+  const animationDocument = useAnnouncementAnimation(displayAnnouncement, animationSrc);
   const showAnimation = Boolean(animationDocument);
   return (
     <Card
@@ -44,22 +48,22 @@ export function AnnouncementCard({ announcement, onDismiss, imageSrc, animationS
       }}
     >
       {(showImage || animationDocument) && <div className="relative h-(--announcement-image-mobile-height) w-full shrink-0 overflow-hidden bg-muted md:h-(--announcement-image-height)">
-        {showImage && <img src={src} alt={showAnimation ? "" : announcement.image!.alt} referrerPolicy="no-referrer" onError={() => setFailedImage(src)} className="h-full w-full object-cover" />}
-        {showAnimation && <div role="img" aria-label={announcement.animation!.alt} className="pointer-events-none absolute inset-0">
-          <iframe title={announcement.animation!.alt} aria-hidden="true" tabIndex={-1} sandbox="" referrerPolicy="no-referrer" srcDoc={animationDocument!} className="h-full w-full border-0" />
+        {showImage && <img src={src} alt={showAnimation ? "" : displayAnnouncement.image!.alt} referrerPolicy="no-referrer" onError={() => setFailedImage(src)} className="h-full w-full object-cover" />}
+        {showAnimation && <div role="img" aria-label={displayAnnouncement.animation!.alt} className="pointer-events-none absolute inset-0">
+          <iframe title={displayAnnouncement.animation!.alt} aria-hidden="true" tabIndex={-1} sandbox="" referrerPolicy="no-referrer" srcDoc={animationDocument!} className="h-full w-full border-0" />
         </div>}
       </div>}
-      <Button variant="secondary" size="icon" aria-label="Dismiss announcement" onClick={onDismiss} className="absolute right-2 top-2 z-10 size-8 rounded-full shadow-sm">
+      <Button variant="secondary" size="icon" aria-label={t("common.dismissNotification")} onClick={onDismiss} className="absolute right-2 top-2 z-10 size-8 rounded-full shadow-sm">
         <X className="size-4" aria-hidden="true" />
       </Button>
       <div className={cn("flex flex-col gap-1 px-4 py-4", !showImage && !animationDocument && "pr-12")}>
-        <p className="text-xs text-muted-foreground">{announcement.eyebrow}</p>
-        <h2 id={titleId} className="break-words text-base font-semibold leading-snug">{announcement.title}</h2>
-        <p className="break-words text-sm leading-snug text-muted-foreground">{announcement.description}</p>
+        <p className="text-xs text-muted-foreground">{displayAnnouncement.eyebrow}</p>
+        <h2 id={titleId} className="break-words text-base font-semibold leading-snug">{displayAnnouncement.title}</h2>
+        <p className="break-words text-sm leading-snug text-muted-foreground">{displayAnnouncement.description}</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
-        {announcement.secondaryLink && <Action action={announcement.secondaryLink} onClick={onDismiss} />}
-        <div className="ml-auto min-w-0 max-w-full"><Action action={announcement.primaryAction} primary onClick={onDismiss} /></div>
+        {displayAnnouncement.secondaryLink && <Action action={displayAnnouncement.secondaryLink} onClick={onDismiss} />}
+        <div className="ml-auto min-w-0 max-w-full"><Action action={displayAnnouncement.primaryAction} primary onClick={onDismiss} /></div>
       </div>
     </Card>
   );

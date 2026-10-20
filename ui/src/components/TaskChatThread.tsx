@@ -134,6 +134,7 @@ import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 import { useQueryClient } from "@tanstack/react-query";
 import { TaskChatPresentationProvider } from "@/components/task-chat/presentation-mode";
+import { t as translate, useTranslation } from "@/i18n";
 
 const EMPTY_BROWSERS: TaskBrowser[] = [];
 
@@ -444,26 +445,26 @@ function durableInputLabel(
   interaction: TaskChatInteractionItem["interaction"],
 ): string {
   if (interaction.kind === "ask_user_questions")
-    return interaction.title ?? "Questions";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.questions");
   if (interaction.kind === "suggest_tasks")
-    return interaction.title ?? "Suggested tasks";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.suggestedTasks");
   if (interaction.kind === "request_checkbox_confirmation")
-    return interaction.title ?? "Choose options";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.chooseOptions");
   if (interaction.kind === "request_item_verdicts")
-    return interaction.title ?? "Review items";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.reviewItems");
   if (interaction.kind === "connection_intent")
-    return interaction.title ?? "Connect service";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.connectService");
   if (
     interaction.payload.target?.type === "issue_document" &&
     interaction.payload.target.key === "plan"
   ) {
-    return interaction.title ?? "Review plan";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.reviewPlan");
   }
   if (interaction.payload.toolAction)
-    return interaction.title ?? "Approve tool action";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.approveToolAction");
   if (interaction.payload.secretProposal)
-    return interaction.title ?? "Review secret proposal";
-  return interaction.title ?? "Confirmation";
+    return interaction.title ?? translate("issueComponents.taskChat.inputLabels.reviewSecretProposal");
+  return interaction.title ?? translate("issueComponents.taskChat.inputLabels.confirmation");
 }
 
 /**
@@ -517,7 +518,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
     showComposer = true,
     composerPause,
     composerDisabledReason,
-    emptyMessage = "No messages yet.",
+    emptyMessage,
     companyId,
     linkedRuns,
     liveRuns,
@@ -569,6 +570,8 @@ export function TaskChatThread(props: TaskChatThreadProps) {
     resumeAssigneePending = false,
     onOpenSkill,
   } = props;
+  const { t, i18n } = useTranslation();
+  const resolvedEmptyMessage = emptyMessage ?? t("issueComponents.taskChat.emptyMessages");
   const retryFailedRunHandler =
     isTerminalIssueStatus(issueStatus) ||
     interactions?.some((interaction) => interaction.status === "pending") ||
@@ -629,7 +632,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
       assigneeUserId: string | null;
     }) => {
       if (!issueId)
-        throw new Error("The task is not available for reassignment.");
+        throw new Error(t("issueComponents.taskChat.taskNotReassignable"));
       await issuesApi.update(issueId, {
         ...reassignment,
         deferWakeForGoal: true,
@@ -638,7 +641,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         queryKey: queryKeys.issues.detail(issueId),
       });
     },
-    [issueId, queryClient],
+    [issueId, queryClient, t],
   );
 
   const queuedMessageQueue =
@@ -690,14 +693,14 @@ export function TaskChatThread(props: TaskChatThreadProps) {
   const saveQueuedEdit = useCallback(
     async (commentId: string, body: string) => {
       if (!queuedEdit || queuedEdit.commentId !== commentId) {
-        throw new Error("This queued message is no longer editable.");
+        throw new Error(t("issueComponents.taskChat.queuedNotEditable"));
       }
       if (queuedEdit.stale) {
         await onAdd(body);
         return;
       }
       if (!onEditQueuedComment)
-        throw new Error("This queued message is no longer editable.");
+        throw new Error(t("issueComponents.taskChat.queuedNotEditable"));
       try {
         await onEditQueuedComment(commentId, body, queuedEdit.revision);
       } catch (error) {
@@ -734,7 +737,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         throw error;
       }
     },
-    [onAdd, onEditQueuedComment, queuedEdit],
+    [onAdd, onEditQueuedComment, queuedEdit, t],
   );
 
   useEffect(() => {
@@ -1295,7 +1298,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
           surface: "resource",
           resourceKind: "document",
           title: documentDisplayTitle(document),
-          subtitle: `Document · rev ${document.latestRevisionNumber}`,
+          subtitle: t("issueComponents.taskChat.documentResourceSubtitle", { number: document.latestRevisionNumber }),
           href: buildDocumentAnnotationHash({
             documentKey: document.key,
             threadId: null,
@@ -1346,7 +1349,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
           kind: "protocol",
           surface: "resource",
           resourceKind: "attachment",
-          title: attachment.originalFilename ?? "Agent attachment",
+          title: attachment.originalFilename ?? t("issueComponents.taskChat.agentAttachment"),
           subtitle: `${attachment.contentType} · ${formatResourceBytes(attachment.byteSize)}`,
           href: safeResourceHref(attachment.openPath ?? attachment.contentPath),
           timestamp: new Date(attachment.createdAt).toISOString(),
@@ -1389,7 +1392,9 @@ export function TaskChatThread(props: TaskChatThreadProps) {
           id,
           kind: "browser",
           browser,
-          label: browsers.length > 1 ? `Browser ${index + 1}` : "Browser",
+          label: browsers.length > 1
+            ? t("issueComponents.taskChat.browserLabel", { number: index + 1 })
+            : t("issueComponents.taskChat.browserLabelSingle"),
           timestamp: browser.createdAt,
         },
       });
@@ -1418,6 +1423,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
     heldPaperclipRunnerStartedAtMs,
     heldPaperclipRunnerFinalText,
     queuedCommentIds,
+    t,
   ]);
 
   const legacyTimelineAnchorsByRun = useMemo(() => {
@@ -1568,8 +1574,8 @@ export function TaskChatThread(props: TaskChatThreadProps) {
             id,
             item: {
               id, kind: "marker", variant: "interrupted", tone: "neutral",
-              label: "Waiting to resume",
-              detail: "The previous execution needs to be checked before work can continue. See the task’s execution hold for the next action. Individual checks remain in the run history.",
+              label: t("issueComponents.taskChat.executionWaitLabel"),
+              detail: t("issueComponents.taskChat.executionWaitDetail"),
             },
           });
         }
@@ -1654,42 +1660,49 @@ export function TaskChatThread(props: TaskChatThreadProps) {
             : "native_runner_process_exited");
         const label =
           code === "native_provider_runtime_missing" && source.status === "failed"
-            ? "Runtime missing"
+            ? t("issueComponents.taskChat.runtimeMissing")
             : code === "native_provider_model_rejected" && source.status === "failed"
-            ? "Model unavailable"
+            ? t("issueComponents.taskChat.modelUnavailable")
             : code === "native_provider_approval_required" && source.status === "failed"
-            ? "Approval required"
+            ? t("issueComponents.taskChat.approvalRequired")
             : code === "native_provider_usage_limit" && source.status === "failed"
-            ? "Usage limit reached"
+            ? t("issueComponents.taskChat.usageLimitReached")
             : source.status === "cancelled"
-              ? "Run cancelled"
+              ? t("issueComponents.taskChat.runCancelled")
               : source.status === "interrupted"
-                ? "Run interrupted"
+                ? t("issueComponents.taskChat.runInterrupted")
                 : source.status === "timed_out"
-                  ? "Run timed out"
-                  : "Run failed";
-        const responseBoundary = sourceHasNativeResponse
-          ? " after returning a final response"
-          : "";
+                  ? t("issueComponents.taskChat.runTimedOut")
+                  : t("issueComponents.taskChat.runFailed");
         const detail =
           source.status === "cancelled"
-            ? `The run was cancelled${responseBoundary}.`
+            ? t(sourceHasNativeResponse
+                ? "issueComponents.taskChat.cancelDetailAfterResponse"
+                : "issueComponents.taskChat.cancelDetail")
             : source.status === "interrupted"
-              ? `The run was interrupted${responseBoundary}.`
+              ? t(sourceHasNativeResponse
+                  ? "issueComponents.taskChat.interruptDetailAfterResponse"
+                  : "issueComponents.taskChat.interruptDetail")
               : code === "native_provider_runtime_missing"
-                ? "The selected provider runtime is missing a required package. Reinstall or rebuild Paperclip with its bundled provider dependencies, restart the server, then test the agent's runtime before retrying."
+                ? t("issueComponents.taskChat.runtimeMissingDetail")
               : code === "native_provider_approval_required"
-                ? "This operation requires approval, but this runner has no interactive approval handler. Review the operation and update the agent's permission setting before retrying."
+                ? t("issueComponents.taskChat.approvalRequiredDetail")
                 : code === "native_provider_model_rejected"
-                ? `${meta?.error || "The provider rejected the selected model."} Choose a supported model or clear the task's model override, then retry.`
+                ? t("issueComponents.taskChat.modelRejectedDetail", {
+                    error: meta?.error || t("issueComponents.taskChat.modelRejectedFallback"),
+                  })
                 : code === "native_provider_usage_limit" &&
                     source.status === "failed"
-                  ? "The model provider has reached its current usage limit. Try again after the limit resets."
+                  ? t("issueComponents.taskChat.usageLimitDetail")
                   : code === "provider_frame_too_large"
-                    ? "Provider output exceeded the safe limit."
+                    ? t("issueComponents.taskChat.providerFrameTooLarge")
                     : source.status === "timed_out"
-                      ? `The runner timed out${responseBoundary} (${code}).`
-                      : `The runner stopped${responseBoundary} (${code}).`;
+                      ? t(sourceHasNativeResponse
+                          ? "issueComponents.taskChat.timedOutAfterResponseDetail"
+                          : "issueComponents.taskChat.timedOutDetail", { code })
+                      : t(sourceHasNativeResponse
+                          ? "issueComponents.taskChat.stoppedAfterResponseDetail"
+                          : "issueComponents.taskChat.stoppedDetail", { code });
         const id = `${source.id}:failure`;
         const runAgent = meta?.agentId
           ? agentMap?.get(meta.agentId)
@@ -1732,10 +1745,10 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         settledRunIds.add(source.id);
         const code = meta?.errorCode ?? "native_runner_process_exited";
         const retryDetail = meta?.scheduledRetryAt
-          ? "Retry scheduled automatically."
+          ? t("issueComponents.taskChat.retryScheduledAutomatically")
           : canRetryFailedRun
-            ? "You can retry this message now."
-            : "Your message is preserved.";
+            ? t("issueComponents.taskChat.retryNowHint")
+            : t("issueComponents.taskChat.messagePreserved");
         const restoreFailed = hasWorkspaceRestoreFailure(meta?.resultJson);
         const branchUnavailable = (meta?.resultJson?.configurationIncomplete as Record<string, unknown> | undefined)?.reason === "workspace_base_ref_unresolved";
         const savedPlan = Boolean(planDocument && (meta?.resultJson?.savedPlanRevisionId === planDocument.latestRevisionId || interactions?.some((interaction) =>
@@ -1743,22 +1756,22 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         )));
         const aiRequest = interactions?.find((interaction) => interaction.kind === "connection_intent" && interaction.payload.purpose === "ai" && interaction.sourceRunId === source.id);
         const detail = branchUnavailable
-          ? "Repair the starting branch below before retrying."
+          ? t("issueComponents.taskChat.repairStartingBranch")
           : restoreFailed
           ? workspaceRestoreMarkerDetail({ result: meta?.resultJson, savedPlan, hasResponse: sourceHasPresentationComment || Boolean(acceptedSummary) })
           : aiRequest
           ? aiRequest.status === "pending"
-            ? "Use the connection card below to continue."
-            : "This run stopped because its AI account was unavailable."
+            ? t("issueComponents.taskChat.connectionCardContinue")
+            : t("issueComponents.taskChat.aiAccountUnavailable")
           : source.status === "cancelled"
             ? code === "execution_reconciliation_required"
-              ? "The previous execution must be checked before this task can continue. Your message is preserved. View the stopped run for details."
-              : "Execution was stopped."
+              ? t("issueComponents.taskChat.executionReconcileRequired")
+              : t("issueComponents.taskChat.executionStopped")
             : code === "provider_frame_too_large"
-            ? `Provider output exceeded the safe limit. ${retryDetail}`
+            ? t("issueComponents.taskChat.providerOutputTooLargeWithRetry", { detail: retryDetail })
             : code.startsWith("workspace_git_scan_")
-            ? `Workspace setup failed before the agent started. ${retryDetail}`
-            : `The run failed (${code}). ${retryDetail}`;
+            ? t("issueComponents.taskChat.workspaceSetupFailedWithRetry", { detail: retryDetail })
+            : t("issueComponents.taskChat.runFailedWithCode", { code, detail: retryDetail });
         const id = `${source.id}:failure`;
         if (!historical) entriesWithFailures.push({
           ms: toMs(meta?.finishedAt ?? meta?.startedAt ?? meta?.createdAt),
@@ -1768,7 +1781,15 @@ export function TaskChatThread(props: TaskChatThreadProps) {
             id,
             kind: "marker",
             variant: "interrupted",
-            label: branchUnavailable ? "Starting branch unavailable" : restoreFailed ? "Workspace restore failed" : aiRequest?.status === "pending" ? "AI connection needed" : source.status === "cancelled" ? (meta?.startedAt ? "Stopped" : "Couldn't start") : "Run failed",
+            label: branchUnavailable
+              ? t("issueComponents.taskChat.startingBranchUnavailable")
+              : restoreFailed
+                ? t("issueComponents.taskChat.workspaceRestoreFailed")
+                : aiRequest?.status === "pending"
+                  ? t("issueComponents.taskChat.aiConnectionNeeded")
+                  : source.status === "cancelled"
+                    ? (meta?.startedAt ? t("issueComponents.taskChat.stopped") : t("issueComponents.taskChat.couldNotStart"))
+                    : t("issueComponents.taskChat.runFailed"),
             runId: source.status === "cancelled" ? undefined : source.id,
             ...(branchUnavailable || aiRequest?.status === "pending" ? { retryable: false } : {}),
             ...(restoreFailed ? {
@@ -1849,8 +1870,12 @@ export function TaskChatThread(props: TaskChatThreadProps) {
               id,
               kind: "marker",
               variant: "turn_boundary",
-              label: source.status === "cancelled" ? "Stopped" : "Run completed",
-              detail: source.status === "cancelled" ? "This turn was cancelled before it returned a response." : "The runner returned no user-facing response.",
+              label: source.status === "cancelled"
+                ? t("issueComponents.taskChat.stopped")
+                : t("issueComponents.taskChat.runCompleted"),
+              detail: source.status === "cancelled"
+                ? t("issueComponents.taskChat.cancelledBeforeResponse")
+                : t("issueComponents.taskChat.noUserFacingResponse"),
             },
           });
         }
@@ -1881,8 +1906,8 @@ export function TaskChatThread(props: TaskChatThreadProps) {
             id,
             kind: "marker",
             variant: "turn_boundary",
-            label: "Run completed",
-            detail: "The runner returned no user-facing response.",
+            label: t("issueComponents.taskChat.runCompleted"),
+            detail: t("issueComponents.taskChat.noUserFacingResponse"),
           },
         });
       }
@@ -2183,6 +2208,8 @@ export function TaskChatThread(props: TaskChatThreadProps) {
     agentMap,
     currentUserId,
     userLabelMap,
+    t,
+    i18n.language,
   ]);
 
   // Hand off once the settled turn or its reply comment is in the thread; a
@@ -2355,10 +2382,12 @@ export function TaskChatThread(props: TaskChatThreadProps) {
       ? toMs(settlingFinishedAt)
       : null;
   const tailToolSummary = useMemo(
-    () => (tailRunId ? toolCountSummaryFromEntries(tailEntries) : null),
+    () => (tailRunId
+      ? toolCountSummaryFromEntries(tailEntries, (key, values) => t(key, values))
+      : null),
     // tailEntries is a fresh array each render; tailContentKey tracks its content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tailRunId, tailContentKey],
+    [tailRunId, tailContentKey, i18n.language],
   );
 
   // The tail's clean rows (PAP-463 C1): the streaming transcript parsed through
@@ -2401,6 +2430,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
       tailStreaming,
       tailAgentName,
       tailPlanContentKey,
+      i18n.language,
     ],
   );
   const tailTurnStatus = useMemo(
@@ -2420,14 +2450,14 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         interaction.kind === "ask_user_questions" && interaction.sourceRunId === item.runId &&
         interaction.payload.runtimeRequestId === item.requestId);
       if (projected?.kind === "ask_user_questions") {
-        if (projected.status !== "pending") throw new Error("This question has already been answered or closed.");
+        if (projected.status !== "pending") throw new Error(t("issueComponents.taskChat.questionAlreadyAnswered"));
         if (decision.action === "cancel") {
-          if (!onCancelInteraction) throw new Error("Cancelling this question is unavailable.");
+          if (!onCancelInteraction) throw new Error(t("issueComponents.taskChat.cancelQuestionUnavailable"));
           await onCancelInteraction(projected);
           return;
         }
         if (decision.action !== "submit" || !("response" in decision) || !projected.payload.questionSet || !onSubmitInteractionAnswers) {
-          throw new Error("Submit the answer through the saved question card.");
+          throw new Error(t("issueComponents.taskChat.submitThroughQuestionCard"));
         }
         const response = decision.response;
         await onSubmitInteractionAnswers(projected, projected.payload.questionSet.questions.map(question => {
@@ -2440,7 +2470,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
       }
       if (!item.turnId || !item.requestKind) {
         throw new Error(
-          "This runtime request is missing the provider turn identity needed to resolve it.",
+          t("issueComponents.taskChat.runtimeRequestMissingTurn"),
         );
       }
       let resolution: RuntimeRequestResolution;
@@ -2462,7 +2492,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         resolution = { action: "submit", content: decision.values };
       } else {
         throw new Error(
-          "This runtime permission does not accept submitted form data.",
+          t("issueComponents.taskChat.runtimePermissionNoFormData"),
         );
       }
       await heartbeatsApi.resolveRuntimeRequest({
@@ -2473,7 +2503,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         resolution,
       });
     },
-    [interactions, onSubmitInteractionAnswers, onCancelInteraction],
+    [interactions, onSubmitInteractionAnswers, onCancelInteraction, t],
   );
   const pendingComposerInputs = useMemo<PendingComposerInput[]>(() => {
     const result: PendingComposerInput[] = [];
@@ -2493,8 +2523,8 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         label:
           pendingRuntimeRequest.questionSet?.title ??
           (pendingRuntimeRequest.requestType === "permission"
-            ? "Runtime permission"
-            : "Runtime input"),
+            ? t("issueComponents.taskChat.runtimePermission")
+            : t("issueComponents.taskChat.runtimeInput")),
       });
     }
     const durable = (interactions ?? [])
@@ -2522,7 +2552,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
       });
     }
     return result;
-  }, [interactions, pendingRuntimeRequest]);
+  }, [interactions, pendingRuntimeRequest, t]);
   // Questions already have an answerable history card, including
   // when the user dismisses a fresh form without sending another message.
   const pendingReminderInputs = useMemo(() => pendingComposerInputs.filter(input =>
@@ -2594,12 +2624,12 @@ export function TaskChatThread(props: TaskChatThreadProps) {
         await handleRuntimeRequestDecision(input.item, { action: "cancel" });
       } else {
         if (!onSkipInteraction)
-          throw new Error("Skipping this interaction is unavailable.");
+          throw new Error(t("issueComponents.taskChat.skipInteractionUnavailable"));
         await onSkipInteraction(input.interaction);
       }
       setTakeoverMode("normal");
     },
-    [handleRuntimeRequestDecision, onSkipInteraction],
+    [handleRuntimeRequestDecision, onSkipInteraction, t],
   );
   const runtimeComposerDisabledReason = composerDisabledReason ?? undefined;
   const assigneeUsesPaperclipRunner = Boolean(
@@ -2705,11 +2735,13 @@ export function TaskChatThread(props: TaskChatThreadProps) {
           disabled={isInterrupting}
           onClick={() => void onInterruptQueued(runId)}
         >
-          {isInterrupting ? "Interrupting…" : "Interrupt"}
+          {isInterrupting
+            ? t("issueComponents.taskChat.interrupting")
+            : t("issueComponents.taskChat.interrupt")}
         </Button>
       );
     },
-    [composerPause, interruptingQueuedRunId, onInterruptQueued],
+    [composerPause, interruptingQueuedRunId, onInterruptQueued, t],
   );
 
   const reopenToolReview = useCallback((interactionId: string) => {
@@ -2994,10 +3026,12 @@ export function TaskChatThread(props: TaskChatThreadProps) {
                   role="status"
                   className="absolute inset-x-0 top-0 z-20 mx-auto flex w-full max-w-(--tc-shell-max-w) items-center gap-2 border border-border bg-background px-4 py-2 text-sm text-muted-foreground"
                 >
-                  {historyError ? "Some task history could not be loaded." : "Some task history is still loading."}
+                  {historyError
+                    ? t("issueComponents.taskChat.historyLoadFailed")
+                    : t("issueComponents.taskChat.historyStillLoading")}
                   {historyError ? (
                     <Button variant="ghost" size="sm" onClick={retryHistory}>
-                      Retry
+                      {t("common.actions.retry")}
                     </Button>
                   ) : null}
                 </div>
@@ -3007,7 +3041,7 @@ export function TaskChatThread(props: TaskChatThreadProps) {
                   className="absolute inset-0 z-10 overflow-hidden bg-background"
                   data-testid="task-chat-history-loading"
                   role="status"
-                  aria-label="Loading conversation"
+                  aria-label={t("issueComponents.taskChat.loadingConversation")}
                 >
                   <div className="mx-auto flex w-full max-w-(--tc-shell-max-w) flex-col gap-4 px-4 py-3">
                     {threadHeader}

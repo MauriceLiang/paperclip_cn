@@ -1,8 +1,13 @@
 import type { Agent } from "@paperclipai/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n";
 import { formatActivityVerb, formatIssueActivityAction } from "./activity-format";
 
 describe("activity formatting", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   const agentMap = new Map<string, Agent>([
     ["agent-reviewer", { id: "agent-reviewer", name: "Reviewer Bot" } as Agent],
     ["agent-approver", { id: "agent-approver", name: "Approver Bot" } as Agent],
@@ -18,6 +23,25 @@ describe("activity formatting", () => {
   it("uses readable verbs for task read-state changes", () => {
     expect(formatActivityVerb("issue.read_marked")).toBe("read");
     expect(formatActivityVerb("issue.read_unmarked")).toBe("marked unread");
+  });
+
+  it("localizes AI connection activity in Simplified Chinese", async () => {
+    await i18n.changeLanguage("zh-CN");
+
+    expect(formatActivityVerb("ai_connection.local_login_started")).toBe("开始本地 AI 登录");
+    expect(formatActivityVerb("ai_connection.local_login_cancelled")).toBe("取消本地 AI 登录");
+    expect(formatActivityVerb("ai_connection.local_login_code_submitted")).toBe("提交了本地 AI 登录代码");
+  });
+
+  it("localizes issue status, priority, assignee, and review-policy change summaries", async () => {
+    await i18n.changeLanguage("zh-CN");
+
+    expect(formatActivityVerb("issue.updated", { status: "in_progress" }))
+      .toBe("将任务状态改为进行中：");
+    expect(formatIssueActivityAction("issue.updated", { priority: "high" }))
+      .toBe("将优先级改为高");
+    expect(formatIssueActivityAction("issue.updated", { reviewPolicy: "human_only" }))
+      .toBe("将审批权限改为仅限人工");
   });
 
   it("formats blocker activity using linked issue identifiers", () => {
@@ -54,6 +78,21 @@ describe("activity formatting", () => {
 
     expect(formatActivityVerb("issue.approvers_updated", details)).toBe("removed approver Board from");
     expect(formatIssueActivityAction("issue.approvers_updated", details)).toBe("removed approver Board");
+  });
+
+  it("localizes the local board actor in Simplified Chinese activity", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const details = {
+      addedParticipants: [],
+      removedParticipants: [
+        { type: "user", agentId: null, userId: "local-board" },
+      ],
+    };
+
+    const verb = formatActivityVerb("issue.approvers_updated", details);
+
+    expect(verb).toContain("看板");
+    expect(verb).not.toContain("Board");
   });
 
   it("falls back to updated wording when reviewers are both added and removed", () => {

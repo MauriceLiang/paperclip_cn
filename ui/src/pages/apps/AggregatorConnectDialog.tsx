@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import type { AggregatorAppCatalogEntry, AggregatorAppRoute } from "@paperclipai/shared/aggregator-app-catalog";
 import { isToolConnectionAttentionHealth, type ToolConnection } from "@paperclipai/shared";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppLogo } from "./AppLogo";
 import { remoteMcpProviders } from "@/features/connections/remote-mcp/providers";
@@ -23,6 +24,7 @@ export function AggregatorConnectDialog({ app, connections, initialProvider, onC
   onClose: () => void;
   onNavigate: (href: string) => void;
 }) {
+  const { t } = useTranslation();
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selected, setSelected] = useState<AggregatorAppRoute | null>(() => app.routes.find(route => route.provider === initialProvider) ?? (app.routes.length === 1 ? app.routes[0] : null));
   const canChooseProvider = app.routes.length > 1;
@@ -39,26 +41,26 @@ export function AggregatorConnectDialog({ app, connections, initialProvider, onC
   return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{provider ? `Connect ${app.name} through ${provider.name}` : `Connect ${app.name}`}</DialogTitle>
+        <DialogTitle>{provider ? t("appsPage.aggregatorConnect.titleWithProvider", { app: app.name, provider: provider.name }) : t("appsPage.aggregatorConnect.title", { app: app.name })}</DialogTitle>
         <DialogDescription className={selected?.provider === "composio" ? "sr-only" : undefined}>{selected?.provider === "composio"
-          ? `Choose a saved Composio account or connect a new one to use ${app.name}.`
+          ? t("appsPage.aggregatorConnect.composioDescription", { app: app.name })
           : provider
-          ? `Your ${provider.name} gateway is already saved. ${app.name} authorization is managed inside ${provider.name}.`
-          : "Which service would you like to use? This service handles the connection and requests to this app."}</DialogDescription>
+          ? t("appsPage.aggregatorConnect.providerDescription", { app: app.name, provider: provider.name })
+          : t("appsPage.aggregatorConnect.chooseProviderDescription")}</DialogDescription>
       </DialogHeader>
       {!selected ? <div className="space-y-2">{[...app.routes].sort((a, b) => Number(Boolean(connections[b.provider]?.length)) - Number(Boolean(connections[a.provider]?.length))).map((route) => {
         const accounts = connections[route.provider] ?? [];
         const name = remoteMcpProviders[route.provider].name;
         const status = accounts.some((connection) => connection.status === "active" && connection.enabled && !isToolConnectionAttentionHealth(connection.healthStatus))
-          ? "Already connected" : accounts.some((connection) => connection.status === "draft") ? "Setup incomplete" : accounts.length ? "Needs attention" : "Set up a connection";
+          ? t("appsPage.aggregatorConnect.alreadyConnected") : accounts.some((connection) => connection.status === "draft") ? t("appsPage.connectionState.setupIncomplete") : accounts.length ? t("appsPage.connectionState.needsAttention") : t("appsPage.aggregatorConnect.setUpConnection");
         return <button type="button" key={route.provider} onClick={() => choose(route)}
           className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <AppLogo name={name} brandKey={route.provider} size={24} />
           <div className="min-w-0 flex-1"><div className="text-sm font-medium">{name}</div><div className="text-xs text-muted-foreground">{status}</div></div>
-          <span className="text-xs text-muted-foreground">Continue →</span>
+          <span className="text-xs text-muted-foreground">{t("appsPage.aggregatorConnect.continue")}</span>
         </button>;
       })}</div> : <div className="space-y-4">
-        {selected.provider !== "composio" ? <div className="space-y-2"><Label htmlFor="aggregator-account">{provider!.name} account</Label>
+        {selected.provider !== "composio" ? <div className="space-y-2"><Label htmlFor="aggregator-account">{t("appsPage.aggregatorConnect.providerAccount", { provider: provider!.name })}</Label>
           <select id="aggregator-account" value={account?.id ?? ""} onChange={event => setSelectedAccountId(event.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
             {existing.map(connection => <option key={connection.id} value={connection.id}>{connection.name}</option>)}
           </select>
@@ -68,10 +70,10 @@ export function AggregatorConnectDialog({ app, connections, initialProvider, onC
 
       </div>}
       {selected?.provider !== "composio" ? <DialogFooter className="sm:items-center sm:justify-between">
-        <Button variant="ghost" onClick={selected && canChooseProvider ? () => setSelected(null) : onClose}>{selected && canChooseProvider ? "Back" : "Cancel"}</Button>
+        <Button variant="ghost" onClick={selected && canChooseProvider ? () => setSelected(null) : onClose}>{selected && canChooseProvider ? t("common.goBack") : t("common.actions.cancel")}</Button>
         {selected ? <div className="flex flex-wrap items-center gap-3">
-          {managementUrl ? <Button asChild><a href={managementUrl} target="_blank" rel="noopener noreferrer" onClick={onClose}>Continue<ExternalLink className="size-4" /></a></Button> : null}
-          <Button variant="link" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground" onClick={() => { onNavigate(`${aggregatorAppConnectHref(selected)}&new=1`); onClose(); }}>Connect a new account</Button>
+          {managementUrl ? <Button asChild><a href={managementUrl} target="_blank" rel="noopener noreferrer" onClick={onClose}>{t("appsPage.aggregatorConnect.continueAction")}<ExternalLink className="size-4" /></a></Button> : null}
+          <Button variant="link" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground" onClick={() => { onNavigate(`${aggregatorAppConnectHref(selected)}&new=1`); onClose(); }}>{t("appsPage.aggregatorConnect.connectNewAccount")}</Button>
         </div> : null}
       </DialogFooter> : null}
     </DialogContent>

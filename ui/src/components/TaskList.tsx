@@ -3,6 +3,7 @@ import type { Issue } from "@paperclipai/shared";
 import { ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { buildIssueTree } from "../lib/issue-tree";
 import { issueFilterLabel } from "../lib/issue-filters";
+import { t as translate } from "@/i18n";
 import { allTaskListColumns, defaultTaskListColumns, defaultTaskListSort, sortTaskListItems, type TaskListColumnId, type TaskListSort } from "../lib/task-list";
 import { timeAgo } from "../lib/timeAgo";
 import { IssueRow, type IssueRowDensity } from "./IssueRow";
@@ -109,7 +110,7 @@ export function TaskList({ items, allItems = items, initialColumns = defaultTask
   };
   const groups = new Map<string, Issue[]>();
   for (const root of roots) {
-    const label = groupBy === "status" ? issueFilterLabel(root.status) : groupBy === "project" ? root.project?.name ?? "No project" : "";
+    const label = groupBy === "status" ? issueFilterLabel(root.status, translate) : groupBy === "project" ? root.project?.name ?? "No project" : "";
     groups.set(label, [...(groups.get(label) ?? []), root]);
   }
   return (

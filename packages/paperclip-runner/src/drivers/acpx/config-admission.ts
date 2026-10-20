@@ -1,7 +1,6 @@
 function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
-
 export function createAcpxConfigAdmission(expected: string, options: { label: string; configId: string; supportedValues: readonly string[]; restoring?: boolean; sessionMode?: boolean }) {
   type State = { sessionId: string | null; mode: string | null; error: Error | null };
   let current: State | null = null;
@@ -93,4 +92,3 @@ export function createAcpxConfigAdmission(expected: string, options: { label: st
   };
   function assertNoError() { if (current?.error) throw current.error; }
 }
-

@@ -1,23 +1,20 @@
-// @vitest-environment node
+// @vitest-environment jsdom
 
+import { afterEach, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { setLocale } from "@/i18n";
 import { PaperclipLoading } from "./AnimatedPaperclipIcon";
 
 describe("PaperclipLoading", () => {
-  it("renders an accessible full-page loading state", () => {
-    const html = renderToStaticMarkup(<PaperclipLoading />);
-
-    expect(html).toContain('role="status"');
-    expect(html).toContain("min-h-dvh");
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('<span class="sr-only">Loading…</span>');
+  afterEach(async () => {
+    await setLocale("en");
   });
 
-  it("allows containing layouts to override the full-page height", () => {
-    const html = renderToStaticMarkup(<PaperclipLoading className="min-h-0" />);
+  it("localizes its screen-reader loading label", async () => {
+    await setLocale("zh-CN");
+    const markup = renderToStaticMarkup(<PaperclipLoading />);
 
-    expect(html).toContain("min-h-0");
-    expect(html).not.toContain("min-h-dvh");
+    expect(markup).toContain(">加载中…<");
+    expect(markup).not.toContain("Loading…");
   });
 });

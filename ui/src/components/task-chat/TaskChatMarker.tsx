@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import { ChevronDown, CircleDot, OctagonX, Square, Flag, KeyRound } from "lucide-react";
 import { useStreamlinedTaskChatPresentation } from "./presentation-mode";
 import type { TaskChatMarkerItem } from "./task-chat-model";
@@ -27,12 +28,29 @@ export function TaskChatMarker({
   onTryAgain?: () => Promise<void> | void;
   tryAgainPending?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const streamlined = useStreamlinedTaskChatPresentation();
   const Icon = item.tone === "neutral" ? Square : VARIANT_ICON[item.variant];
   const interrupted = item.variant === "interrupted" && item.tone !== "neutral";
   const relative = item.createdAtIso ? timeAgo(item.createdAtIso) : undefined;
+  const labelKey = item.variant === "session_start"
+    ? "taskChatPage.marker.newSession"
+    : item.label === "Run failed"
+      ? "taskChatPage.marker.runFailed"
+      : item.label === "Usage limit reached"
+        ? "taskChatPage.marker.usageLimitReached"
+        : null;
+  const label = labelKey ? t(labelKey) : item.label;
+  const detail = item.detail
+    ? item.variant === "session_start"
+      ? t("taskChatPage.transcript.earlierMessagesAvailable")
+      : item.detail
+    : undefined;
+  const tryAgainLabel = tryAgainPending
+    ? t("taskChatPage.marker.tryingAgain")
+    : t("taskChatPage.marker.tryAgain");
   const handleTryAgain = () => {
     void Promise.resolve()
       .then(() => onTryAgain?.())
@@ -42,21 +60,33 @@ export function TaskChatMarker({
 
   if (item.credentialAccess) {
     const { agentName, credentialName, deniedUser, settingsHref } = item.credentialAccess;
+    const deniedByYou = deniedUser === "you";
+    const translatedCredentialName = credentialName || t("taskChatPage.marker.credentialAiFallback");
     return (
       <div role="alert" data-testid="task-chat-credential-access-notice"
         className="tc-enter-marker flex w-full items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
         <KeyRound className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <p className="font-semibold text-destructive">{agentName} couldn’t start</p>
+          <p className="font-semibold text-destructive">
+            {t("taskChatPage.marker.credentialCouldntStart", { agentName })}
+          </p>
           <p className="break-words font-medium text-foreground">
-            {agentName} is configured to use {credentialName || "an AI credential"}, but {deniedUser === "you" ? "you don’t" : `${deniedUser} doesn’t`} have access to that credential.
+            {t(deniedByYou
+              ? "taskChatPage.marker.credentialConfiguredYou"
+              : "taskChatPage.marker.credentialConfiguredOther", {
+              agentName,
+              credentialName: translatedCredentialName,
+              deniedUser,
+            })}
           </p>
           <p className="text-muted-foreground">
-            Choose an AI connection {deniedUser === "you" ? "you can" : `${deniedUser} can`} use, or ask an administrator to update {agentName}’s connection. Then try again.
+            {t(deniedByYou
+              ? "taskChatPage.marker.credentialChooseYou"
+              : "taskChatPage.marker.credentialChooseOther", { agentName, deniedUser })}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button asChild variant="outline" size="sm"><Link to={settingsHref}>Change AI connection</Link></Button>
-            {item.runHref && <Button asChild variant="ghost" size="sm"><Link to={item.runHref}>View run</Link></Button>}
+            <Button asChild variant="outline" size="sm"><Link to={settingsHref}>{t("taskChatPage.marker.changeAiConnection")}</Link></Button>
+            {item.runHref && <Button asChild variant="ghost" size="sm"><Link to={item.runHref}>{t("taskChatPage.marker.viewRun")}</Link></Button>}
           </div>
         </div>
       </div>
@@ -82,7 +112,7 @@ export function TaskChatMarker({
             )}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="truncate font-medium">{item.label}</span>
+            <span className="truncate font-medium">{label}</span>
             {relative ? (
               <span className="shrink-0 text-muted-foreground/70">
                 · {relative}
@@ -105,7 +135,7 @@ export function TaskChatMarker({
               disabled={tryAgainPending}
               data-testid="task-chat-run-failed-try-again"
             >
-              {tryAgainPending ? "Trying again..." : "Try again"}
+              {tryAgainLabel}
             </Button>
           ) : null}
         </div>
@@ -115,21 +145,21 @@ export function TaskChatMarker({
             data-testid="task-chat-collapsible-marker-details"
             className="mt-1 w-full max-w-(--pct-85) overflow-hidden rounded-lg border border-border bg-muted/25 text-left text-sm dark:bg-muted/15"
           >
-            {item.detail ? (
+            {detail ? (
               <div className="px-3 py-2.5 text-foreground/90">
-                {item.detail}
+                {detail}
               </div>
             ) : null}
             {item.runHref || item.planHref || onTryAgain ? (
               <div className="flex items-center justify-end gap-2 border-t border-border/70 bg-background/50 px-3 py-2 dark:bg-background/30">
                 {item.planHref ? (
                   <Button asChild variant="ghost" size="xs">
-                    <Link to={item.planHref}>View saved plan</Link>
+                    <Link to={item.planHref}>{t("taskChatPage.marker.viewSavedPlan")}</Link>
                   </Button>
                 ) : null}
                 {item.runHref ? (
                   <Button asChild variant="ghost" size="xs">
-                    <Link to={item.runHref}>View run</Link>
+                    <Link to={item.runHref}>{t("taskChatPage.marker.viewRun")}</Link>
                   </Button>
                 ) : null}
                 {onTryAgain ? (
@@ -140,7 +170,7 @@ export function TaskChatMarker({
                     disabled={tryAgainPending}
                     data-testid="task-chat-run-failed-try-again"
                   >
-                    {tryAgainPending ? "Trying again..." : "Try again"}
+                    {tryAgainLabel}
                   </Button>
                 ) : null}
               </div>
@@ -155,7 +185,7 @@ export function TaskChatMarker({
     <div
       className="tc-enter-marker flex items-center gap-2 py-1 text-xs text-muted-foreground"
       role={streamlined ? "separator" : undefined}
-      aria-label={streamlined ? item.label : undefined}
+      aria-label={streamlined ? label : undefined}
     >
       <span
         className={cn(
@@ -172,9 +202,9 @@ export function TaskChatMarker({
         )}
       >
         <Icon className="h-3.5 w-3.5" />
-        <span className="font-medium">{item.label}</span>
-        {item.detail ? (
-          <span className="text-muted-foreground">· {item.detail}</span>
+        <span className="font-medium">{label}</span>
+        {detail ? (
+          <span className="text-muted-foreground">· {detail}</span>
         ) : null}
         {onTryAgain ? (
           <Button
@@ -185,7 +215,7 @@ export function TaskChatMarker({
             disabled={tryAgainPending}
             data-testid="task-chat-run-failed-try-again"
           >
-            {tryAgainPending ? "Trying again..." : "Try again"}
+            {tryAgainLabel}
           </Button>
         ) : null}
       </span>

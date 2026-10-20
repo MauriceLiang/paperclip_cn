@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { setLocale } from "@/i18n";
 import { TaskChatMarker } from "./TaskChatMarker";
 import { TaskChatThreadView } from "./TaskChatThreadView";
 
@@ -30,6 +31,29 @@ describe("TaskChatMarker", () => {
     root = null;
     container.remove();
     vi.useRealTimers();
+  });
+
+  it("localizes the new-session marker and its fixed detail in Chinese", async () => {
+    await setLocale("zh-CN");
+    flushSync(() =>
+      root!.render(
+        <ThemeProvider>
+          <TaskChatMarker
+            item={{
+              id: "session-start",
+              kind: "marker",
+              variant: "session_start",
+              label: "New session",
+              detail: "Earlier messages and files are still available.",
+            }}
+          />
+        </ThemeProvider>,
+      ),
+    );
+
+    expect(container.textContent).toContain("新建会话");
+    expect(container.textContent).toContain("较早的消息和文件仍可查看。");
+    expect(container.textContent).not.toContain("Earlier messages and files");
   });
 
   it("renders a failed run as a timestamped disclosure without divider rules", () => {

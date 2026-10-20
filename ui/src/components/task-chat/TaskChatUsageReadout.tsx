@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Gauge } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { TaskChatUsageItem } from "./task-chat-model";
 
 /**
@@ -8,6 +9,7 @@ import type { TaskChatUsageItem } from "./task-chat-model";
  * Recedes to metadata weight so it never competes with message content.
  */
 export function TaskChatUsageReadout({ item }: { item: TaskChatUsageItem }) {
+  const { t } = useTranslation();
   const { used, size, inputTokens, outputTokens, costUsd } = item.usage;
   const contextWindowSize = typeof size === "number" && size > 0 ? size : null;
   const pct = contextWindowSize ? Math.min(100, Math.round((used / contextWindowSize) * 100)) : 0;
@@ -15,7 +17,11 @@ export function TaskChatUsageReadout({ item }: { item: TaskChatUsageItem }) {
     <div className="flex flex-col gap-1 px-1 py-1 text-(length:--text-micro) text-muted-foreground">
       <div className="flex items-center gap-1.5">
         <Gauge className="h-3 w-3" />
-        {item.label ? <span className="font-medium">{item.label}</span> : null}
+        {item.label || item.labelKey ? (
+          <span className="font-medium">
+            {item.labelKey ? t(item.labelKey) : item.label}
+          </span>
+        ) : null}
         {contextWindowSize ? (
           <span>
             {used.toLocaleString()}/{contextWindowSize.toLocaleString()} ctx ({pct}%)
@@ -28,7 +34,9 @@ export function TaskChatUsageReadout({ item }: { item: TaskChatUsageItem }) {
         ) : null}
         {costUsd != null ? <span>· ${costUsd.toFixed(4)}</span> : null}
       </div>
-      {item.detail ? <div>{item.detail}</div> : null}
+      {item.detail || item.detailKey ? (
+        <div>{item.detailKey ? t(item.detailKey) : item.detail}</div>
+      ) : null}
       {contextWindowSize ? (
         <div className="h-1 w-full overflow-hidden rounded-full bg-border">
           <div

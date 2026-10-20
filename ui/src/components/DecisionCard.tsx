@@ -22,6 +22,10 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { MarkdownBody } from "./MarkdownBody";
+import { Trans } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useTranslation } from "@/i18n";
+import { sentenceCaseStatusLabel, statusLabel } from "@/i18n/status";
 
 /**
  * Presentational card for a single Decisions-v1 decision (PAP-14966 / PAP-14939
@@ -63,19 +67,15 @@ export interface DecisionCardProps {
 
 // --- small helpers ----------------------------------------------------------
 
-function humanStatus(status: string | null | undefined): string {
-  if (!status) return "unknown";
-  return status.replaceAll("_", " ");
+function humanStatus(status: string | null | undefined, t: TFunction): string {
+  if (!status) return t("chatComponents.decisionCard.unknownStatus");
+  return statusLabel(status, t).toLowerCase();
 }
 
-function issueLabel(ref: DecisionIssueRef | null, fallbackId: string): string {
+function issueLabel(ref: DecisionIssueRef | null, fallbackId: string, t: TFunction): string {
   if (ref?.identifier) return ref.identifier;
   if (ref?.title) return ref.title;
-  return `issue ${fallbackId.slice(0, 8)}`;
-}
-
-function pluralize(count: number, singular: string): string {
-  return `${count} ${count === 1 ? singular : `${singular}s`}`;
+  return t("chatComponents.decisionCard.issueFallback", { id: fallbackId.slice(0, 8) });
 }
 
 function isDestructiveOption(option: DecisionOption): boolean {
@@ -93,38 +93,42 @@ function effectSummary(
   effect: DecisionEffect,
   resolve: (id: string) => DecisionIssueRef | null,
   snapshots: Record<string, DecisionTargetSnapshot>,
+  t: TFunction,
 ): string {
-  const target = issueLabel(resolve(effect.targetIssueId), effect.targetIssueId);
+  const target = issueLabel(resolve(effect.targetIssueId), effect.targetIssueId, t);
   switch (effect.type) {
     case "comment_on_issue":
-      return `Comment on ${target}`;
+      return t("chatComponents.decisionCard.effectComment", { target });
     case "create_issue": {
       const parent = effect.draft.parentId
-        ? issueLabel(resolve(effect.draft.parentId), effect.draft.parentId)
+        ? issueLabel(resolve(effect.draft.parentId), effect.draft.parentId, t)
         : target;
-      return `Create issue “${effect.draft.title}” under ${parent}`;
+      return t("chatComponents.decisionCard.effectCreateIssue", { title: effect.draft.title, parent });
     }
     case "update_issue_status":
-      return `Set ${target} to ${humanStatus(effect.status)}`;
+      return t("chatComponents.decisionCard.effectSetStatus", { target, status: humanStatus(effect.status, t) });
     case "assign_issue":
-      return `Reassign ${target}`;
+      return t("chatComponents.decisionCard.effectReassign", { target });
     case "resolve_blocker":
-      return `Unblock ${target} — remove ${pluralize(effect.removeBlockedByIssueIds.length, "blocker")}`;
+      return t("chatComponents.decisionCard.effectUnblock", {
+        target,
+        count: effect.removeBlockedByIssueIds.length,
+      });
     case "cancel_issue_tree": {
       const snapshot = snapshots[effect.targetIssueId];
       const descendantCount = snapshot?.descendantCount ?? snapshot?.descendantIds?.length ?? snapshot?.childCount ?? 0;
-      return `Cancel ${target} and its sub-tree (${pluralize(descendantCount + 1, "issue")})`;
+      return t("chatComponents.decisionCard.effectCancelTree", { target, count: descendantCount + 1 });
     }
     default:
-      return "Apply effect";
+      return t("chatComponents.decisionCard.effectApply");
   }
 }
 
-const FAILURE_CAUSE: Record<string, string> = {
-  deny_decision_intersection: "blocked by the permission boundary (fail-closed)",
-  invalid_effect_reference: "a referenced issue no longer exists",
-  target_changed: "the target changed since this was proposed",
-  effect_execution_failed: "the effect errored while running",
+const FAILURE_CAUSE_KEYS: Record<string, string> = {
+  deny_decision_intersection: "chatComponents.decisionCard.failureDenyIntersection",
+  invalid_effect_reference: "chatComponents.decisionCard.failureInvalidReference",
+  target_changed: "chatComponents.decisionCard.failureTargetChanged",
+  effect_execution_failed: "chatComponents.decisionCard.failureEffectError",
 };
 
 interface ResultRow {
@@ -137,48 +141,62 @@ interface ResultRow {
 function executionRow(
   execution: DecisionEffectExecution,
   resolve: (id: string) => DecisionIssueRef | null,
+  t: TFunction,
 ): ResultRow {
   const targetRef = resolve(execution.targetIssueId);
-  const target = issueLabel(targetRef, execution.targetIssueId);
+  const target = issueLabel(targetRef, execution.targetIssueId, t);
   const result = execution.result ?? {};
   if (execution.status === "skipped") {
-    return { key: execution.id, status: "skipped", summary: `Skipped ${target} — target changed since proposal`, link: targetRef };
+    return { key: execution.id, status: "skipped", summary: t("chatComponents.decisionCard.resultSkipped", { target }), link: targetRef };
   }
   if (execution.status === "failed") {
-    const cause = FAILURE_CAUSE[execution.error ?? ""] ?? execution.error ?? "the effect could not run";
-    return { key: execution.id, status: "failed", summary: `Failed on ${target} — ${cause}`, link: targetRef };
+    const failureKey = FAILURE_CAUSE_KEYS[execution.error ?? ""];
+    const cause = failureKey
+      ? t(failureKey)
+      : execution.error ?? t("chatComponents.decisionCard.failureUnknown");
+    return { key: execution.id, status: "failed", summary: t("chatComponents.decisionCard.resultFailed", { target, cause }), link: targetRef };
   }
   if (execution.status === "claimed") {
-    return { key: execution.id, status: "claimed", summary: `Running on ${target}…`, link: targetRef };
+    return { key: execution.id, status: "claimed", summary: t("chatComponents.decisionCard.resultRunning", { target }), link: targetRef };
   }
   // executed
   switch (execution.effectType) {
     case "comment_on_issue":
-      return { key: execution.id, status: "executed", summary: `Commented on ${target}`, link: targetRef };
+      return { key: execution.id, status: "executed", summary: t("chatComponents.decisionCard.resultCommented", { target }), link: targetRef };
     case "create_issue": {
       const createdId = typeof result.issueId === "string" ? result.issueId : null;
       const created = createdId ? resolve(createdId) : null;
       return {
         key: execution.id,
         status: "executed",
-        summary: `Created ${created ? issueLabel(created, createdId!) : "a new issue"}`,
+        summary: t("chatComponents.decisionCard.resultCreated", {
+          target: created ? issueLabel(created, createdId!, t) : t("chatComponents.decisionCard.resultCreatedNew"),
+        }),
         link: created ?? targetRef,
       };
     }
     case "update_issue_status":
-      return { key: execution.id, status: "executed", summary: `Set ${target} to ${humanStatus(typeof result.status === "string" ? result.status : null)}`, link: targetRef };
+      return {
+        key: execution.id,
+        status: "executed",
+        summary: t("chatComponents.decisionCard.resultSetStatus", {
+          target,
+          status: humanStatus(typeof result.status === "string" ? result.status : null, t),
+        }),
+        link: targetRef,
+      };
     case "assign_issue":
-      return { key: execution.id, status: "executed", summary: `Reassigned ${target}`, link: targetRef };
+      return { key: execution.id, status: "executed", summary: t("chatComponents.decisionCard.resultReassigned", { target }), link: targetRef };
     case "resolve_blocker": {
       const removed = Array.isArray(result.removedBlockedByIssueIds) ? result.removedBlockedByIssueIds.length : 0;
-      return { key: execution.id, status: "executed", summary: `Removed ${pluralize(removed, "blocker")} from ${target}`, link: targetRef };
+      return { key: execution.id, status: "executed", summary: t("chatComponents.decisionCard.resultRemovedBlockers", { target, count: removed }), link: targetRef };
     }
     case "cancel_issue_tree": {
       const cancelled = Array.isArray(result.cancelledIssueIds) ? result.cancelledIssueIds.length : 0;
-      return { key: execution.id, status: "executed", summary: `Cancelled ${pluralize(cancelled, "issue")} under ${target}`, link: targetRef };
+      return { key: execution.id, status: "executed", summary: t("chatComponents.decisionCard.resultCancelledIssues", { target, count: cancelled }), link: targetRef };
     }
     default:
-      return { key: execution.id, status: "executed", summary: `Applied effect on ${target}`, link: targetRef };
+      return { key: execution.id, status: "executed", summary: t("chatComponents.decisionCard.resultApplied", { target }), link: targetRef };
   }
 }
 
@@ -205,13 +223,14 @@ const BADGE: Record<CardTone, string> = {
 };
 
 function IssueLink({ ref: link }: { ref: DecisionIssueRef | null }) {
+  const { t } = useTranslation();
   if (!link) return null;
   return (
     <a
       href={link.href}
       className="inline-flex items-center gap-1 rounded-sm border border-border/70 bg-background px-1.5 py-0.5 text-xs font-medium text-foreground hover:border-sky-500/70 hover:text-sky-700 dark:hover:text-sky-300"
     >
-      {issueLabel(link, link.id)}
+      {issueLabel(link, link.id, t)}
       <ExternalLink className="h-3 w-3" aria-hidden />
     </a>
   );
@@ -239,6 +258,7 @@ export function DecisionCard({
   onDismiss,
   className,
 }: DecisionCardProps) {
+  const { t } = useTranslation();
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [confirmOptionId, setConfirmOptionId] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
@@ -270,19 +290,34 @@ export function DecisionCard({
             ? "partial"
             : "failed";
 
-  const badgeLabel = open
-    ? "Pending"
+  // Machine state for selectors/tests; the visible badge is localized separately.
+  const decisionState = open
+    ? "pending"
     : decision.status === "expired"
-      ? "Expired"
+      ? "expired"
       : decision.status === "cancelled"
-        ? "Cancelled"
+        ? "cancelled"
         : dismissed
-          ? "Dismissed"
+          ? "dismissed"
           : decision.executionStatus === "succeeded"
-            ? "Decided"
+            ? "decided"
             : decision.executionStatus === "partial"
-              ? "Partial"
-              : "Failed";
+              ? "partial"
+              : "failed";
+
+  const badgeLabel = open
+    ? sentenceCaseStatusLabel("pending", t)
+    : decision.status === "expired"
+      ? t("chatComponents.decisionCard.expired")
+      : decision.status === "cancelled"
+        ? sentenceCaseStatusLabel("cancelled", t)
+        : dismissed
+          ? t("chatComponents.decisionCard.dismissed")
+          : decision.executionStatus === "succeeded"
+            ? t("chatComponents.decisionCard.decided")
+            : decision.executionStatus === "partial"
+              ? t("chatComponents.decisionCard.partial")
+              : sentenceCaseStatusLabel("failed", t);
 
   const requiredUnmet = (decision.inputs ?? []).some(
     (field) => field.required && !(inputValues[field.id] ?? "").trim(),
@@ -325,7 +360,7 @@ export function DecisionCard({
         dimmed && "opacity-80",
         className,
       )}
-      data-decision-state={badgeLabel.toLowerCase()}
+      data-decision-state={decisionState}
     >
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -333,7 +368,7 @@ export function DecisionCard({
         <div className="flex shrink-0 items-center gap-1.5">
           {open && hasCancelTree && (
             <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-(length:--text-micro) font-semibold uppercase tracking-wide", BADGE.destructive)}>
-              <ShieldAlert className="h-3 w-3" aria-hidden /> Destructive
+              <ShieldAlert className="h-3 w-3" aria-hidden /> {t("chatComponents.decisionCard.destructive")}
             </span>
           )}
           <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-(length:--text-micro) font-semibold uppercase tracking-wide", BADGE[tone])}>
@@ -344,27 +379,41 @@ export function DecisionCard({
 
       {/* Provenance */}
       <p className="mt-1 text-xs text-muted-foreground">
-        Proposed by <span className="font-medium text-foreground">{originAgentName ?? "an agent"}</span>
+        <Trans
+          i18nKey="chatComponents.decisionCard.proposedBy"
+          values={{ agent: originAgentName ?? t("chatComponents.common.anAgent") }}
+          components={{ agent: <span className="font-medium text-foreground" /> }}
+        />
         {originIssue && (
           <>
-            {" "}while running{" "}
-            <a href={originIssue.href} className="font-medium text-primary underline-offset-2 hover:underline">
-              {issueLabel(originIssue, originIssue.id)}
-            </a>
+            {" "}
+            <Trans
+              i18nKey="chatComponents.decisionCard.whileRunning"
+              values={{ issue: issueLabel(originIssue, originIssue.id, t) }}
+              components={{
+                issue: (
+                  <a
+                    href={originIssue.href}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  />
+                ),
+              }}
+            />
           </>
         )}
         {targetRefs.length > 0 && (
           <>
-            {" · applies to "}
+            {" · "}
+            {t("chatComponents.decisionCard.appliesTo")}{" "}
             {targetRefs.map(({ id, ref }, index) => (
               <span key={id}>
-                {index > 0 && ", "}
+                {index > 0 && t("common.listSeparator")}
                 {ref ? (
                   <a href={ref.href} className="font-medium text-primary underline-offset-2 hover:underline">
-                    {issueLabel(ref, id)}
+                    {issueLabel(ref, id, t)}
                   </a>
                 ) : (
-                  <span className="font-medium text-foreground">{issueLabel(null, id)}</span>
+                  <span className="font-medium text-foreground">{issueLabel(null, id, t)}</span>
                 )}
               </span>
             ))}
@@ -373,7 +422,7 @@ export function DecisionCard({
         {runHref && (
           <>
             {" · "}
-            <a href={runHref} className="hover:underline">view run</a>
+            <a href={runHref} className="hover:underline">{t("chatComponents.decisionCard.viewRun")}</a>
           </>
         )}
       </p>
@@ -390,7 +439,7 @@ export function DecisionCard({
         <div className="mt-3 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2">
           <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-            {pluralize(staleTargetIds.length, "target")} changed since this was proposed
+            {t("chatComponents.decisionCard.staleTargets", { count: staleTargetIds.length })}
           </div>
           <ul className="mt-1.5 space-y-1 text-xs text-amber-900/90 dark:text-amber-100/90">
             {staleTargetIds.map((id) => {
@@ -398,16 +447,18 @@ export function DecisionCard({
               const from = snapshots[id];
               return (
                 <li key={id} className="flex flex-wrap items-center gap-1">
-                  <span className="font-medium">{issueLabel(ref, id)}:</span>
-                  <span className="tabular-nums">{humanStatus(from?.status)}</span>
+                  <span className="font-medium">{issueLabel(ref, id, t)}:</span>
+                  <span className="tabular-nums">{humanStatus(from?.status, t)}</span>
                   <ArrowRight className="h-3 w-3" aria-hidden />
-                  <span className="tabular-nums">{humanStatus(ref?.status) || "changed"}</span>
+                  <span className="tabular-nums">
+                    {humanStatus(ref?.status, t) || t("chatComponents.decisionCard.changed")}
+                  </span>
                 </li>
               );
             })}
           </ul>
           <p className="mt-1.5 text-xs text-amber-800/80 dark:text-amber-200/80">
-            Options that require an unchanged target are disabled below.
+            {t("chatComponents.decisionCard.staleOptionsDisabled")}
           </p>
         </div>
       )}
@@ -467,7 +518,7 @@ export function DecisionCard({
                     </span>
                     {blockedStale && (
                       <span className="shrink-0 rounded-full border border-amber-500/60 bg-amber-500/10 px-2 py-0.5 text-(length:--text-micro) font-medium text-amber-800 dark:text-amber-200">
-                        Blocked · stale
+                        {t("chatComponents.decisionCard.blockedStale")}
                       </span>
                     )}
                   </div>
@@ -485,7 +536,7 @@ export function DecisionCard({
                           )}
                         >
                           <ArrowRight className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-                          {effectSummary(effect, resolveIssue, snapshots)}
+                          {effectSummary(effect, resolveIssue, snapshots, t)}
                         </li>
                       ))}
                     </ul>
@@ -496,18 +547,18 @@ export function DecisionCard({
                 {confirming && cancelTree && (
                   <div className="rounded-lg border border-rose-500/50 bg-rose-500/5 p-3">
                     <div className="flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-300">
-                      <Ban className="h-4 w-4" aria-hidden /> This cancels an entire issue tree
+                      <Ban className="h-4 w-4" aria-hidden /> {t("chatComponents.decisionCard.cancelTreeHeading")}
                     </div>
                     {previewRows && previewRows.length > 0 ? (
                       <>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {pluralize(previewRows.length, "issue")} will be cancelled:
+                          {t("chatComponents.decisionCard.cancelTreeCount", { count: previewRows.length })}
                         </p>
                         <ul className="mt-1 max-h-40 space-y-0.5 overflow-auto text-xs">
                           {previewRows.map((row) => (
                             <li key={row.id} className="flex items-center gap-1.5">
                               <Ban className="h-3 w-3 shrink-0 text-rose-500" aria-hidden />
-                              <span className="font-medium">{issueLabel(row, row.id)}</span>
+                              <span className="font-medium">{issueLabel(row, row.id, t)}</span>
                               {row.title && row.identifier && (
                                 <span className="truncate text-muted-foreground">{row.title}</span>
                               )}
@@ -517,17 +568,21 @@ export function DecisionCard({
                       </>
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        This issue and every sub-issue beneath it will be cancelled.
+                        {t("chatComponents.decisionCard.cancelTreeAll")}
                       </p>
                     )}
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Type <span className="font-mono font-medium text-foreground">{confirmToken}</span> to confirm.
+                      <Trans
+                        i18nKey="chatComponents.decisionCard.confirmType"
+                        values={{ token: confirmToken }}
+                        components={{ token: <span className="font-mono font-medium text-foreground" /> }}
+                      />
                     </p>
                     <Input
                       value={confirmText}
                       onChange={(event) => setConfirmText(event.target.value)}
                       placeholder={confirmToken}
-                      aria-label="Type the issue identifier to confirm"
+                      aria-label={t("chatComponents.decisionCard.confirmAria")}
                       autoFocus
                       className="mt-1"
                     />
@@ -540,7 +595,7 @@ export function DecisionCard({
                           setConfirmText("");
                         }}
                       >
-                        Cancel
+                        {t("common.actions.cancel")}
                       </Button>
                       <Button
                         variant="destructive"
@@ -549,7 +604,9 @@ export function DecisionCard({
                         onClick={() => onDecide?.(option.id, inputValues)}
                       >
                         {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        {previewRows ? `Cancel ${pluralize(previewRows.length, "issue")}` : "Cancel tree"}
+                        {previewRows
+                          ? t("chatComponents.decisionCard.cancelIssues", { count: previewRows.length })
+                          : t("chatComponents.decisionCard.cancelTree")}
                       </Button>
                     </div>
                   </div>
@@ -561,9 +618,9 @@ export function DecisionCard({
           {/* Always-present zero-effect Dismiss (telemetered "no", distinct from expiry) */}
           {!decision.options.some((option) => option.effects.length === 0) && (
             <div className="flex items-center justify-between gap-2 pt-1">
-              <span className="text-xs text-muted-foreground">Not now?</span>
+              <span className="text-xs text-muted-foreground">{t("chatComponents.decisionCard.notNow")}</span>
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => onDismiss?.()}>
-                Dismiss — no effects
+                {t("chatComponents.decisionCard.dismissNoEffects")}
               </Button>
             </div>
           )}
@@ -577,33 +634,33 @@ export function DecisionCard({
           {decision.status === "expired" && (
             <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-2 font-medium text-foreground">
-                <Clock className="h-4 w-4" aria-hidden /> The decision window closed
+                <Clock className="h-4 w-4" aria-hidden /> {t("chatComponents.decisionCard.windowClosed")}
               </div>
               <p className="mt-1">
                 {expiredReason === "target_gone"
-                  ? "A target issue was cancelled before this was decided."
+                  ? t("chatComponents.decisionCard.expiredTargetGone")
                   : expiredReason === "target_completed"
-                    ? "All target issues were completed before this was decided."
-                    : "No response before the expiry deadline."}
-                {decision.continuationPolicy === "wake_origin_agent" && " The proposer was re-woken."}
+                    ? t("chatComponents.decisionCard.expiredTargetCompleted")
+                    : t("chatComponents.decisionCard.expiredNoResponse")}
+                {decision.continuationPolicy === "wake_origin_agent" && ` ${t("chatComponents.decisionCard.proposerRewoken")}`}
               </p>
             </div>
           )}
           {decision.status === "cancelled" && (
             <p className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              This decision was withdrawn by the proposer before a response.
+              {t("chatComponents.decisionCard.withdrawn")}
             </p>
           )}
           {decision.status === "decided" && dismissed && (
             <p className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              Dismissed — no effects were run.
+              {t("chatComponents.decisionCard.dismissedNoEffects")}
             </p>
           )}
           {decision.status === "decided" && !dismissed && (executions ?? []).length > 0 && (
             <>
               <ul className="space-y-1.5">
                 {(executions ?? []).map((execution) => {
-                  const row = executionRow(execution, resolveIssue);
+                  const row = executionRow(execution, resolveIssue, t);
                   return (
                     <li key={row.key} className="flex items-start gap-2">
                       {RESULT_ICON[row.status]}
@@ -615,7 +672,7 @@ export function DecisionCard({
               </ul>
               {decision.executionStatus !== "succeeded" && (
                 <p className="text-xs text-muted-foreground">
-                  Some effects may already have been applied. Review the results before asking the proposer to re-propose.
+                  {t("chatComponents.decisionCard.partialEffectsNote")}
                 </p>
               )}
             </>

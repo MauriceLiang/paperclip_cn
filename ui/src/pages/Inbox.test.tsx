@@ -697,6 +697,7 @@ describe("Inbox toolbar", () => {
       expect(toolbar?.getAttribute("aria-label")).toBe("Inbox controls");
       expect(toolbar?.querySelector('[data-slot="collection-toolbar-context"]')).not.toBeNull();
       expect(toolbar?.querySelector('[data-slot="collection-toolbar-search"] input[placeholder="Search inbox…"]')).not.toBeNull();
+      expect(toolbar?.querySelector('[data-slot="collection-toolbar-search"] input[aria-label="Search inbox…"]')).not.toBeNull();
       expect(toolbar?.querySelector('[data-slot="collection-toolbar-controls"]')).not.toBeNull();
       expect(container.querySelectorAll('input[placeholder="Search inbox…"]')).toHaveLength(1);
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "@/i18n";
 import {
   BookOpen,
   Brain,
@@ -34,6 +35,14 @@ describe("tool activity vocabulary", () => {
     expect(toolTaxonomy("WebFetch")).toEqual({ family: "web", icon: ChevronsLeftRightEllipsis, verbLabel: "Fetching a web page" });
     expect(toolTaxonomy("Agent")).toEqual({ family: "agent", icon: Network, verbLabel: "Starting a subagent" });
     expect(toolTaxonomy("AskUserQuestion")).toEqual({ family: "question", icon: CircleHelp, verbLabel: "Requesting input" });
+  });
+
+  it("localizes tool activity copy in Simplified Chinese while preserving provider names", async () => {
+    await i18n.changeLanguage("zh-CN");
+
+    expect(toolTaxonomy("Bash").verbLabel).toBe("正在运行命令");
+    expect(toolActivityPresentation({ name: "search_tasks" }).runningLabel).toBe("正在搜索任务");
+    expect(toolActivityPresentation({ name: "CustomExtension" }).runningLabel).toBe("正在运行 Custom extension");
   });
 
   it("normalizes camel, Pascal, snake, kebab, dotted, and both MCP formats", () => {

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { InlineBanner } from "@/components/InlineBanner";
 import { ConnectionChoiceList } from "../ConnectionChoiceList";
+import { useTranslation } from "@/i18n";
 
 /** Shared presentation for account reuse, including the requested external app. */
 export function RemoteMcpAccountChoice({
@@ -22,31 +23,28 @@ export function RemoteMcpAccountChoice({
   onCancel?: () => void;
   onConnectNew: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold">
           {upstreamServiceName
-            ? `Connect ${upstreamServiceName} through ${providerName}`
-            : `Connect ${providerName}`}
+            ? t("toolsPage.connectFlow.remoteMcp.connectUpstreamTitle", { upstream: upstreamServiceName, provider: providerName })
+            : t("toolsPage.connectFlow.remoteMcp.connect", { provider: providerName })}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Use an existing connection or connect a new account. Existing access
-          stays unchanged.
+          {t("toolsPage.connectFlow.remoteMcp.accountChoice.description")}
         </p>
       </div>
       {upstreamServiceName && (
         <InlineBanner compact>
-          {providerName} is an external service that handles the connection and
-          requests to {upstreamServiceName}. Reusing this account does not yet
-          verify app access; the agent will check it and guide any additional
-          authorization.
+          {t("toolsPage.connectFlow.remoteMcp.accountChoice.externalProvider", { provider: providerName, upstream: upstreamServiceName })}
         </InlineBanner>
       )}
       <ConnectionChoiceList
         choices={connections.map((connection) => ({
           ...connection,
-          description: "Provider account available",
+          description: t("toolsPage.connectFlow.remoteMcp.accountChoice.providerAccountAvailable"),
         }))}
         pendingId={pendingId}
         onSelect={onSelect}
@@ -62,10 +60,10 @@ export function RemoteMcpAccountChoice({
           disabled={Boolean(pendingId)}
           onClick={onCancel}
         >
-          Cancel
+          {t("toolsPage.connectFlow.remoteMcp.accountChoice.cancel")}
         </Button>
         <Button disabled={Boolean(pendingId)} onClick={onConnectNew}>
-          Connect new
+          {t("toolsPage.connectFlow.remoteMcp.accountChoice.connectNew")}
         </Button>
       </div>
     </div>

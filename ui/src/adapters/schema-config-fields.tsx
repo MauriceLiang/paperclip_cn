@@ -13,6 +13,7 @@ import {
 } from "../components/agent-config-primitives";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { ChevronDown } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 // ── Select field (extracted to keep hooks at component top level) ──────
 function SelectField({
@@ -24,6 +25,7 @@ function SelectField({
   options: Array<{ value: string; label: string }>;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const selectedOpt = options.find((o) => o.value === value);
   return (
@@ -31,7 +33,7 @@ function SelectField({
       <PopoverTrigger asChild>
         <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
           <span className={!value ? "text-muted-foreground" : ""}>
-            {selectedOpt?.label ?? value ?? "Select..."}
+            {selectedOpt?.label ?? value ?? t("agentSetupPage.adapters.schemaFields.select")}
           </span>
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
         </button>
@@ -73,6 +75,7 @@ function ComboboxField({
   onChange: (val: string) => void;
   placeholder?: string;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -139,7 +142,7 @@ function ComboboxField({
           type="text"
           className="flex-1 rounded-l-md border border-r-0 border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40 focus:z-10"
           value={displayValue}
-          placeholder={placeholder ?? "Type or select..."}
+          placeholder={placeholder ?? t("agentSetupPage.adapters.schemaFields.typeOrSelect")}
           onChange={(e) => {
             setFilter(e.target.value);
             if (!open) setOpen(true);
@@ -190,7 +193,7 @@ function ComboboxField({
             ))}
             {filter && filtered.length === 0 && (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                Use &quot;{filter}&quot; as custom value (press Enter)
+                {t("agentSetupPage.adapters.schemaFields.customValue", { value: filter })}
               </div>
             )}
           </PopoverContent>
@@ -284,6 +287,72 @@ function getDefaultValue(field: ConfigFieldSchema): unknown {
   }
 }
 
+const BUILTIN_SCHEMA_FIELD_TRANSLATIONS: Record<
+  string,
+  Record<string, { label: string; hint?: string }>
+> = {
+  hermes_local: {
+    provider: { label: "agentSetupPage.adapters.hermesLocal.provider", hint: "agentSetupPage.adapters.hermesLocal.providerHint" },
+    timeoutSec: { label: "agentSetupPage.adapters.hermesLocal.timeoutSec" },
+    graceSec: { label: "agentSetupPage.adapters.hermesLocal.graceSec", hint: "agentSetupPage.adapters.hermesLocal.graceSecHint" },
+    maxTurnsPerRun: { label: "agentSetupPage.adapters.hermesLocal.maxTurnsPerRun", hint: "agentSetupPage.adapters.hermesLocal.maxTurnsPerRunHint" },
+    toolsets: { label: "agentSetupPage.adapters.hermesLocal.toolsets", hint: "agentSetupPage.adapters.hermesLocal.toolsetsHint" },
+    persistSession: { label: "agentSetupPage.adapters.hermesLocal.persistSession", hint: "agentSetupPage.adapters.hermesLocal.persistSessionHint" },
+    worktreeMode: { label: "agentSetupPage.adapters.hermesLocal.worktreeMode", hint: "agentSetupPage.adapters.hermesLocal.worktreeModeHint" },
+    checkpoints: { label: "agentSetupPage.adapters.hermesLocal.checkpoints", hint: "agentSetupPage.adapters.hermesLocal.checkpointsHint" },
+    quiet: { label: "agentSetupPage.adapters.hermesLocal.quiet", hint: "agentSetupPage.adapters.hermesLocal.quietHint" },
+    verbose: { label: "agentSetupPage.adapters.hermesLocal.verbose", hint: "agentSetupPage.adapters.hermesLocal.verboseHint" },
+    paperclipApiUrl: { label: "agentSetupPage.adapters.hermesLocal.paperclipApiUrl", hint: "agentSetupPage.adapters.hermesLocal.paperclipApiUrlHint" },
+    promptTemplate: { label: "agentSetupPage.adapters.hermesLocal.promptTemplate", hint: "agentSetupPage.adapters.hermesLocal.promptTemplateHint" },
+  },
+  cursor_cloud: {
+    repoUrl: { label: "agentSetupPage.adapters.cursorCloud.repoUrl", hint: "agentSetupPage.adapters.cursorCloud.repoUrlHint" },
+    repoStartingRef: { label: "agentSetupPage.adapters.cursorCloud.repoStartingRef", hint: "agentSetupPage.adapters.cursorCloud.repoStartingRefHint" },
+    repoPullRequestUrl: { label: "agentSetupPage.adapters.cursorCloud.repoPullRequestUrl", hint: "agentSetupPage.adapters.cursorCloud.repoPullRequestUrlHint" },
+    runtimeEnvType: { label: "agentSetupPage.adapters.cursorCloud.runtimeEnvType", hint: "agentSetupPage.adapters.cursorCloud.runtimeEnvTypeHint" },
+    runtimeEnvName: { label: "agentSetupPage.adapters.cursorCloud.runtimeEnvName", hint: "agentSetupPage.adapters.cursorCloud.runtimeEnvNameHint" },
+    workOnCurrentBranch: { label: "agentSetupPage.adapters.cursorCloud.workOnCurrentBranch", hint: "agentSetupPage.adapters.cursorCloud.workOnCurrentBranchHint" },
+    autoCreatePR: { label: "agentSetupPage.adapters.cursorCloud.autoCreatePR", hint: "agentSetupPage.adapters.cursorCloud.autoCreatePRHint" },
+    skipReviewerRequest: { label: "agentSetupPage.adapters.cursorCloud.skipReviewerRequest", hint: "agentSetupPage.adapters.cursorCloud.skipReviewerRequestHint" },
+  },
+};
+
+const CURSOR_CLOUD_RUNTIME_TRANSLATIONS: Record<string, string> = {
+  cloud: "agentSetupPage.adapters.cursorCloud.runtimeCloud",
+  pool: "agentSetupPage.adapters.cursorCloud.runtimePool",
+  machine: "agentSetupPage.adapters.cursorCloud.runtimeMachine",
+};
+
+function localizeBuiltinSchemaField(
+  adapterType: string,
+  field: ConfigFieldSchema,
+  t: (key: string) => string,
+): ConfigFieldSchema {
+  const translation = BUILTIN_SCHEMA_FIELD_TRANSLATIONS[adapterType]?.[field.key];
+  if (!translation) return field;
+
+  let options = field.options;
+  if (adapterType === "hermes_local" && field.key === "provider") {
+    options = options?.map((option) =>
+      option.value === "auto"
+        ? { ...option, label: t("agentSetupPage.adapters.hermesLocal.auto") }
+        : option,
+    );
+  } else if (adapterType === "cursor_cloud" && field.key === "runtimeEnvType") {
+    options = options?.map((option) => {
+      const key = CURSOR_CLOUD_RUNTIME_TRANSLATIONS[option.value];
+      return key ? { ...option, label: t(key) } : option;
+    });
+  }
+
+  return {
+    ...field,
+    label: t(translation.label),
+    hint: translation.hint ? t(translation.hint) : field.hint,
+    options,
+  };
+}
+
 export function fieldMatchesVisibleWhen(
   field: ConfigFieldSchema,
   readValue: (field: ConfigFieldSchema) => unknown,
@@ -331,6 +400,7 @@ export function SchemaConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const { t } = useTranslation();
   const schema = useConfigSchema(adapterType);
 
   const defaultsApplied = useRef({ adapterType, applied: false });
@@ -415,14 +485,15 @@ export function SchemaConfigFields({
         .filter((field) => !(field.type === "select" && /permissionMode/i.test(field.key) && (field.options?.length ?? 0) <= 1))
         .filter((field) => fieldMatchesVisibleWhen(field, readValue, schema))
         .map((field) => {
+          const displayField = localizeBuiltinSchemaField(adapterType, field, t);
           switch (field.type) {
             case "select": {
               const currentVal = String(readValue(field) ?? "");
               return (
-                <Field key={field.key} label={field.label} hint={field.hint}>
+                <Field key={field.key} label={displayField.label} hint={displayField.hint}>
                   <SelectField
                     value={currentVal}
-                    options={field.options ?? []}
+                    options={displayField.options ?? []}
                     onChange={(v) => writeValue(field, v)}
                   />
                 </Field>
@@ -433,8 +504,8 @@ export function SchemaConfigFields({
               return (
                 <ToggleField
                   key={field.key}
-                  label={field.label}
-                  hint={field.hint}
+                  label={displayField.label}
+                  hint={displayField.hint}
                   checked={readValue(field) === true}
                   onChange={(v) => writeValue(field, v)}
                 />
@@ -442,7 +513,7 @@ export function SchemaConfigFields({
 
             case "number":
               return (
-                <Field key={field.key} label={field.label} hint={field.hint}>
+                <Field key={field.key} label={displayField.label} hint={displayField.hint}>
                   <DraftNumberInput
                     value={Number(readValue(field) ?? 0)}
                     onCommit={(v) => writeValue(field, v)}
@@ -454,7 +525,7 @@ export function SchemaConfigFields({
 
             case "textarea":
               return (
-                <Field key={field.key} label={field.label} hint={field.hint}>
+                <Field key={field.key} label={displayField.label} hint={displayField.hint}>
                   <DraftTextarea
                     value={String(readValue(field) ?? "")}
                     onCommit={(v) => writeValue(field, v || undefined)}
@@ -473,8 +544,10 @@ export function SchemaConfigFields({
                 const modelsByProvider = field.meta.providerModels as Record<string, string[]>;
                 if (providerVal === "auto") {
                   // Auto: show all models from all providers, grouped by provider
-                  const providerLabel = schema.fields.find((f) => f.key === "provider");
-                  const providerOptions = providerLabel?.options ?? [];
+                  const providerField = schema.fields.find((f) => f.key === "provider");
+                  const providerOptions = providerField
+                    ? localizeBuiltinSchemaField(adapterType, providerField, t).options ?? []
+                    : [];
                   comboboxOptions = Object.entries(modelsByProvider).flatMap(([prov, models]) =>
                     models.map((m) => ({
                       label: m,
@@ -484,8 +557,11 @@ export function SchemaConfigFields({
                   );
                 } else {
                   const providerModels = modelsByProvider[providerVal] ?? [];
-                  const providerLabel = schema.fields.find((f) => f.key === "provider");
-                  const provName = providerLabel?.options?.find((p) => p.value === providerVal)?.label ?? providerVal;
+                  const providerField = schema.fields.find((f) => f.key === "provider");
+                  const providerOptions = providerField
+                    ? localizeBuiltinSchemaField(adapterType, providerField, t).options ?? []
+                    : [];
+                  const provName = providerOptions.find((p) => p.value === providerVal)?.label ?? providerVal;
                   comboboxOptions = providerModels.map((m) => ({
                     label: m,
                     value: m,
@@ -494,12 +570,12 @@ export function SchemaConfigFields({
                 }
               }
               return (
-                <Field key={field.key} label={field.label} hint={field.hint}>
+                <Field key={field.key} label={displayField.label} hint={displayField.hint}>
                   <ComboboxField
                     value={currentVal}
                     options={comboboxOptions}
                     onChange={(v) => writeValue(field, v || undefined)}
-                    placeholder={field.hint}
+                    placeholder={displayField.hint}
                   />
                 </Field>
               );
@@ -508,7 +584,7 @@ export function SchemaConfigFields({
             case "text":
             default:
               return (
-                <Field key={field.key} label={field.label} hint={field.hint}>
+                <Field key={field.key} label={displayField.label} hint={displayField.hint}>
                   <DraftInput
                     value={String(readValue(field) ?? "")}
                     onCommit={(v) => writeValue(field, v || undefined)}

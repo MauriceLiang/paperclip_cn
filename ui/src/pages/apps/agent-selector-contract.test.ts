@@ -1,8 +1,30 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import en from "@/i18n/locales/en.json";
+
+function resolveEnglishCopy(key: string): string | undefined {
+  let value: unknown = en;
+  for (const part of key.split(".")) {
+    if (!value || typeof value !== "object") return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return typeof value === "string" ? value : undefined;
+}
+
 function source(relativePath: string) {
-  return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  const content = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  const keys = new Set<string>();
+  const keyPattern = /(?:\bi18nKey\s*=\s*["']([^"']+)["']|\b(?:t|translate)\s*\(\s*["'`]([^"'`]+)["'`])/g;
+  for (const match of content.matchAll(keyPattern)) {
+    const key = match[1] ?? match[2];
+    if (key) keys.add(key);
+  }
+  for (const match of content.matchAll(/["'`]([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)["'`]/g)) {
+    keys.add(match[1]);
+  }
+  const englishCopy = [...keys].map(resolveEnglishCopy).filter((value): value is string => Boolean(value));
+  return `${content}\n${englishCopy.join("\n")}`;
 }
 
 describe("Apps agent selector contract", () => {
@@ -17,7 +39,8 @@ describe("Apps agent selector contract", () => {
     expect(appConnect).toContain("<ConnectionSetupFlow");
     expect(connectionSetupFlow).toContain("<AgentMultiSelect");
     expect(permissions).toContain("<AgentMultiSelect");
-    expect(tester).toContain('placeholder="Search agents…"');
+    expect(tester).toContain('appsPage.actionTest.searchAgentsPlaceholder');
+    expect(tester).toContain("Search agents…");
 
     expect(profiles.match(/<AgentSelect/g)).toHaveLength(2);
     expect(profiles).not.toContain("<Select value={agentId}");

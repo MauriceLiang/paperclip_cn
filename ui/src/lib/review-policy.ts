@@ -1,4 +1,5 @@
 import { UserCheck, UserMinus, type LucideIcon } from "lucide-react";
+import { t as translate } from "@/i18n";
 import { ISSUE_REVIEW_POLICIES, type IssueReviewPolicy } from "@paperclipai/shared";
 
 /**
@@ -46,9 +47,9 @@ const BADGES: Partial<Record<IssueReviewPolicy, IssueReviewPolicyBadge>> = {
 
 /** Mid-sentence wording for activity lines and field-change receipts. */
 const VALUE_LABELS: Record<IssueReviewPolicy, string> = {
-  anyone: "anyone",
-  not_creator: "anyone else",
-  human_only: "human only",
+  anyone: "issueFields.reviewPolicyValue.anyone",
+  not_creator: "issueFields.reviewPolicyValue.anyoneElse",
+  human_only: "issueFields.reviewPolicyValue.humanOnly",
 };
 
 /**
@@ -59,7 +60,13 @@ export function issueReviewPolicyBadge(
   policy: IssueReviewPolicy | null | undefined,
 ): IssueReviewPolicyBadge | null {
   if (typeof policy !== "string") return null;
-  return BADGES[policy as IssueReviewPolicy] ?? null;
+  const badge = BADGES[policy as IssueReviewPolicy];
+  if (!badge) return null;
+  return {
+    ...badge,
+    label: translate(`issueFields.reviewPolicyBadge.${policy}.label`),
+    description: translate(`issueFields.reviewPolicyBadge.${policy}.description`),
+  };
 }
 
 /**
@@ -67,10 +74,11 @@ export function issueReviewPolicyBadge(
  * cleared column must read "anyone" rather than "none".
  */
 export function formatReviewPolicyValue(value: unknown): string {
-  if (value === null || value === undefined) return VALUE_LABELS.anyone;
-  if (typeof value !== "string") return VALUE_LABELS.anyone;
+  if (value === null || value === undefined) return translate(VALUE_LABELS.anyone);
+  if (typeof value !== "string") return translate(VALUE_LABELS.anyone);
   // Forward-compatible: a policy this build does not know reads as itself.
-  return VALUE_LABELS[value as IssueReviewPolicy] ?? value.replace(/_/g, " ");
+  const key = VALUE_LABELS[value as IssueReviewPolicy];
+  return key ? translate(key) : value.replace(/_/g, " ");
 }
 
 /**

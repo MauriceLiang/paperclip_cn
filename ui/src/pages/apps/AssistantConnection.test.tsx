@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n";
 import { AssistantConnection, AssistantConnectionCard } from "./AssistantConnection";
 const mocks = vi.hoisted(() => ({ setup: vi.fn(), connections: vi.fn(), revoke: vi.fn(), breadcrumbs: vi.fn(), copy: vi.fn() }));
 vi.mock("@/hooks/usePrefersReducedMotion", () => ({ usePrefersReducedMotion: () => true }));
@@ -28,6 +29,23 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); client.clear(); container.remove(); vi.clearAllMocks(); });
 describe("assistant setup from Connections", () => {
+  it("localizes the assistant connection card title in Simplified Chinese", async () => {
+    await act(async () => { await i18n.changeLanguage("zh-CN"); });
+    await render(<AssistantConnectionCard onNavigate={vi.fn()} />);
+    expect(container.querySelector("h2")?.textContent).toBe("助手连接（MCP）");
+    expect(container.querySelector("button")?.getAttribute("aria-label")).toBe("设置助手连接（MCP）");
+  });
+
+  it("localizes the assistant connection page heading and breadcrumb", async () => {
+    await act(async () => { await i18n.changeLanguage("zh-CN"); });
+    await render();
+    expect(container.querySelector("h1")?.textContent).toBe("助手连接（MCP）");
+    expect(mocks.breadcrumbs.mock.calls.at(-1)?.[0]).toEqual([
+      { label: "连接器", href: "/apps" },
+      { label: "助手连接（MCP）" },
+    ]);
+  });
+
   it("copies a scoped instruction link with no credential and keeps manual configuration collapsed", async () => {
     await render();
     expect(container.querySelector("details")?.open).toBe(false);

@@ -2,6 +2,7 @@ import type { CompanyMember, CompanyUserDirectoryEntry } from "@/api/access";
 import type { InlineEntityOption } from "@/components/InlineEntitySelector";
 import type { MentionOption } from "@/components/MarkdownEditor";
 import type { Agent, Issue, Project } from "@paperclipai/shared";
+import { t as translate } from "@/i18n";
 
 export interface CompanyUserProfile {
   label: string;
@@ -12,11 +13,11 @@ type CompanyUserRecord = Pick<CompanyMember, "principalId" | "status" | "user">
   | CompanyUserDirectoryEntry;
 
 function fallbackUserLabel(userId: string): string {
-  if (userId === "local-board") return "Board";
   return userId.slice(0, 5);
 }
 
 function baseMemberLabel(member: Pick<CompanyUserRecord, "principalId" | "user">): string {
+  if (member.principalId === "local-board") return translate("shell.account.board");
   const name = member.user?.name?.trim();
   if (name) return name;
   const email = member.user?.email?.trim();
